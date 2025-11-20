@@ -145,7 +145,7 @@ export default function Navbar() {
                     }}
                     onBlur={() => setIsSearchFocused(false)}
                     placeholder="Search businesses, services, products..."
-                    className="w-full h-12 pl-4 pr-24 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 bg-white shadow-sm transition-all"
+                    className="w-full h-12 pl-4 pr-24 py-3 text-sm text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 bg-white shadow-sm transition-all"
                     aria-label="Search businesses, services or categories"
                   />
                   {/* Voice Search Icon - Enhanced */}
@@ -231,7 +231,7 @@ export default function Navbar() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search..."
-                  className="w-full h-10 pl-3 pr-10 py-2 text-sm border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full h-10 pl-3 pr-10 py-2 text-sm text-gray-900 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
                 <button
                   onClick={() => handleSubmit()}

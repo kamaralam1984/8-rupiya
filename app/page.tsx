@@ -14,6 +14,7 @@ export default function Home() {
       <main className="max-w-[98%] mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-6">
         {/* Hero Section */}
         <HeroSection />
+        
 
         {/* Categories Section */}
         <CategoryGrid />

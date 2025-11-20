@@ -82,6 +82,9 @@ export interface Location {
   state?: string;
   country: string;
   displayName: string;
+  pincode?: number;
+  district?: string;
+  source?: 'auto' | 'manual' | 'pincode' | 'browser';
 }
 
 export interface BusinessSummary {

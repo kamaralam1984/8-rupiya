@@ -110,7 +110,7 @@ export default function SearchBar({ location }: SearchBarProps) {
           onKeyDown={handleKeyDown}
           onFocus={() => query.length >= 2 && setShowSuggestions(true)}
           placeholder="Search shops, services or categories — e.g. 'tailor near me'"
-          className="w-full h-12 md:h-14 pl-12 pr-4 py-3 text-sm md:text-base border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          className="w-full h-12 md:h-14 pl-12 pr-4 py-3 text-sm md:text-base text-gray-900 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           aria-label="Search shops, services or categories"
         />
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">

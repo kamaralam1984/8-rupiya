@@ -1,43 +1,55 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { Location } from '../types';
+import {
+  detectBrowserLocation,
+  findLocationByPincode,
+  getPatnaLocations,
+  searchLocations,
+  type PatnaLocation,
+} from '../utils/locationUtils';
 
 interface LocationSelectorProps {
   currentLocation: Location;
   onLocationChange: (location: Location) => void;
 }
 
+const MAX_VISIBLE_RESULTS = 200;
+
 export default function LocationSelector({ currentLocation, onLocationChange }: LocationSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [recentLocations] = useState<Location[]>([
-    { id: 'mumbai', city: 'Mumbai', state: 'Maharashtra', country: 'IN', displayName: 'Mumbai' },
-    { id: 'patna', city: 'Patna', state: 'Bihar', country: 'IN', displayName: 'Patna' },
-    { id: 'delhi', city: 'Delhi', state: 'Delhi', country: 'IN', displayName: 'Delhi' },
-    { id: 'bangalore', city: 'Bangalore', state: 'Karnataka', country: 'IN', displayName: 'Bangalore' },
-    { id: 'hyderabad', city: 'Hyderabad', state: 'Telangana', country: 'IN', displayName: 'Hyderabad' },
-  ]);
-  const [searchResults, setSearchResults] = useState<Location[]>([]);
+  const [pincodeQuery, setPincodeQuery] = useState('');
+  const [pincodeMatch, setPincodeMatch] = useState<PatnaLocation | undefined>();
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [detectError, setDetectError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (searchQuery.length >= 2) {
-      const results = recentLocations.filter(loc =>
-        loc.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        loc.displayName.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setSearchResults(results);
-    } else {
-      setSearchResults([]);
+  const locations = useMemo(() => getPatnaLocations(), []);
+
+  const visibleLocations = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return locations.slice(0, MAX_VISIBLE_RESULTS);
     }
-  }, [searchQuery, recentLocations]);
+    return searchLocations(searchQuery, locations.length).slice(0, MAX_VISIBLE_RESULTS);
+  }, [locations, searchQuery]);
+
+  useEffect(() => {
+    if (pincodeQuery.length === 6) {
+      setPincodeMatch(findLocationByPincode(pincodeQuery) ?? undefined);
+    } else {
+      setPincodeMatch(undefined);
+    }
+  }, [pincodeQuery]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
         setSearchQuery('');
+        setPincodeQuery('');
+        setDetectError(null);
       }
     };
 
@@ -45,40 +57,42 @@ export default function LocationSelector({ currentLocation, onLocationChange }: 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleUseCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newLocation: Location = {
-            id: 'current',
-            city: 'Current Location',
-            country: 'IN',
-            displayName: 'Current Location'
-          };
-          onLocationChange(newLocation);
-          setIsOpen(false);
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          alert('Unable to get your location. Please select manually.');
-        }
-      );
-    } else {
-      alert('Geolocation is not supported by your browser.');
+  const handleLocationSelect = (location: PatnaLocation, source: Location['source'] = 'manual') => {
+    onLocationChange({ ...location, source });
+    setIsOpen(false);
+    setSearchQuery('');
+    setPincodeQuery('');
+    setDetectError(null);
+  };
+
+  const handleUseCurrentLocation = async () => {
+    setIsDetecting(true);
+    setDetectError(null);
+    try {
+      const detected = await detectBrowserLocation();
+      if (detected) {
+        handleLocationSelect(detected, 'browser');
+      } else {
+        setDetectError('We could not match your GPS location to a Patna locality.');
+      }
+    } catch (error) {
+      console.error('Error getting location:', error);
+      setDetectError('Unable to fetch your current location. Please allow permission or select manually.');
+    } finally {
+      setIsDetecting(false);
     }
   };
 
-  const handleLocationSelect = (location: Location) => {
-    onLocationChange(location);
-    setIsOpen(false);
-    setSearchQuery('');
+  const handlePincodeChange = (value: string) => {
+    const sanitized = value.replace(/\D+/g, '').slice(0, 6);
+    setPincodeQuery(sanitized);
   };
 
   return (
     <div className="relative shrink-0" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 h-12 px-4 text-sm font-medium text-gray-700 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-xl hover:border-blue-400 hover:bg-gradient-to-br hover:from-blue-50 hover:to-blue-100 transition-all shadow-sm hover:shadow-md min-w-[140px] group"
+        className="flex items-center gap-2 h-12 px-4 text-sm font-medium text-gray-700 bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-xl hover:border-blue-400 hover:bg-gradient-to-br hover:from-blue-50 hover:to-blue-100 transition-all shadow-sm hover:shadow-md min-w-[160px] group"
         aria-label={`Current location: ${currentLocation.displayName}. Click to change location.`}
         aria-expanded={isOpen}
         aria-haspopup="true"
@@ -87,15 +101,24 @@ export default function LocationSelector({ currentLocation, onLocationChange }: 
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
-        <span className="truncate font-semibold">{currentLocation.city || currentLocation.displayName}</span>
+        <div className="flex flex-col text-left">
+          <span className="truncate font-semibold">
+            {currentLocation.city || currentLocation.displayName}
+          </span>
+          {currentLocation.pincode && (
+            <span className="text-[10px] text-gray-500">
+              PIN {currentLocation.pincode} · {currentLocation.district}
+            </span>
+          )}
+        </div>
         <svg className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 mt-3 w-96 bg-white border-2 border-gray-100 rounded-2xl shadow-2xl z-50 max-h-96 overflow-hidden flex flex-col backdrop-blur-sm">
-          {/* Search Box - Enhanced */}
+        <div className="absolute left-0 mt-3 w-[26rem] bg-white border-2 border-gray-100 rounded-2xl shadow-2xl z-50 max-h-[32rem] overflow-hidden flex flex-col backdrop-blur-sm">
+          {/* Search Box */}
           <div className="p-4 border-b-2 border-gray-100 bg-gradient-to-r from-blue-50/50 to-orange-50/50">
             <div className="relative">
               <input
@@ -103,56 +126,107 @@ export default function LocationSelector({ currentLocation, onLocationChange }: 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search city or locality..."
-                className="w-full pl-10 pr-4 py-3 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white shadow-sm transition-all"
+                className="w-full pl-10 pr-4 py-3 text-sm text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white shadow-sm transition-all"
                 autoFocus
               />
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Choose from {locations.length} Patna localities in our dataset.
+            </p>
           </div>
 
-          {/* Use Current Location - Enhanced */}
+          {/* Pincode Search */}
+          <div className="px-5 py-3 border-b-2 border-gray-100 bg-white">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center">
+                <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c1.657 0 3-1.343 3-3S13.657 5 12 5 9 6.343 9 8s1.343 3 3 3zM5.4 20a6.6 6.6 0 0113.2 0" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Find by Pincode
+                </label>
+                <div className="mt-2 relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={pincodeQuery}
+                    onChange={(e) => handlePincodeChange(e.target.value)}
+                    placeholder="Enter 6-digit PIN"
+                    className="w-full pl-3 pr-3 py-2 text-sm text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+                  />
+                  {pincodeQuery && (
+                    <button
+                      onClick={() => setPincodeQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      aria-label="Clear pincode"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                {pincodeQuery.length === 6 && (
+                  <div className="mt-3">
+                    {pincodeMatch ? (
+                      <button
+                        onClick={() => handleLocationSelect(pincodeMatch, 'pincode')}
+                        className="w-full px-3 py-2 text-left text-sm rounded-xl bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-all"
+                      >
+                        <p className="font-semibold">{pincodeMatch.city}</p>
+                        <p className="text-xs text-green-600">
+                          PIN {pincodeMatch.pincode} · {pincodeMatch.district}
+                        </p>
+                      </button>
+                    ) : (
+                      <p className="text-xs text-red-500 font-medium">
+                        No locality matches this pincode in our records.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Use Current Location */}
           <button
             onClick={handleUseCurrentLocation}
-            className="px-5 py-3.5 text-left text-sm font-semibold text-blue-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 border-b-2 border-gray-100 transition-all flex items-center gap-3 group"
+            className="px-5 py-3.5 text-left text-sm font-semibold text-blue-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 border-b-2 border-gray-100 transition-all flex items-center gap-3 group disabled:opacity-60"
+            disabled={isDetecting}
           >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
+              {isDetecting ? (
+                <svg className="w-5 h-5 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+              )}
             </div>
             <span>Use my current location</span>
           </button>
 
-          {/* Results - Enhanced */}
-          <div className="overflow-y-auto flex-1">
-            {searchQuery.length >= 2 && searchResults.length > 0 && (
-              <div className="p-3">
-                <div className="text-xs font-bold text-gray-500 uppercase px-3 py-2 tracking-wider">Search Results</div>
-                {searchResults.map((location) => (
-                  <button
-                    key={location.id}
-                    onClick={() => handleLocationSelect(location)}
-                    className="w-full px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-orange-50 rounded-xl transition-all flex items-center gap-3 group"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    </div>
-                    <span>{location.displayName}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+          {detectError && (
+            <div className="px-5 py-3 text-xs text-red-500 font-medium border-b border-red-100 bg-red-50">
+              {detectError}
+            </div>
+          )}
 
-            {/* Recent Locations - Enhanced */}
-            {searchQuery.length < 2 && (
-              <div className="p-3">
-                <div className="text-xs font-bold text-gray-500 uppercase px-3 py-2 tracking-wider">Popular Cities</div>
-                {recentLocations.map((location) => (
+          {/* Results */}
+          <div className="overflow-y-auto flex-1">
+            {visibleLocations.length > 0 ? (
+              <div className="p-3 space-y-2">
+                {visibleLocations.map((location) => (
                   <button
                     key={location.id}
                     onClick={() => handleLocationSelect(location)}
@@ -162,28 +236,43 @@ export default function LocationSelector({ currentLocation, onLocationChange }: 
                         : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-orange-50 font-medium'
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform ${
-                      location.id === currentLocation.id
-                        ? 'bg-gradient-to-br from-blue-500 to-blue-600'
-                        : 'bg-gray-100 group-hover:bg-blue-100'
-                    }`}>
-                      <svg className={`w-4 h-4 ${location.id === currentLocation.id ? 'text-white' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform ${
+                        location.id === currentLocation.id
+                          ? 'bg-gradient-to-br from-blue-500 to-blue-600'
+                          : 'bg-gray-100 group-hover:bg-blue-100'
+                      }`}
+                    >
+                      <svg
+                        className={`w-4 h-4 ${location.id === currentLocation.id ? 'text-white' : 'text-gray-600'}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                     </div>
-                    <span>{location.displayName}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">{location.city}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        PIN {location.pincode} · {location.district}
+                      </p>
+                    </div>
                     {location.id === currentLocation.id && (
-                      <svg className="w-4 h-4 text-blue-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 text-blue-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
                   </button>
                 ))}
+                {visibleLocations.length === MAX_VISIBLE_RESULTS && (
+                  <p className="text-[11px] text-gray-400 text-center">
+                    Showing first {MAX_VISIBLE_RESULTS} matches. Refine your search for more.
+                  </p>
+                )}
               </div>
-            )}
-
-            {searchQuery.length >= 2 && searchResults.length === 0 && (
+            ) : (
               <div className="px-4 py-12 text-center">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
                   <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -191,7 +280,7 @@ export default function LocationSelector({ currentLocation, onLocationChange }: 
                   </svg>
                 </div>
                 <p className="text-sm font-medium text-gray-500">No locations found</p>
-                <p className="text-xs text-gray-400 mt-1">Try searching with a different term</p>
+                <p className="text-xs text-gray-400 mt-1">Try another locality name or pincode.</p>
               </div>
             )}
           </div>

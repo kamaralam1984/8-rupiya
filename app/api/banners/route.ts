@@ -7,7 +7,7 @@ const mockBanners: Banner[] = [
   {
     id: 'hero-1',
     section: 'hero',
-    imageUrl: '/Assets/sale.jpg',
+    imageUrl: '/Assets/hero/hero-image.jpg',
     title: 'Discover Amazing Local Businesses',
     cta: 'Explore Now',
     ctaText: 'Visit Shop',
@@ -20,7 +20,7 @@ const mockBanners: Banner[] = [
   {
     id: 'left-1',
     section: 'left',
-    imageUrl: '/Assets/Swiggy-logo.jpg',
+    imageUrl: '/Assets/hero/2.png',
     title: 'Food Delivery',
     linkUrl: '/category/restaurants',
     alt: 'Swiggy food delivery',
@@ -30,7 +30,7 @@ const mockBanners: Banner[] = [
   {
     id: 'left-2',
     section: 'left',
-    imageUrl: '/Assets/Ola-Cabs-Logo-2048x1153.jpg',
+    imageUrl: '/Assets/hero/3.png',
     title: 'Transportation Services',
     linkUrl: '/category/transport',
     alt: 'Ola cabs transportation',
@@ -40,7 +40,7 @@ const mockBanners: Banner[] = [
   {
     id: 'left-3',
     section: 'left',
-    imageUrl: '/Assets/Nykaa_New_Logo.svg',
+    imageUrl: '/Assets/hero/4.png',
     title: 'Beauty & Wellness',
     linkUrl: '/category/beauty',
     alt: 'Nykaa beauty products',
@@ -50,7 +50,7 @@ const mockBanners: Banner[] = [
   {
     id: 'left-4',
     section: 'left',
-    imageUrl: '/Assets/Tata_logo.svg.png',
+    imageUrl: '/Assets/hero/5.png',
     title: 'Tata Services',
     linkUrl: '/category/tata',
     alt: 'Tata services',
@@ -61,7 +61,7 @@ const mockBanners: Banner[] = [
   {
     id: 'right-1',
     section: 'right',
-    imageUrl: '/Assets/Flipkart-logo (1).jpg',
+    imageUrl: '/Assets/hero/6.png',
     title: 'Online Shopping',
     linkUrl: '/category/shopping',
     alt: 'Flipkart online shopping',
@@ -71,7 +71,7 @@ const mockBanners: Banner[] = [
   {
     id: 'right-2',
     section: 'right',
-    imageUrl: '/Assets/IndiGo-Logo.jpg',
+    imageUrl: '/Assets/hero/7.png',
     title: 'Travel & Airlines',
     linkUrl: '/category/travel',
     alt: 'IndiGo airlines',
@@ -81,7 +81,7 @@ const mockBanners: Banner[] = [
   {
     id: 'right-3',
     section: 'right',
-    imageUrl: '/Assets/HDFC-Bank-logo.jpg',
+    imageUrl: '/Assets/hero/8.png',
     title: 'Banking Services',
     linkUrl: '/category/banking',
     alt: 'HDFC Bank services',
@@ -91,7 +91,7 @@ const mockBanners: Banner[] = [
   {
     id: 'right-4',
     section: 'right',
-    imageUrl: '/Assets/Reliance-Industries-Limited-Logo.png',
+    imageUrl: '/Assets/hero/9.png',
     title: 'Reliance Services',
     linkUrl: '/category/reliance',
     alt: 'Reliance services',
