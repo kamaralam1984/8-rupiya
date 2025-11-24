@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface Banner {
   bannerId: string;
@@ -99,10 +99,21 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
 
   const [activeSetIndex, setActiveSetIndex] = useState(0);
   const [isFading, setIsFading] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (bannerSets.length <= 1) return;
-    const interval = setInterval(() => {
+    
+    // Clear any existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    // Don't start interval if hovered
+    if (isHovered) return;
+
+    intervalRef.current = setInterval(() => {
       setIsFading(true);
       setTimeout(() => {
         setActiveSetIndex((prev) => (prev + 1) % bannerSets.length);
@@ -110,8 +121,12 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
       }, FADE_DURATION);
     }, ROTATION_INTERVAL);
 
-    return () => clearInterval(interval);
-  }, [bannerSets.length]);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [bannerSets.length, isHovered]);
 
   useEffect(() => {
     setActiveSetIndex(0);
@@ -130,12 +145,21 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
     </div>
   );
 
-  // Split banners into 2 rows of 10 each
+  // Split banners into 2 rows of 10 each for desktop
   const row1 = currentBanners.slice(0, 10);
   const row2 = currentBanners.slice(10, 20);
+  // Split banners into 4 rows of 5 each for mobile
+  const mobileRow1 = currentBanners.slice(0, 5);
+  const mobileRow2 = currentBanners.slice(5, 10);
+  const mobileRow3 = currentBanners.slice(10, 15);
+  const mobileRow4 = currentBanners.slice(15, 20);
 
   return (
-    <div className="w-full mt-6">
+    <div 
+      className="w-full mt-6"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       {/* Desktop: 2 Rows of 10 images each */}
       <div className="hidden md:block relative" aria-live="polite">
         <div
@@ -206,46 +230,167 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
         </div>
       </div>
 
-      {/* Mobile: Horizontal Swiper */}
-      <div className="md:hidden overflow-x-auto scrollbar-hide -mx-4 px-4 snap-x snap-mandatory" aria-live="polite">
+      {/* Mobile: 4 Rows of 5 images each (smaller sizes) */}
+      <div className="md:hidden relative" aria-live="polite">
         <div
-          className={`flex gap-3 transition-opacity ${isFading ? 'opacity-0' : 'opacity-100'}`}
-          style={{ width: 'max-content', transitionDuration: `${FADE_DURATION}ms` }}
+          className={`transition-opacity ${isFading ? 'opacity-0' : 'opacity-100'}`}
+          style={{ transitionDuration: `${FADE_DURATION}ms` }}
         >
-          {[...Array(20)].map((_, index) => {
-            const banner = currentBanners[index];
-            return banner ? (
-              <button
-                key={banner.bannerId}
-                onClick={() => onBannerClick(banner.bannerId, 'bottom', index, banner.link)}
-                className="shrink-0 inline-flex items-center justify-center h-20 w-20 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md transition-all duration-150 snap-start min-w-[80px] min-h-[80px]"
-                aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${index + 1}`}
-                data-banner-id={banner.bannerId}
-                data-section="bottom"
-                data-position={index}
-              >
-                <Image
-                  src={banner.imageUrl}
-                  alt={banner.alt}
-                  width={60}
-                  height={60}
-                  className="object-contain max-h-full max-w-full"
-                  loading="lazy"
-                />
-              </button>
-            ) : (
-              <div
-                key={`bottom-placeholder-${index}`}
-                onClick={() => window.location.href = '/advertise'}
-                className="shrink-0 inline-flex items-center justify-center h-20 w-20 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer snap-start min-w-[80px] min-h-[80px]"
-                role="button"
-                tabIndex={0}
-                aria-label={`Advertise here - Bottom position ${index + 1}`}
-              >
-                <span className="text-xs font-medium text-gray-500">Ad</span>
-              </div>
-            );
-          })}
+          {/* Row 1: 5 images */}
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
+            {[...Array(5)].map((_, index) => {
+              const banner = mobileRow1[index];
+              return banner ? (
+                <button
+                  key={banner.bannerId}
+                  onClick={() => onBannerClick(banner.bannerId, 'bottom', index, banner.link)}
+                  className="inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[50px] sm:min-w-[60px] flex-1 max-w-[65px] sm:max-w-[75px]"
+                  aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${index + 1}`}
+                  data-banner-id={banner.bannerId}
+                  data-section="bottom"
+                  data-position={index}
+                >
+                  <Image
+                    src={banner.imageUrl}
+                    alt={banner.alt}
+                    width={35}
+                    height={28}
+                    className="object-contain max-h-full max-w-full"
+                    loading="lazy"
+                  />
+                </button>
+              ) : (
+                <div key={`bottom-placeholder-${index}`} className="flex-1 max-w-[65px] sm:max-w-[75px]">
+                  <div
+                    onClick={() => window.location.href = '/advertise'}
+                    className="inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[50px] sm:min-w-[60px]"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Advertise here - Bottom position ${index + 1}`}
+                  >
+                    <span className="text-[8px] sm:text-[9px] font-medium text-gray-500">Ad</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Row 2: 5 images */}
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
+            {[...Array(5)].map((_, index) => {
+              const banner = mobileRow2[index];
+              const actualIndex = index + 5;
+              return banner ? (
+                <button
+                  key={banner.bannerId}
+                  onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
+                  className="inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[50px] sm:min-w-[60px] flex-1 max-w-[65px] sm:max-w-[75px]"
+                  aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${actualIndex + 1}`}
+                  data-banner-id={banner.bannerId}
+                  data-section="bottom"
+                  data-position={actualIndex}
+                >
+                  <Image
+                    src={banner.imageUrl}
+                    alt={banner.alt}
+                    width={35}
+                    height={28}
+                    className="object-contain max-h-full max-w-full"
+                    loading="lazy"
+                  />
+                </button>
+              ) : (
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[65px] sm:max-w-[75px]">
+                  <div
+                    onClick={() => window.location.href = '/advertise'}
+                    className="inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[50px] sm:min-w-[60px]"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
+                  >
+                    <span className="text-[8px] sm:text-[9px] font-medium text-gray-500">Ad</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Row 3: 5 images */}
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
+            {[...Array(5)].map((_, index) => {
+              const banner = mobileRow3[index];
+              const actualIndex = index + 10;
+              return banner ? (
+                <button
+                  key={banner.bannerId}
+                  onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
+                  className="inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[50px] sm:min-w-[60px] flex-1 max-w-[65px] sm:max-w-[75px]"
+                  aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${actualIndex + 1}`}
+                  data-banner-id={banner.bannerId}
+                  data-section="bottom"
+                  data-position={actualIndex}
+                >
+                  <Image
+                    src={banner.imageUrl}
+                    alt={banner.alt}
+                    width={35}
+                    height={28}
+                    className="object-contain max-h-full max-w-full"
+                    loading="lazy"
+                  />
+                </button>
+              ) : (
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[65px] sm:max-w-[75px]">
+                  <div
+                    onClick={() => window.location.href = '/advertise'}
+                    className="inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[50px] sm:min-w-[60px]"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
+                  >
+                    <span className="text-[8px] sm:text-[9px] font-medium text-gray-500">Ad</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Row 4: 5 images */}
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5">
+            {[...Array(5)].map((_, index) => {
+              const banner = mobileRow4[index];
+              const actualIndex = index + 15;
+              return banner ? (
+                <button
+                  key={banner.bannerId}
+                  onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
+                  className="inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[50px] sm:min-w-[60px] flex-1 max-w-[65px] sm:max-w-[75px]"
+                  aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${actualIndex + 1}`}
+                  data-banner-id={banner.bannerId}
+                  data-section="bottom"
+                  data-position={actualIndex}
+                >
+                  <Image
+                    src={banner.imageUrl}
+                    alt={banner.alt}
+                    width={35}
+                    height={28}
+                    className="object-contain max-h-full max-w-full"
+                    loading="lazy"
+                  />
+                </button>
+              ) : (
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[65px] sm:max-w-[75px]">
+                  <div
+                    onClick={() => window.location.href = '/advertise'}
+                    className="inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[50px] sm:min-w-[60px]"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
+                  >
+                    <span className="text-[8px] sm:text-[9px] font-medium text-gray-500">Ad</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

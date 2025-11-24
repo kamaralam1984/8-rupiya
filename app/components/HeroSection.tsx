@@ -145,12 +145,12 @@ export default function HeroSection({ category }: HeroSectionProps) {
 
   return (
     <section
-      className="max-w-[98%] mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-6"
+      className="max-w-[98%] mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-4 sm:pb-6"
       role="region"
       aria-label="Hero banner section"
     >
       {/* Parent Container - White Card */}
-      <div className="bg-white rounded-2xl shadow-md p-2 md:p-3">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-2 sm:p-2 md:p-3">
         {/* Desktop: 3-Column Grid Layout */}
         <div className="hidden lg:grid lg:grid-cols-[20%_60%_20%] gap-3 md:gap-4 mb-4">
           {/* LEFT COLUMN (20%) */}
@@ -179,17 +179,18 @@ export default function HeroSection({ category }: HeroSectionProps) {
           <RightRail banners={data.right} onBannerClick={handleBannerClick} height="h-[360px]" />
         </div>
 
-        {/* Mobile: Single Column with Horizontal Swipers */}
-        <div className="md:hidden space-y-6">
-          {/* Hero First */}
-          <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[320px]" />
+        {/* Mobile: 3-Column Grid Layout (Same as desktop but smaller) */}
+        <div className="md:hidden grid grid-cols-[22%_56%_22%] gap-1.5 sm:gap-2 mb-4">
+          {/* LEFT COLUMN */}
+          <LeftRail banners={data.left} onBannerClick={handleBannerClick} height="h-[200px] sm:h-[240px]" />
 
-          {/* Combined Rails Horizontal Swiper */}
-          <MobileRails 
-            leftBanners={data.left} 
-            rightBanners={data.right} 
-            onBannerClick={handleBannerClick} 
-          />
+          {/* CENTER COLUMN - Hero */}
+          <div className="flex items-center justify-center">
+            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[200px] sm:h-[240px]" />
+          </div>
+
+          {/* RIGHT COLUMN */}
+          <RightRail banners={data.right} onBannerClick={handleBannerClick} height="h-[200px] sm:h-[240px]" />
         </div>
 
         {/* BOTTOM STRIP - Full Width */}
