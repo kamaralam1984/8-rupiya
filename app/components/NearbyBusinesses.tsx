@@ -63,8 +63,9 @@ export default function NearbyBusinesses({ limit = 6 }: NearbyBusinessesProps) {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Use radiusKm parameter (0 = all shops)
-        const radiusParam = distance > 0 ? `&radiusKm=${distance}` : '&radiusKm=0';
+        // Use radiusKm parameter - default to 1000 km to show shops from 0-1000 km range
+        // If user has set a specific distance, use that; otherwise use 1000 km
+        const radiusParam = distance > 0 ? `&radiusKm=${Math.min(distance, 1000)}` : '&radiusKm=1000';
         const res = await fetch(
           `/api/shops/nearby?userLat=${location.latitude}&userLng=${location.longitude}${radiusParam}&useMongoDB=true${location.city ? `&city=${encodeURIComponent(location.city)}` : ''}${location.area ? `&area=${encodeURIComponent(location.area)}` : ''}${location.pincode ? `&pincode=${location.pincode}` : ''}`
         );
@@ -134,11 +135,11 @@ export default function NearbyBusinesses({ limit = 6 }: NearbyBusinessesProps) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-2 sm:gap-0">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-              {distance === 0 ? 'Nearby Shops' : `Shops within ${distance} km`}
+              {distance === 0 || distance >= 1000 ? 'Nearby Shops (0-1000 km)' : `Shops within ${distance} km`}
             </h2>
             <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
-              {distance === 0 
-                ? `Shops near ${location.displayName || 'your location'}`
+              {distance === 0 || distance >= 1000
+                ? `Shops from 0-1000 km near ${location.displayName || 'your location'}`
                 : `Shops within ${distance} km of ${location.displayName || 'your location'}`
               }
             </p>

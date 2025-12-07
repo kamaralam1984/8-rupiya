@@ -32,9 +32,10 @@ export default function HeroSection({ category }: HeroSectionProps) {
         ];
 
         // Fetch nearby shops if location coordinates are available
+        // Use 1000 km radius to show shops from 0-1000 km range
         let nearbyShopsPromise: Promise<Response> | null = null;
         if (location.latitude && location.longitude) {
-          nearbyShopsPromise = fetch(`/api/shops/nearby?userLat=${location.latitude}&userLng=${location.longitude}&radiusKm=0&useMongoDB=true${location.city ? `&city=${encodeURIComponent(location.city)}` : ''}${location.area ? `&area=${encodeURIComponent(location.area)}` : ''}${location.pincode ? `&pincode=${location.pincode}` : ''}`);
+          nearbyShopsPromise = fetch(`/api/shops/nearby?userLat=${location.latitude}&userLng=${location.longitude}&radiusKm=1000&useMongoDB=true${location.city ? `&city=${encodeURIComponent(location.city)}` : ''}${location.area ? `&area=${encodeURIComponent(location.area)}` : ''}${location.pincode ? `&pincode=${location.pincode}` : ''}`);
         }
 
         const [heroRes, leftRes, rightRes, bottomRes, nearbyShopsRes] = await Promise.all([

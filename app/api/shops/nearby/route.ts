@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    const radiusKmNum = radiusKm ? parseFloat(radiusKm) : (hasCoordinates ? 10 : 0); // Default 10km if coordinates, 0 (all) if location filter
+    const radiusKmNum = radiusKm ? parseFloat(radiusKm) : (hasCoordinates ? 1000 : 0); // Default 1000km if coordinates, 0 (all) if location filter
 
     if (isNaN(radiusKmNum) || radiusKmNum < 0) {
       return NextResponse.json(
@@ -326,6 +326,7 @@ export async function GET(request: NextRequest) {
       })
       .filter((shop) => {
         // Filter by radius if coordinates are provided and radius is set
+        // If radius is 1000 km, show shops from 0-1000 km range
         if (hasCoordinates && radiusKmNum > 0) {
           return shop.distance <= radiusKmNum;
         }
