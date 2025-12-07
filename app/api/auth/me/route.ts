@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import { requireAuth } from '@/lib/auth';
+import { JWTPayload } from '@/lib/jwt';
 
-async function handler(request: NextRequest, user: { userId: string }) {
+async function handler(request: NextRequest, user: JWTPayload) {
   try {
     // Connect to database
     await connectDB();
@@ -37,6 +38,18 @@ async function handler(request: NextRequest, user: { userId: string }) {
     );
   } catch (error: any) {
     console.error('Get user error:', error);
+
+    // Provide more specific error messages
+    if (error.message?.includes('MongoDB Connection Failed') || error.message?.includes('MongooseServerSelectionError')) {
+      return NextResponse.json(
+        { 
+          error: 'Database connection failed',
+          message: 'Unable to connect to the database. Please check your connection settings.',
+          details: error.message 
+        },
+        { status: 503 } // Service Unavailable
+      );
+    }
 
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },

@@ -86,6 +86,7 @@ export interface Location {
   displayName: string;
   pincode?: number;
   district?: string;
+  area?: string; // Area/locality name
   source?: 'auto' | 'manual' | 'pincode' | 'browser';
   latitude?: number;
   longitude?: number;
@@ -100,5 +101,40 @@ export interface BusinessSummary {
   reviews: number;
   city: string;
   state?: string;
+}
+
+// User location interface for browser geolocation
+export interface UserLocation {
+  lat: number;
+  lng: number;
+  city: string;
+  state: string;
+  pincode?: string;
+  fullAddress?: string;
+  source: 'geolocation' | 'manual';
+}
+
+
+// User location interface for browser geolocation
+export interface UserLocation {
+  lat: number;
+  lng: number;
+  city: string;
+  state: string;
+  pincode?: string;
+  fullAddress?: string;
+  source: 'geolocation' | 'manual';
+}
+
+
+// User location interface for browser geolocation
+export interface UserLocation {
+  lat: number;
+  lng: number;
+  city: string;
+  state: string;
+  pincode?: string;
+  fullAddress?: string;
+  source: 'geolocation' | 'manual';
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { sortBannersByDistance, getBannerDistance } from '../../utils/shopDistance';
 
 interface Banner {
@@ -48,9 +48,6 @@ const fallbackSetB: Banner[] = [
   createBanner('right-asset-flipkart', 'Flipkart-logo (1).jpg', 'Flipkart'),
 ];
 
-const FADE_DURATION = 600;
-const ROTATION_INTERVAL = 9000;
-
 export default function RightRail({ banners, onBannerClick, height = 'h-[480px]', userLat, userLng }: RightRailProps) {
   // Sort banners by distance if user location is available
   const sortedBanners = useMemo(() => {
@@ -61,62 +58,17 @@ export default function RightRail({ banners, onBannerClick, height = 'h-[480px]'
     return banners || [];
   }, [banners, userLat, userLng]);
 
-  const chunkBanners = (source: Banner[]) => {
-    const chunks: Banner[][] = [];
-    for (let i = 0; i < source.length; i += 4) {
-      chunks.push(source.slice(i, i + 4));
+  // Show only first 4 banners (no rotation)
+  const currentBanners = useMemo(() => {
+    if (sortedBanners.length > 0) {
+      return sortedBanners.slice(0, 4);
     }
-    return chunks;
-  };
-
-  const bannerSets = useMemo(() => {
-    const dynamicSets = chunkBanners(sortedBanners);
-    if (dynamicSets.length === 0) {
-      return [fallbackSetA, fallbackSetB];
-    }
-    return [...dynamicSets, fallbackSetA, fallbackSetB];
+    return fallbackSetA.slice(0, 4);
   }, [sortedBanners]);
-
-  const [activeSetIndex, setActiveSetIndex] = useState(0);
-  const [isFading, setIsFading] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (bannerSets.length <= 1) return;
-    
-    // Clear any existing interval
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-
-    // Don't start interval if hovered
-    if (isHovered) return;
-
-    intervalRef.current = setInterval(() => {
-      setIsFading(true);
-      setTimeout(() => {
-        setActiveSetIndex((prev) => (prev + 1) % bannerSets.length);
-        setIsFading(false);
-      }, FADE_DURATION);
-    }, ROTATION_INTERVAL);
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [bannerSets.length, isHovered]);
-
-  useEffect(() => {
-    setActiveSetIndex(0);
-  }, [bannerSets.length]);
-
-  const currentBanners = bannerSets[activeSetIndex] || [];
 
   const renderPlaceholder = (position: number) => (
     <div
-      className="w-full flex-1 min-h-[45px] sm:min-h-[100px] bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer"
+      className="w-full flex-1 min-h-[56px] sm:min-h-[125px] bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer"
       onClick={() => window.location.href = '/advertise'}
       role="button"
       tabIndex={0}
@@ -133,13 +85,8 @@ export default function RightRail({ banners, onBannerClick, height = 'h-[480px]'
     <div 
       className={`flex flex-col gap-1 sm:gap-2 ${height} overflow-hidden items-end`} 
       aria-live="polite"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
-      <div
-        className={`w-full h-full flex flex-col gap-1 sm:gap-2 transition-opacity ${isFading ? 'opacity-0' : 'opacity-100'}`}
-        style={{ transitionDuration: `${FADE_DURATION}ms` }}
-      >
+      <div className="w-full h-full flex flex-col gap-1 sm:gap-2">
         {[0, 1, 2, 3].map((index) => {
           const banner = currentBanners[index];
           const distance = banner ? getBannerDistance(banner, userLat ?? null, userLng ?? null) : null;
@@ -150,7 +97,7 @@ export default function RightRail({ banners, onBannerClick, height = 'h-[480px]'
             >
               <button
                 onClick={() => onBannerClick(banner.bannerId, 'right', index, banner.link)}
-                className="relative w-full flex-1 min-h-[45px] sm:min-h-[100px] rounded-lg bg-white shadow-sm overflow-hidden hover:scale-[1.02] hover:shadow-md transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="relative w-full flex-1 min-h-[56px] sm:min-h-[125px] rounded-lg bg-white shadow-sm overflow-hidden hover:scale-[1.02] hover:shadow-md transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Right slot ${index + 1}`}
                 data-banner-id={banner.bannerId}
                 data-section="right"

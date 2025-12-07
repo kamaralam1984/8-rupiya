@@ -1,5 +1,6 @@
 import rawLocations from '../patna_full_locations.json';
 import type { Location } from '../types';
+import { calculateDistance } from './distance';
 
 export interface PatnaLocationRecord {
   Location: string;
@@ -32,6 +33,7 @@ const normalizeLocation = (entry: PatnaLocationRecord): PatnaLocation => {
     displayName: `${entry.Location}, ${entry.District}`,
     pincode: entry.Pincode,
     district: entry.District,
+    area: entry.Location, // Use Location as area for searching
   };
 };
 
@@ -145,8 +147,45 @@ const getBrowserPosition = () =>
     });
   });
 
+// Find nearest Patna location based on GPS coordinates
+const findNearestPatnaLocation = (lat: number, lon: number): PatnaLocation | null => {
+  let nearest: PatnaLocation | null = null;
+  let minDistance = Infinity;
+
+  for (const location of patnaLocations) {
+    // Only consider locations that have coordinates
+    if (location.latitude && location.longitude) {
+      const distance = calculateDistance(lat, lon, location.latitude, location.longitude);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearest = location;
+      }
+    }
+  }
+
+  // If no location with coordinates found, find nearest by calculating distance to all
+  if (!nearest) {
+    // Use approximate center of Patna for locations without coordinates
+    const PATNA_CENTER = { lat: 25.5941, lon: 85.1376 };
+    
+    for (const location of patnaLocations) {
+      // Use location's coordinates if available, otherwise use Patna center
+      const locLat = location.latitude || PATNA_CENTER.lat;
+      const locLon = location.longitude || PATNA_CENTER.lon;
+      const distance = calculateDistance(lat, lon, locLat, locLon);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearest = location;
+      }
+    }
+  }
+
+  return nearest;
+};
+
 export const detectBrowserLocation = async (): Promise<PatnaLocation | null> => {
   try {
+    // PRIORITY: Get GPS coordinates from device first
     const position = await getBrowserPosition();
     const lat = position.coords.latitude;
     const lon = position.coords.longitude;
@@ -166,44 +205,48 @@ export const detectBrowserLocation = async (): Promise<PatnaLocation | null> => 
       lon <= PATNA_BOUNDS.maxLon
     );
 
-    // Try reverse geocoding to get address details
-    const params = new URLSearchParams({
-      format: 'jsonv2',
-      lat: String(lat),
-      lon: String(lon),
-      addressdetails: '1',
-    });
-
-    try {
-      const response = await fetch(`${NOMINATIM_ENDPOINT}?${params.toString()}`, {
-        headers: {
-          'Accept-Language': 'en',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const matched = matchAddressToLocation(data.address);
-        
-        // If we found a match, return it
-        if (matched) {
-          return matched;
-        }
-      }
-    } catch (fetchError) {
-      // Reverse geocoding failed, use fallback
-    }
-
-    // If no match found but coordinates are within Patna bounds, return default location
-    // This allows users to proceed even if we can't match to a specific locality
+    // If within Patna bounds, find nearest Patna location based on GPS coordinates
     if (isWithinPatna) {
+      const nearestLocation = findNearestPatnaLocation(lat, lon);
+      if (nearestLocation) {
+        // Return nearest location with actual GPS coordinates
+        return {
+          ...nearestLocation,
+          latitude: lat,
+          longitude: lon,
+        };
+      }
+      // Fallback to default location with GPS coordinates
       const defaultLoc = getDefaultLocation();
-      return defaultLoc;
+      return {
+        ...defaultLoc,
+        latitude: lat,
+        longitude: lon,
+      };
     }
 
-    // Outside Patna bounds - return null
-    return null;
+    // Outside Patna bounds - still use GPS coordinates for nearby shops
+    // Find nearest Patna location anyway, but use actual GPS coordinates
+    const nearestLocation = findNearestPatnaLocation(lat, lon);
+    if (nearestLocation) {
+      return {
+        ...nearestLocation,
+        latitude: lat,
+        longitude: lon,
+        displayName: `${nearestLocation.city} (Your Location)`,
+      };
+    }
+
+    // Final fallback: return default location with GPS coordinates
+    const defaultLoc = getDefaultLocation();
+    return {
+      ...defaultLoc,
+      latitude: lat,
+      longitude: lon,
+      displayName: `Current Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`,
+    };
   } catch (error) {
+    // If GPS fails, return null (don't use WiFi/IP-based location)
     return null;
   }
 };

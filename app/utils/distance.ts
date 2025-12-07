@@ -41,3 +41,43 @@ function toRadians(degrees: number): number {
   return degrees * (Math.PI / 180);
 }
 
+/**
+ * Calculate estimated travel time based on distance
+ * Assumes average speed: 30 km/h for city, 60 km/h for highway
+ * @param distanceKm - Distance in kilometers
+ * @param isCity - Whether the route is in city (default: true)
+ * @returns Estimated travel time in minutes
+ */
+export function calculateTravelTime(distanceKm: number, isCity: boolean = true): number {
+  // Average speeds
+  const citySpeed = 30; // km/h
+  const highwaySpeed = 60; // km/h
+  
+  const speed = isCity ? citySpeed : highwaySpeed;
+  const timeHours = distanceKm / speed;
+  const timeMinutes = Math.round(timeHours * 60);
+  
+  // Minimum 1 minute
+  return Math.max(1, timeMinutes);
+}
+
+/**
+ * Format travel time for display
+ * @param minutes - Travel time in minutes
+ * @returns Formatted string (e.g., "5 min", "1 hour 15 min")
+ */
+export function formatTravelTime(minutes: number): string {
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+  
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  
+  if (mins === 0) {
+    return `${hours} hour${hours > 1 ? 's' : ''}`;
+  }
+  
+  return `${hours} hour${hours > 1 ? 's' : ''} ${mins} min`;
+}
+

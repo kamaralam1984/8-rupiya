@@ -4,11 +4,12 @@ import { requireAdmin } from '@/lib/auth';
 import Business from '@/models/Business';
 
 // GET - Get single business
-export const GET = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const GET = requireAdmin(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
+    const { id } = await params;
 
-    const business = await Business.findById(params.id)
+    const business = await Business.findById(id)
       .populate('categoryId', 'name slug')
       .populate('specialOffers')
       .lean();
@@ -31,9 +32,10 @@ export const GET = requireAdmin(async (request: NextRequest, { params }: { param
 });
 
 // PUT - Update business
-export const PUT = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const PUT = requireAdmin(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
+    const { id } = await params;
 
     const body = await request.json();
     const { name, slug, categoryId, address, pincode, area, imageUrl, latitude, longitude, isFeatured } = body;
@@ -51,7 +53,7 @@ export const PUT = requireAdmin(async (request: NextRequest, { params }: { param
     if (isFeatured !== undefined) updateData.isFeatured = isFeatured;
 
     const business = await Business.findByIdAndUpdate(
-      params.id,
+      id,
       updateData,
       { new: true, runValidators: true }
     ).populate('categoryId', 'name slug');
@@ -83,11 +85,12 @@ export const PUT = requireAdmin(async (request: NextRequest, { params }: { param
 });
 
 // DELETE - Delete business
-export const DELETE = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const DELETE = requireAdmin(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
+    const { id } = await params;
 
-    const business = await Business.findByIdAndDelete(params.id);
+    const business = await Business.findByIdAndDelete(id);
 
     if (!business) {
       return NextResponse.json(

@@ -46,6 +46,7 @@ export const POST = requireAdmin(async (request: NextRequest) => {
     const {
       section,
       imageUrl,
+      iconUrl,
       title,
       cta,
       ctaText,
@@ -59,6 +60,18 @@ export const POST = requireAdmin(async (request: NextRequest) => {
       locationId,
       lat,
       lng,
+      shopName,
+      shopId,
+      pageUrl,
+      pageId,
+      category,
+      textEffect,
+      animation,
+      animationDuration,
+      animationDelay,
+      backgroundEffect,
+      overlayColor,
+      overlayOpacity,
       isActive,
       order,
     } = body;
@@ -84,6 +97,7 @@ export const POST = requireAdmin(async (request: NextRequest) => {
     const banner = await Banner.create({
       section,
       imageUrl,
+      iconUrl,
       title,
       cta,
       ctaText,
@@ -97,6 +111,18 @@ export const POST = requireAdmin(async (request: NextRequest) => {
       locationId,
       lat: lat ? parseFloat(lat) : undefined,
       lng: lng ? parseFloat(lng) : undefined,
+      shopName,
+      shopId,
+      pageUrl,
+      pageId,
+      category,
+      textEffect: textEffect || 'none',
+      animation: animation || 'none',
+      animationDuration: animationDuration || 2,
+      animationDelay: animationDelay || 0,
+      backgroundEffect: backgroundEffect || 'none',
+      overlayColor: overlayColor || '#000000',
+      overlayOpacity: overlayOpacity || 0.3,
       isActive: isActive !== undefined ? isActive : true,
       order: bannerOrder,
     });
@@ -113,4 +139,3 @@ export const POST = requireAdmin(async (request: NextRequest) => {
     );
   }
 });
-

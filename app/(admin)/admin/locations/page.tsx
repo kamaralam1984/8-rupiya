@@ -38,6 +38,8 @@ export default function LocationsPage() {
     longitude: '',
     isActive: true,
   });
+  const [fetchingCoords, setFetchingCoords] = useState(false);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
 
   useEffect(() => {
     fetchLocations();
@@ -150,6 +152,43 @@ export default function LocationsPage() {
     });
   };
 
+  const fetchCoordinatesFromPincode = async (pincode: string) => {
+    if (!pincode || pincode.length !== 6) {
+      return; // Wait for valid 6-digit pincode
+    }
+
+    setFetchingCoords(true);
+    try {
+      const res = await fetch(`/api/admin/locations/geocode-pincode?pincode=${pincode}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      if (data.success && data.latitude && data.longitude) {
+        setFormData(prev => ({
+          ...prev,
+          latitude: data.latitude.toString(),
+          longitude: data.longitude.toString(),
+        }));
+        toast.success(`Coordinates fetched from ${data.source === 'existing_shop' ? 'existing shop' : 'geocoding service'}`);
+      } else {
+        // Don't show error if coordinates already exist
+        if (!formData.latitude || !formData.longitude) {
+          toast.error(data.error || 'Could not fetch coordinates. Please enter manually.');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching coordinates:', error);
+      if (!formData.latitude || !formData.longitude) {
+        toast.error('Failed to fetch coordinates. Please enter manually.');
+      }
+    } finally {
+      setFetchingCoords(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -165,19 +204,67 @@ export default function LocationsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Location Management</h1>
           <p className="text-gray-600 mt-1">Manage areas, pincodes, and location data</p>
         </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setEditingLocation(null);
-            setShowForm(true);
-          }}
-          className="px-6 py-3 bg-custom-gradient text-gray-900 font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-md hover:shadow-lg flex items-center gap-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Add Location
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={async () => {
+              if (!confirm('This will update coordinates for all locations with missing coordinates based on their pincode. Continue?')) {
+                return;
+              }
+              
+              setBulkUpdating(true);
+              try {
+                const res = await fetch('/api/admin/locations/bulk-update-coordinates', {
+                  method: 'POST',
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                  toast.success(`Successfully updated ${data.updated} locations. ${data.failed} failed.`);
+                  fetchLocations(); // Refresh the list
+                } else {
+                  toast.error(data.error || 'Failed to update coordinates');
+                }
+              } catch (error) {
+                toast.error('Failed to update coordinates');
+              } finally {
+                setBulkUpdating(false);
+              }
+            }}
+            disabled={bulkUpdating}
+            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {bulkUpdating ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Updating...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Fill Missing Coordinates
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => {
+              resetForm();
+              setEditingLocation(null);
+              setShowForm(true);
+            }}
+            className="px-6 py-3 bg-custom-gradient text-gray-900 font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-md hover:shadow-lg flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Location
+          </button>
+        </div>
       </div>
 
       {/* Form Modal */}
@@ -279,13 +366,42 @@ export default function LocationsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Pincode
                     </label>
-                    <input
-                      type="number"
-                      value={formData.pincode}
-                      onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., 801101"
-                    />
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={formData.pincode}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData({ ...formData, pincode: value });
+                          // Auto-fetch coordinates when 6-digit pincode is entered
+                          if (value.length === 6 && /^\d{6}$/.test(value)) {
+                            fetchCoordinatesFromPincode(value);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10"
+                        placeholder="e.g., 801101"
+                        maxLength={6}
+                      />
+                      {fetchingCoords && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-gray-500">
+                        Enter 6-digit pincode to auto-fetch coordinates
+                      </p>
+                      {formData.pincode.length === 6 && /^\d{6}$/.test(formData.pincode) && !fetchingCoords && (
+                        <button
+                          type="button"
+                          onClick={() => fetchCoordinatesFromPincode(formData.pincode)}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          🔍 Fetch Coords
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -301,7 +417,11 @@ export default function LocationsPage() {
                       onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="e.g., 25.5941"
+                      readOnly={fetchingCoords}
                     />
+                    {fetchingCoords && (
+                      <p className="text-xs text-blue-600 mt-1">Fetching coordinates...</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -314,7 +434,11 @@ export default function LocationsPage() {
                       onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="e.g., 85.1376"
+                      readOnly={fetchingCoords}
                     />
+                    {fetchingCoords && (
+                      <p className="text-xs text-blue-600 mt-1">Fetching coordinates...</p>
+                    )}
                   </div>
                 </div>
 
@@ -416,10 +540,14 @@ export default function LocationsPage() {
                     {location.area && <div>{location.area}</div>}
                     {location.pincode && <div>{location.pincode}</div>}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {location.latitude && location.longitude && (
-                      <div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {location.latitude && location.longitude ? (
+                      <div className="text-green-600 font-medium">
                         {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+                      </div>
+                    ) : (
+                      <div className="text-orange-600 italic text-xs">
+                        Missing
                       </div>
                     )}
                   </td>

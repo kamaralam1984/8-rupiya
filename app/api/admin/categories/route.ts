@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/auth';
 import Category from '@/models/Category';
 
 // GET - List all categories
-export const GET = requireAdmin(async (request: NextRequest) => {
+export const GET = requireAdmin(async (request: NextRequest, context: any) => {
   try {
     await connectDB();
 
@@ -23,7 +23,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
 });
 
 // POST - Create new category
-export const POST = requireAdmin(async (request: NextRequest) => {
+export const POST = requireAdmin(async (request: NextRequest, context: any) => {
   try {
     await connectDB();
 

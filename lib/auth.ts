@@ -50,10 +50,10 @@ export function requireAuth(
   };
 }
 
-export function requireAdmin(
-  handler: (request: NextRequest, user: JWTPayload) => Promise<NextResponse>
+export function requireAdmin<T = any>(
+  handler: (request: NextRequest, context: T) => Promise<NextResponse>
 ) {
-  return async (request: NextRequest) => {
+  return async (request: NextRequest, context: T) => {
     const { user, error } = authenticateRequest(request);
 
     if (!user || error) {
@@ -63,6 +63,36 @@ export function requireAdmin(
       );
     }
 
+    // Admin, Editor, ya Operator ko access do
+    if (!['admin', 'editor', 'operator'].includes(user.role)) {
+      return NextResponse.json(
+        { error: 'Admin, Editor, or Operator access required' },
+        { status: 403 }
+      );
+    }
+
+    return handler(request, context);
+  };
+}
+
+/**
+ * Require only admin role (not editor or operator)
+ * Use this for operations that only admins should perform (e.g., user management)
+ */
+export function requireAdminOnly<T = any>(
+  handler: (request: NextRequest, context: T) => Promise<NextResponse>
+) {
+  return async (request: NextRequest, context: T) => {
+    const { user, error } = authenticateRequest(request);
+
+    if (!user || error) {
+      return NextResponse.json(
+        { error: error || 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Sirf admin ko access do
     if (user.role !== 'admin') {
       return NextResponse.json(
         { error: 'Admin access required' },
@@ -70,8 +100,69 @@ export function requireAdmin(
       );
     }
 
-    return handler(request, user);
+    return handler(request, context);
   };
 }
+
+/**
+ * Require admin or editor role (not operator)
+ * Use this for operations that require editing permissions
+ */
+export function requireEditor<T = any>(
+  handler: (request: NextRequest, context: T) => Promise<NextResponse>
+) {
+  return async (request: NextRequest, context: T) => {
+    const { user, error } = authenticateRequest(request);
+
+    if (!user || error) {
+      return NextResponse.json(
+        { error: error || 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Admin ya Editor ko access do
+    if (!['admin', 'editor'].includes(user.role)) {
+      return NextResponse.json(
+        { error: 'Admin or Editor access required' },
+        { status: 403 }
+      );
+    }
+
+    return handler(request, context);
+  };
+}
+
+/**
+ * Require specific roles
+ * Use this for custom role requirements
+ */
+export function requireRoles<T = any>(
+  allowedRoles: string[],
+  handler: (request: NextRequest, context: T) => Promise<NextResponse>
+) {
+  return async (request: NextRequest, context: T) => {
+    const { user, error } = authenticateRequest(request);
+
+    if (!user || error) {
+      return NextResponse.json(
+        { error: error || 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Check if user's role is in allowed roles
+    if (!allowedRoles.includes(user.role)) {
+      return NextResponse.json(
+        { error: `Access denied. Required roles: ${allowedRoles.join(', ')}` },
+        { status: 403 }
+      );
+    }
+
+    return handler(request, context);
+  };
+}
+
+
 
 

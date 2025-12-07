@@ -1,0 +1,188 @@
+import mongoose, { Schema, Document, Model, Types } from 'mongoose';
+
+export interface IAgentShop extends Document {
+  shopName: string;
+  ownerName: string;
+  mobile: string;
+  category: string;
+  pincode: string;
+  address: string;
+  photoUrl: string;
+  additionalPhotos?: string[]; // Additional photos (optional, max 9 = total 10 with main photo)
+  latitude: number;
+  longitude: number;
+  paymentStatus: 'PAID' | 'PENDING';
+  paymentMode: 'CASH' | 'UPI' | 'NONE';
+  receiptNo: string;
+  amount: number;
+  sendSmsReceipt: boolean;
+  agentId: Types.ObjectId;
+  paymentExpiryDate: Date; // 365 days from payment date
+  lastPaymentDate: Date; // Date when payment was last made
+  visitorCount: number; // Number of visitors/views
+  // Pricing Plan System
+  planType: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_BAR' | 'BANNER' | 'HERO';
+  planAmount: number; // Actual amount paid
+  district?: string; // District for revenue tracking
+  agentCommission: number; // Commission earned by agent
+  paymentScreenshot?: string; // UPI payment screenshot URL
+  createdAt: Date;
+}
+
+const AgentShopSchema = new Schema<IAgentShop>(
+  {
+    shopName: {
+      type: String,
+      required: [true, 'Shop name is required'],
+      trim: true,
+      maxlength: [200, 'Shop name cannot exceed 200 characters'],
+    },
+    ownerName: {
+      type: String,
+      required: [true, 'Owner name is required'],
+      trim: true,
+      maxlength: [100, 'Owner name cannot exceed 100 characters'],
+    },
+    mobile: {
+      type: String,
+      required: [true, 'Mobile number is required'],
+      trim: true,
+      match: [/^\+?[1-9]\d{1,14}$/, 'Please provide a valid mobile number'],
+    },
+    category: {
+      type: String,
+      required: [true, 'Category is required'],
+      trim: true,
+      // Removed enum to allow any category from admin categories (Flipkart & JustDial)
+    },
+    pincode: {
+      type: String,
+      required: [true, 'Pincode is required'],
+      trim: true,
+      match: [/^\d{6}$/, 'Pincode must be 6 digits'],
+    },
+    address: {
+      type: String,
+      required: [true, 'Address is required'],
+      trim: true,
+      maxlength: [500, 'Address cannot exceed 500 characters'],
+    },
+    photoUrl: {
+      type: String,
+      required: [true, 'Photo URL is required'],
+      trim: true,
+    },
+    additionalPhotos: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: function(v: string[]) {
+          return v.length <= 9; // Max 9 additional photos (total 10 with main photo)
+        },
+        message: 'Maximum 9 additional photos allowed (total 10 with main photo)',
+      },
+    },
+    latitude: {
+      type: Number,
+      required: [true, 'Latitude is required'],
+      min: [-90, 'Latitude must be between -90 and 90'],
+      max: [90, 'Latitude must be between -90 and 90'],
+    },
+    longitude: {
+      type: Number,
+      required: [true, 'Longitude is required'],
+      min: [-180, 'Longitude must be between -180 and 180'],
+      max: [180, 'Longitude must be between -180 and 180'],
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['PAID', 'PENDING'],
+      default: 'PENDING',
+      required: true,
+    },
+    paymentMode: {
+      type: String,
+      enum: ['CASH', 'UPI', 'NONE'],
+      default: 'NONE',
+      required: true,
+    },
+    receiptNo: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    amount: {
+      type: Number,
+      default: 100,
+      min: [0, 'Amount cannot be negative'],
+    },
+    sendSmsReceipt: {
+      type: Boolean,
+      default: false,
+    },
+    paymentExpiryDate: {
+      type: Date,
+      default: function() {
+        // Default to 365 days from now
+        const date = new Date();
+        date.setDate(date.getDate() + 365);
+        return date;
+      },
+    },
+    lastPaymentDate: {
+      type: Date,
+      default: Date.now,
+    },
+    agentId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Agent',
+      required: [true, 'Agent ID is required'],
+    },
+    visitorCount: {
+      type: Number,
+      default: 0,
+      min: [0, 'Visitor count cannot be negative'],
+    },
+    planType: {
+      type: String,
+      enum: ['BASIC', 'PREMIUM', 'FEATURED', 'LEFT_BAR', 'RIGHT_BAR', 'BANNER', 'HERO'],
+      default: 'BASIC',
+      required: true,
+    },
+    planAmount: {
+      type: Number,
+      default: 100, // Default ₹100 for Basic
+      min: [0, 'Plan amount cannot be negative'],
+    },
+    district: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'District name cannot exceed 100 characters'],
+    },
+    paymentScreenshot: {
+      type: String,
+      trim: true,
+    },
+    agentCommission: {
+      type: Number,
+      default: 20, // ₹20 for Basic plan (20% of ₹100)
+      min: [0, 'Commission cannot be negative'],
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// Indexes
+AgentShopSchema.index({ agentId: 1, createdAt: -1 });
+AgentShopSchema.index({ paymentStatus: 1 });
+AgentShopSchema.index({ category: 1 });
+AgentShopSchema.index({ pincode: 1 });
+AgentShopSchema.index({ createdAt: -1 });
+
+const AgentShop: Model<IAgentShop> = mongoose.models.AgentShop || mongoose.model<IAgentShop>('AgentShop', AgentShopSchema);
+
+export default AgentShop;
+
+

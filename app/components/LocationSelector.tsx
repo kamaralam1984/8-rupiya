@@ -106,63 +106,69 @@ export default function LocationSelector({ currentLocation, onLocationChange, fo
     setIsDetecting(true);
     setDetectError(null);
     try {
-      // Get GPS coordinates first
-      let userLat: number | null = null;
-      let userLng: number | null = null;
-      
-      try {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-          });
+      // PRIORITY: Get GPS coordinates from device first (not WiFi/IP)
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true, // Use GPS, not WiFi/IP
+          timeout: 15000,
+          maximumAge: 0, // Don't use cached location
         });
-        
-        userLat = position.coords.latitude;
-        userLng = position.coords.longitude;
-      } catch (geoError) {
-        // GPS not available, continue without coordinates
-      }
+      });
+      
+      const userLat = position.coords.latitude;
+      const userLng = position.coords.longitude;
 
+      // Now use detectBrowserLocation which will use GPS coordinates to find nearest Patna location
       const detected = await detectBrowserLocation();
       if (detected) {
-        // Add GPS coordinates to detected location
+        // Ensure GPS coordinates are set (detectBrowserLocation should already have them)
         const locationWithCoords = {
           ...detected,
-          latitude: userLat ?? undefined,
-          longitude: userLng ?? undefined,
+          latitude: detected.latitude ?? userLat,
+          longitude: detected.longitude ?? userLng,
         };
         // Automatically set the detected location
         handleLocationSelect(locationWithCoords, 'browser');
         return; // Exit early after setting location
       }
       
-      // If detectBrowserLocation didn't return a location, check if we have GPS coordinates
-      if (userLat !== null && userLng !== null) {
-        // Check if coordinates are roughly within Patna bounds
-        const isWithinPatna = (
-          userLat >= 25.3 && userLat <= 25.8 &&
-          userLng >= 84.9 && userLng <= 85.4
-        );
-        
-        if (isWithinPatna) {
-          // Use default location but inform user they can still use nearby shops feature
-          const defaultLoc = {
-            ...locations[0],
-            latitude: userLat,
-            longitude: userLng,
-          };
-          // Automatically set the default location with coordinates
-          handleLocationSelect(defaultLoc, 'browser');
-          setDetectError(null); // Clear any previous error
-        } else {
-          setDetectError('Your location appears to be outside Patna. Please select a Patna locality manually.');
-        }
+      // Fallback: If detectBrowserLocation failed but we have GPS coordinates
+      // Check if coordinates are roughly within Patna bounds
+      const isWithinPatna = (
+        userLat >= 25.3 && userLat <= 25.8 &&
+        userLng >= 84.9 && userLng <= 85.4
+      );
+      
+      if (isWithinPatna) {
+        // Use default location with GPS coordinates
+        const defaultLoc = {
+          ...locations[0],
+          latitude: userLat,
+          longitude: userLng,
+        };
+        handleLocationSelect(defaultLoc, 'browser');
+        setDetectError(null);
       } else {
-        setDetectError('Unable to fetch your current location. Please allow permission or select manually.');
+        // Outside Patna - still allow using current location for nearby shops
+        const customLocation: PatnaLocation = {
+          id: `custom-${userLat}-${userLng}`,
+          city: 'Current Location',
+          state: 'Bihar',
+          country: 'IN',
+          displayName: `Current Location (${userLat.toFixed(4)}, ${userLng.toFixed(4)})`,
+          latitude: userLat,
+          longitude: userLng,
+          pincode: 800001, // Default Patna pincode
+          district: 'Patna',
+          source: 'browser',
+        };
+        handleLocationSelect(customLocation, 'browser');
+        setDetectError('You are outside Patna. Showing nearby shops from your current GPS location.');
+        setTimeout(() => setDetectError(null), 5000);
       }
     } catch (error) {
-      setDetectError('Unable to fetch your current location. Please allow permission or select manually.');
+      // GPS permission denied or not available
+      setDetectError('Unable to fetch your GPS location. Please allow location permission or select manually.');
     } finally {
       setIsDetecting(false);
     }

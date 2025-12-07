@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import type { BusinessSummary } from '../types';
 import { useLocation } from '../contexts/LocationContext';
+import { safeJsonParse } from '../utils/fetchHelpers';
 
 export default function FeaturedBusinesses() {
   const { location } = useLocation();
@@ -14,8 +15,8 @@ export default function FeaturedBusinesses() {
     const fetchData = async () => {
       try {
         const res = await fetch('/api/businesses/featured');
-        const data = await res.json();
-        setBusinesses(data.businesses || []);
+        const data = await safeJsonParse<{ businesses?: BusinessSummary[] }>(res);
+        setBusinesses(data?.businesses || []);
       } catch (e) {
         console.error('Failed to load featured businesses', e);
       } finally {

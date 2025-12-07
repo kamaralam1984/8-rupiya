@@ -36,8 +36,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if user has a password set
+    if (!user.password) {
+      console.error('User found but password field is missing:', user.email);
+      return NextResponse.json(
+        { error: 'Account setup incomplete. Please contact administrator.' },
+        { status: 500 }
+      );
+    }
+
     // Verify password
-    const isPasswordValid = await user.comparePassword(password);
+    let isPasswordValid = false;
+    try {
+      isPasswordValid = await user.comparePassword(password);
+    } catch (compareError: any) {
+      console.error('Password comparison error:', compareError);
+      return NextResponse.json(
+        { error: 'Invalid email or password' },
+        { status: 401 }
+      );
+    }
 
     if (!isPasswordValid) {
       return NextResponse.json(
@@ -73,21 +91,45 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error('Login error:', error);
+    console.error('Error stack:', error.stack);
 
     // Provide user-friendly error messages
-    if (error.message?.includes('MongoDB Connection Failed')) {
+    if (error.message?.includes('MongoDB Connection Failed') || error.name === 'MongooseServerSelectionError') {
       return NextResponse.json(
         { 
           error: 'Database connection failed',
-          message: error.message,
-          hint: 'Please check your MongoDB Atlas configuration and IP whitelist settings.'
+          message: 'Unable to connect to the database. Please check your connection settings.',
+          details: error.message
         },
         { status: 503 } // Service Unavailable
       );
     }
 
+    // Handle JSON parsing errors
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { error: 'Invalid request format' },
+        { status: 400 }
+      );
+    }
+
+    // Handle JWT errors
+    if (error.message?.includes('JWT') || error.message?.includes('token')) {
+      return NextResponse.json(
+        { 
+          error: 'Authentication error',
+          message: 'Failed to generate authentication token. Please try again.'
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { 
+        error: 'Internal server error',
+        message: 'An unexpected error occurred. Please try again later.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     );
   }

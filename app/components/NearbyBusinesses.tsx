@@ -1,36 +1,110 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { useLocation } from '../contexts/LocationContext';
+import { useDistance } from '../contexts/DistanceContext';
 import type { BusinessSummary } from '../types';
+import { safeJsonParse } from '../utils/fetchHelpers';
+import ShopCard from './ShopCard';
 
-export default function NearbyBusinesses() {
+interface ShopWithDistance extends BusinessSummary {
+  distance: number; // Distance in kilometers
+  address?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  latitude?: number;
+  longitude?: number;
+  description?: string;
+  offerPercent?: number;
+  priceLevel?: string;
+  tags?: string[];
+  featured?: boolean;
+  sponsored?: boolean;
+  visitorCount?: number; // Number of visitors
+  planType?: 'BASIC' | 'PREMIUM' | 'FEATURED'; // Pricing plan
+  priorityRank?: number; // Priority ranking
+}
+
+interface NearbyBusinessesProps {
+  limit?: number; // Number of shops to show
+}
+
+export default function NearbyBusinesses({ limit = 6 }: NearbyBusinessesProps) {
   const { location } = useLocation();
-  const [businesses, setBusinesses] = useState<BusinessSummary[]>([]);
+  const { distance, isMounted } = useDistance(); // Get distance and isMounted from context
+  const [businesses, setBusinesses] = useState<ShopWithDistance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Wait for distance to be loaded from localStorage to avoid hydration mismatch
+    if (!isMounted) {
+      return;
+    }
+
+    // Only fetch if we have location coordinates
+    if (!location.latitude || !location.longitude) {
+      // Try to get location from browser if not set
+      if (navigator.geolocation && !location.latitude) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            // Location will be set by LocationContext, so we'll refetch
+          },
+          () => {
+            setIsLoading(false);
+          }
+        );
+      } else {
+        setIsLoading(false);
+      }
+      return;
+    }
+
     const fetchData = async () => {
+      setIsLoading(true);
       try {
-        const res = await fetch(`/api/shops/nearby?lat=${location.latitude || 25.5941}&lng=${location.longitude || 85.1376}`);
-        const data = await res.json();
-        setBusinesses((data.shops || []).slice(0, 6));
+        // Use radiusKm parameter (0 = all shops)
+        const radiusParam = distance > 0 ? `&radiusKm=${distance}` : '&radiusKm=0';
+        const res = await fetch(
+          `/api/shops/nearby?userLat=${location.latitude}&userLng=${location.longitude}${radiusParam}&useMongoDB=true${location.city ? `&city=${encodeURIComponent(location.city)}` : ''}${location.area ? `&area=${encodeURIComponent(location.area)}` : ''}${location.pincode ? `&pincode=${location.pincode}` : ''}`
+        );
+        const data = await safeJsonParse<{ shops?: ShopWithDistance[]; success?: boolean }>(res);
+        
+        if (data?.success && data?.shops) {
+          setBusinesses(data.shops.slice(0, limit));
+        } else {
+          // Fallback to featured if nearby fails
+          const fallbackRes = await fetch('/api/businesses/featured');
+          const fallbackData = await safeJsonParse<{ businesses?: BusinessSummary[] }>(fallbackRes);
+          // Map featured businesses to ShopWithDistance format (without distance)
+          const mappedBusinesses: ShopWithDistance[] = (fallbackData?.businesses || []).map(biz => ({
+            ...biz,
+            distance: 0, // No distance info for featured
+          }));
+          setBusinesses(mappedBusinesses.slice(0, limit));
+        }
       } catch (e) {
+        console.error('Failed to load nearby businesses:', e);
         // Fallback to featured if nearby fails
         try {
           const res = await fetch('/api/businesses/featured');
-          const data = await res.json();
-          setBusinesses((data.businesses || []).slice(0, 6));
+          const data = await safeJsonParse<{ businesses?: BusinessSummary[] }>(res);
+          // Map featured businesses to ShopWithDistance format (without distance)
+          const mappedBusinesses: ShopWithDistance[] = (data?.businesses || []).map(biz => ({
+            ...biz,
+            distance: 0, // No distance for featured businesses
+          }));
+          setBusinesses(mappedBusinesses.slice(0, limit));
         } catch (err) {
-          console.error('Failed to load nearby businesses', err);
+          console.error('Failed to load featured businesses', err);
+          setBusinesses([]);
         }
       } finally {
         setIsLoading(false);
       }
     };
     fetchData();
-  }, [location.latitude, location.longitude]);
+  }, [location.latitude, location.longitude, distance, limit, isMounted]);
 
   if (isLoading) {
     return (
@@ -55,56 +129,60 @@ export default function NearbyBusinesses() {
   }
 
   return (
-    <section className="py-10 sm:py-12 px-2 sm:px-3 lg:px-4 bg-linear-to-b from-white to-gray-50">
+    <section className="py-6 sm:py-8 px-2 sm:px-3 lg:px-4 bg-linear-to-b from-white to-gray-50 border-t border-gray-200">
       <div className="max-w-[98%] mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-3 sm:gap-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-2 sm:gap-0">
           <div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Nearby Businesses</h2>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">Discover businesses close to you in {location.displayName || 'your area'}</p>
+            <h2 className="text-xl sm:text-2xl font-bold bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              {distance === 0 ? 'Nearby Shops' : `Shops within ${distance} km`}
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
+              {distance === 0 
+                ? `Shops near ${location.displayName || 'your location'}`
+                : `Shops within ${distance} km of ${location.displayName || 'your location'}`
+              }
+            </p>
           </div>
-          <a href="/search?type=nearby" className="inline-flex items-center gap-2 text-sm sm:text-base font-semibold text-blue-600 hover:text-blue-700 transition-colors self-start sm:self-auto group">
+          <a href="/search?type=nearby" className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors self-start sm:self-auto group">
             <span>View all</span>
-            <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
           </a>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
-          {businesses.map((biz) => (
-            <article key={biz.id} className="group rounded-2xl bg-white shadow-lg border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:border-green-200">
-              <div className="relative h-52 sm:h-60 overflow-hidden">
-                <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent z-10" />
-                <Image src={biz.imageUrl} alt={biz.name} fill className="object-cover transition-transform duration-500 group-hover:scale-110" sizes="(max-width: 1024px) 50vw, 33vw" />
-                <span className="absolute top-3 left-3 z-20 inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-white/95 backdrop-blur-sm text-gray-800 shadow-md border border-gray-200/50">
-                  {biz.category}
-                </span>
-                <span className="absolute top-3 right-3 z-20 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-green-500/95 backdrop-blur-sm text-white shadow-md border border-green-300/50">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                  Nearby
-                </span>
-              </div>
-
-              <div className="p-5 sm:p-6">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-green-600 transition-colors">{biz.name}</h3>
-                <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-                  <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0L6.343 16.657A8 8 0 1117.657 16.657z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                  <span className="truncate">{biz.city}{biz.state ? `, ${biz.state}` : ''}</span>
+        {businesses.length === 0 && !isLoading ? (
+          <div className="text-center py-8">
+            <p className="text-gray-600 text-sm mb-1">No shops found</p>
+            <p className="text-gray-500 text-xs">
+              {!location.latitude || !location.longitude
+                ? 'Please enable location access to see nearby shops'
+                : distance > 0
+                ? `No shops found within ${distance} km`
+                : 'No shops available in your area'}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto pb-4 -mx-2 sm:-mx-3 lg:-mx-4 px-2 sm:px-3 lg:px-4">
+            <div className="flex gap-4 sm:gap-5 min-w-max">
+              {businesses.map((biz) => (
+                <div key={biz.id} className="flex-shrink-0 w-72 sm:w-80">
+                  <ShopCard
+                    id={biz.id}
+                    name={biz.name}
+                    category={biz.category}
+                    imageUrl={biz.imageUrl}
+                    rating={biz.rating}
+                    reviews={biz.reviews}
+                    city={biz.city}
+                    state={biz.state}
+                    distance={biz.distance}
+                    visitorCount={biz.visitorCount}
+                    planType={biz.planType || 'BASIC'}
+                  />
                 </div>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t border-gray-100">
-                  <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-                    <svg className="w-5 h-5 text-yellow-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                    <span className="text-gray-900">{biz.rating.toFixed(1)}</span>
-                    <span className="text-gray-500 font-normal">({biz.reviews})</span>
-                  </div>
-
-                  <a href={`/contact/${biz.id}`} className="inline-flex items-center gap-2 rounded-xl bg-custom-gradient px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg hover:opacity-90 transition-all w-full sm:w-auto justify-center">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.129a11.042 11.042 0 005.516 5.516l1.129-2.257a1 1 0 011.21-.502l4.493 1.498A1 1 0 0121 19.72V23a2 2 0 01-2 2h-1C9.163 25 3 18.837 3 11V5z" /></svg>
-                    <span>Call Now</span>
-                  </a>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

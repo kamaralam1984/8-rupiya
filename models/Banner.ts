@@ -1,8 +1,9 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IBanner extends Document {
-  section: 'hero' | 'left' | 'right' | 'top' | 'bottom';
+  section: 'hero' | 'left' | 'right' | 'top' | 'bottom' | 'banner';
   imageUrl: string;
+  iconUrl?: string; // Icon image URL for banner
   title?: string;
   cta?: string;
   ctaText?: string;
@@ -11,6 +12,10 @@ export interface IBanner extends Document {
   advertiser?: string;
   sponsored: boolean;
   position?: number;
+  // Page-specific targeting
+  pageUrl?: string; // Specific page URL (e.g., '/', '/category/restaurants')
+  pageId?: string; // Reference to Page model if exists
+  category?: string; // Category slug
   // Location-based fields
   area?: string; // e.g., "A.H. Guard", "B.C. Road"
   pincode?: number;
@@ -18,6 +23,18 @@ export interface IBanner extends Document {
   // Shop coordinates for distance calculation
   lat?: number;
   lng?: number;
+  // Shop information
+  shopName?: string; // Shop name associated with this banner
+  shopId?: string; // Reference to shop (can be AdminShop or AgentShop ID)
+  // Effects and Animations
+  textEffect?: 'glow' | 'gradient' | 'shadow' | 'outline' | '3d' | 'neon' | 'rainbow' | 'metallic' | 'glass' | 'emboss' | 'anaglyph' | 'retro' | 'holographic' | 'fire' | 'ice' | 'electric' | 'gold' | 'silver' | 'chrome' | 'diamond' | 'none';
+  animation?: 'fade' | 'slide' | 'bounce' | 'pulse' | 'shake' | 'rotate' | 'scale' | 'wobble' | 'flip' | 'zoom' | 'glow-pulse' | 'wave' | 'float' | 'spin' | 'shimmer' | 'gradient-shift' | 'typewriter' | 'glitch' | 'morph' | 'elastic' | 'none';
+  animationDuration?: number; // in seconds
+  animationDelay?: number; // in seconds
+  // Background effects
+  backgroundEffect?: 'gradient' | 'blur' | 'overlay' | 'particles' | 'none';
+  overlayColor?: string;
+  overlayOpacity?: number;
   // Active status
   isActive: boolean;
   // Order/priority for sorting
@@ -31,11 +48,15 @@ const BannerSchema = new Schema<IBanner>(
     section: {
       type: String,
       required: [true, 'Section is required'],
-      enum: ['hero', 'left', 'right', 'top', 'bottom'],
+      enum: ['hero', 'left', 'right', 'top', 'bottom', 'banner'],
     },
     imageUrl: {
       type: String,
       required: [true, 'Image URL is required'],
+    },
+    iconUrl: {
+      type: String,
+      trim: true,
     },
     title: {
       type: String,
@@ -86,6 +107,63 @@ const BannerSchema = new Schema<IBanner>(
     },
     lng: {
       type: Number,
+    },
+    shopName: {
+      type: String,
+      trim: true,
+    },
+    shopId: {
+      type: String,
+      trim: true,
+    },
+    pageUrl: {
+      type: String,
+      trim: true,
+    },
+    pageId: {
+      type: String,
+      trim: true,
+    },
+    category: {
+      type: String,
+      trim: true,
+    },
+    textEffect: {
+      type: String,
+      enum: ['glow', 'gradient', 'shadow', 'outline', '3d', 'neon', 'rainbow', 'metallic', 'glass', 'emboss', 'anaglyph', 'retro', 'holographic', 'fire', 'ice', 'electric', 'gold', 'silver', 'chrome', 'diamond', 'none'],
+      default: 'none',
+    },
+    animation: {
+      type: String,
+      enum: ['fade', 'slide', 'bounce', 'pulse', 'shake', 'rotate', 'scale', 'wobble', 'flip', 'zoom', 'glow-pulse', 'wave', 'float', 'spin', 'shimmer', 'gradient-shift', 'typewriter', 'glitch', 'morph', 'elastic', 'none'],
+      default: 'none',
+    },
+    animationDuration: {
+      type: Number,
+      default: 2,
+      min: 0.5,
+      max: 10,
+    },
+    animationDelay: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    backgroundEffect: {
+      type: String,
+      enum: ['gradient', 'blur', 'overlay', 'particles', 'none'],
+      default: 'none',
+    },
+    overlayColor: {
+      type: String,
+      default: '#000000',
+    },
+    overlayOpacity: {
+      type: Number,
+      default: 0.3,
+      min: 0,
+      max: 1,
     },
     isActive: {
       type: Boolean,

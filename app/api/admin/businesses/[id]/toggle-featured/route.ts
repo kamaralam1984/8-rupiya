@@ -4,11 +4,12 @@ import { requireAdmin } from '@/lib/auth';
 import Business from '@/models/Business';
 
 // PATCH - Toggle featured status
-export const PATCH = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const PATCH = requireAdmin(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
+    const { id } = await params;
 
-    const business = await Business.findById(params.id);
+    const business = await Business.findById(id);
 
     if (!business) {
       return NextResponse.json(

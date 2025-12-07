@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from '../contexts/LocationContext';
 import type { HeroSectionData } from '../types';
+import { safeJsonParse } from '../utils/fetchHelpers';
 import LeftRail from './hero/LeftRail';
 import RightRail from './hero/RightRail';
 import HeroBanner from './hero/HeroBanner';
@@ -22,23 +23,220 @@ export default function HeroSection({ category }: HeroSectionProps) {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        // Fetch all banners for hero section
-        const [heroRes, leftRes, rightRes, bottomRes] = await Promise.all([
+        // Fetch banners and nearby shops
+        const bannerPromises = [
           fetch(`/api/banners?section=hero&loc=${location.id}${category ? `&cat=${category}` : ''}&limit=1`),
           fetch(`/api/banners?section=left&loc=${location.id}${category ? `&cat=${category}` : ''}&limit=4`),
           fetch(`/api/banners?section=right&loc=${location.id}${category ? `&cat=${category}` : ''}&limit=4`),
           fetch(`/api/banners?section=top&loc=${location.id}${category ? `&cat=${category}` : ''}&limit=20`),
+        ];
+
+        // Fetch nearby shops if location coordinates are available
+        let nearbyShopsPromise: Promise<Response> | null = null;
+        if (location.latitude && location.longitude) {
+          nearbyShopsPromise = fetch(`/api/shops/nearby?userLat=${location.latitude}&userLng=${location.longitude}&radiusKm=0&useMongoDB=true${location.city ? `&city=${encodeURIComponent(location.city)}` : ''}${location.area ? `&area=${encodeURIComponent(location.area)}` : ''}${location.pincode ? `&pincode=${location.pincode}` : ''}`);
+        }
+
+        const [heroRes, leftRes, rightRes, bottomRes, nearbyShopsRes] = await Promise.all([
+          ...bannerPromises,
+          nearbyShopsPromise || Promise.resolve(new Response(JSON.stringify({ shops: [] }), { headers: { 'Content-Type': 'application/json' } })),
         ]);
 
         const [heroData, leftData, rightData, bottomData] = await Promise.all([
-          heroRes.json(),
-          leftRes.json(),
-          rightRes.json(),
-          bottomRes.json(),
+          safeJsonParse(heroRes),
+          safeJsonParse(leftRes),
+          safeJsonParse(rightRes),
+          safeJsonParse(bottomRes),
         ]);
 
+        // Fetch nearby shops separately if coordinates available
+        // Also fetch all shops with LEFT_BAR/RIGHT_BAR plans if location not available
+        let nearbyShopsData: { shops?: any[] } = { shops: [] };
+        if (location.latitude && location.longitude && nearbyShopsRes) {
+          try {
+            const parsed = await safeJsonParse(nearbyShopsRes);
+            nearbyShopsData = parsed || { shops: [] };
+            console.log(`Fetched ${nearbyShopsData?.shops?.length || 0} nearby shops for left/right bars`);
+          } catch (error) {
+            console.error('Error parsing nearby shops:', error);
+            nearbyShopsData = { shops: [] };
+          }
+        } else {
+          // If location not available, fetch shops with LEFT_BAR and RIGHT_BAR plans separately
+          try {
+            const [leftBarRes, rightBarRes] = await Promise.all([
+              fetch('/api/shops/by-plan?planType=LEFT_BAR&limit=4'),
+              fetch('/api/shops/by-plan?planType=RIGHT_BAR&limit=4'),
+            ]);
+            const leftBarData = await safeJsonParse(leftBarRes);
+            const rightBarData = await safeJsonParse(rightBarRes);
+            
+            const combinedShops = [
+              ...(leftBarData?.shops || []),
+              ...(rightBarData?.shops || []),
+            ];
+            
+            if (combinedShops.length > 0) {
+              nearbyShopsData = { shops: combinedShops };
+              console.log(`Fetched ${combinedShops.length} shops with LEFT_BAR/RIGHT_BAR plans (no location)`);
+            }
+          } catch (error) {
+            console.error('Error fetching shops by plan type:', error);
+          }
+        }
+
+        // Convert nearby shops to banner format for left/right bars and bottom strip
+        const nearbyShops = (nearbyShopsData?.shops || []) as Array<{
+          id: string;
+          name: string;
+          imageUrl: string;
+          latitude: number;
+          longitude: number;
+          distance?: number;
+          planType?: string;
+          priorityRank?: number;
+          isLeftBar?: boolean;
+          isRightBar?: boolean;
+        }>;
+
+        // Filter shops by plan type and sort by priority rank, then distance
+        // Left bar: nearby shops with LEFT_BAR plan (sorted by priority rank first, then distance - nearest first)
+        const leftBarShops = nearbyShops
+          .filter((shop) => {
+            // Include shops with LEFT_BAR plan type or isLeftBar flag
+            return shop.planType === 'LEFT_BAR' || shop.isLeftBar === true;
+          })
+          .filter((shop) => {
+            // Only include shops with valid coordinates
+            return shop.latitude && shop.longitude && !isNaN(shop.latitude) && !isNaN(shop.longitude);
+          })
+          .sort((a, b) => {
+            // Sort by priority rank first (higher = first), then by distance (nearest first)
+            const priorityA = a.priorityRank || 0;
+            const priorityB = b.priorityRank || 0;
+            if (priorityB !== priorityA) {
+              return priorityB - priorityA;
+            }
+            const distanceA = a.distance || 0;
+            const distanceB = b.distance || 0;
+            return distanceA - distanceB;
+          })
+          .slice(0, 4)
+          .map((shop) => ({
+            bannerId: shop.id,
+            imageUrl: shop.imageUrl || '/placeholder-shop.jpg',
+            alt: shop.name,
+            link: `/contact/${shop.id}`,
+            advertiser: shop.name,
+            lat: shop.latitude,
+            lng: shop.longitude,
+            distance: shop.distance || 0,
+            isBusiness: true,
+          }));
+
+        // Right bar: nearby shops with RIGHT_BAR plan (sorted by priority rank first, then distance - nearest first)
+        const rightBarShops = nearbyShops
+          .filter((shop) => {
+            // Include shops with RIGHT_BAR plan type or isRightBar flag
+            return shop.planType === 'RIGHT_BAR' || shop.isRightBar === true;
+          })
+          .filter((shop) => {
+            // Only include shops with valid coordinates
+            return shop.latitude && shop.longitude && !isNaN(shop.latitude) && !isNaN(shop.longitude);
+          })
+          .sort((a, b) => {
+            // Sort by priority rank first (higher = first), then by distance (nearest first)
+            const priorityA = a.priorityRank || 0;
+            const priorityB = b.priorityRank || 0;
+            if (priorityB !== priorityA) {
+              return priorityB - priorityA;
+            }
+            const distanceA = a.distance || 0;
+            const distanceB = b.distance || 0;
+            return distanceA - distanceB;
+          })
+          .slice(0, 4)
+          .map((shop) => ({
+            bannerId: shop.id,
+            imageUrl: shop.imageUrl || '/placeholder-shop.jpg',
+            alt: shop.name,
+            link: `/contact/${shop.id}`,
+            advertiser: shop.name,
+            lat: shop.latitude,
+            lng: shop.longitude,
+            distance: shop.distance || 0,
+            isBusiness: true,
+          }));
+
+        // Bottom strip: show all nearby shops (sorted by priority rank first, then distance - nearest first)
+        const bottomShops = nearbyShops
+          .filter((shop) => {
+            // Only include shops with valid coordinates
+            return shop.latitude && shop.longitude && !isNaN(shop.latitude) && !isNaN(shop.longitude);
+          })
+          .sort((a, b) => {
+            // Sort by priority rank first (higher = first), then by distance (nearest first)
+            const priorityA = a.priorityRank || 0;
+            const priorityB = b.priorityRank || 0;
+            if (priorityB !== priorityA) {
+              return priorityB - priorityA;
+            }
+            const distanceA = a.distance || 0;
+            const distanceB = b.distance || 0;
+            return distanceA - distanceB;
+          })
+          .slice(0, 20)
+          .map((shop) => ({
+            bannerId: shop.id,
+            imageUrl: shop.imageUrl || '/placeholder-shop.jpg',
+            alt: shop.name,
+            link: `/contact/${shop.id}`,
+            advertiser: shop.name,
+            lat: shop.latitude,
+            lng: shop.longitude,
+            distance: shop.distance || 0,
+            isBusiness: true,
+          }));
+
+        // Combine banner data with nearby shops
+        // Left bar: nearby shops with LEFT_BAR plan (prioritized) + banners
+        const leftBanners = (leftData?.banners || []).map((banner: { id: string; imageUrl: string; title?: string; linkUrl: string; lat?: number; lng?: number }, index: number) => ({
+          bannerId: banner.id,
+          imageUrl: banner.imageUrl,
+          alt: banner.title || `Left banner ${index + 1}`,
+          link: banner.linkUrl,
+          advertiser: banner.title,
+          lat: banner.lat,
+          lng: banner.lng,
+        }));
+        const combinedLeft = [...leftBarShops, ...leftBanners].slice(0, 4);
+
+        // Right bar: nearby shops with RIGHT_BAR plan (prioritized) + banners
+        const rightBanners = (rightData?.banners || []).map((banner: { id: string; imageUrl: string; title?: string; linkUrl: string; lat?: number; lng?: number }, index: number) => ({
+          bannerId: banner.id,
+          imageUrl: banner.imageUrl,
+          alt: banner.title || `Right banner ${index + 1}`,
+          link: banner.linkUrl,
+          advertiser: banner.title,
+          lat: banner.lat,
+          lng: banner.lng,
+        }));
+        const combinedRight = [...rightBarShops, ...rightBanners].slice(0, 4);
+
+        // Bottom strip: nearby shops (prioritized) + banners
+        const bottomBanners = (bottomData?.banners || []).map((banner: { id: string; imageUrl: string; title?: string; linkUrl: string; lat?: number; lng?: number }, index: number) => ({
+          bannerId: banner.id,
+          imageUrl: banner.imageUrl,
+          alt: banner.title || `Bottom banner ${index + 1}`,
+          link: banner.linkUrl,
+          advertiser: banner.title,
+          lat: banner.lat,
+          lng: banner.lng,
+        }));
+        const combinedBottom = [...bottomShops, ...bottomBanners].slice(0, 20);
+
         setData({
-          hero: heroData.banners?.[0]
+          hero: heroData?.banners?.[0]
             ? {
                 bannerId: heroData.banners[0].id,
                 imageUrl: heroData.banners[0].imageUrl,
@@ -49,33 +247,9 @@ export default function HeroSection({ category }: HeroSectionProps) {
                 advertiser: heroData.banners[0].advertiser || heroData.banners[0].title,
               }
             : undefined,
-          left: (leftData.banners || []).map((banner: { id: string; imageUrl: string; title?: string; linkUrl: string; lat?: number; lng?: number }, index: number) => ({
-            bannerId: banner.id,
-            imageUrl: banner.imageUrl,
-            alt: banner.title || `Left banner ${index + 1}`,
-            link: banner.linkUrl,
-            advertiser: banner.title,
-            lat: banner.lat,
-            lng: banner.lng,
-          })),
-          right: (rightData.banners || []).map((banner: { id: string; imageUrl: string; title?: string; linkUrl: string; lat?: number; lng?: number }, index: number) => ({
-            bannerId: banner.id,
-            imageUrl: banner.imageUrl,
-            alt: banner.title || `Right banner ${index + 1}`,
-            link: banner.linkUrl,
-            advertiser: banner.title,
-            lat: banner.lat,
-            lng: banner.lng,
-          })),
-          bottom: (bottomData.banners || []).map((banner: { id: string; imageUrl: string; title?: string; linkUrl: string; lat?: number; lng?: number }, index: number) => ({
-            bannerId: banner.id,
-            imageUrl: banner.imageUrl,
-            alt: banner.title || `Bottom banner ${index + 1}`,
-            link: banner.linkUrl,
-            advertiser: banner.title,
-            lat: banner.lat,
-            lng: banner.lng,
-          })),
+          left: combinedLeft,
+          right: combinedRight,
+          bottom: combinedBottom,
         });
       } catch (error) {
         console.error('Error fetching banners:', error);
@@ -85,7 +259,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
     };
 
     fetchBanners();
-  }, [location.id, category]);
+  }, [location.id, location.latitude, location.longitude, category]);
 
   const handleBannerClick = async (
     bannerId: string,

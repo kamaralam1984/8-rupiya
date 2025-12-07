@@ -4,11 +4,12 @@ import { requireAdmin } from '@/lib/auth';
 import Banner from '@/models/Banner';
 
 // GET - Fetch single banner
-export const GET = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const GET = requireAdmin(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
+    const { id } = await params;
 
-    const banner = await Banner.findById(params.id).lean();
+    const banner = await Banner.findById(id).lean();
 
     if (!banner) {
       return NextResponse.json(
@@ -28,14 +29,16 @@ export const GET = requireAdmin(async (request: NextRequest, { params }: { param
 });
 
 // PUT - Update banner
-export const PUT = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const PUT = requireAdmin(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
+    const { id } = await params;
 
     const body = await request.json();
     const {
       section,
       imageUrl,
+      iconUrl,
       title,
       cta,
       ctaText,
@@ -49,6 +52,18 @@ export const PUT = requireAdmin(async (request: NextRequest, { params }: { param
       locationId,
       lat,
       lng,
+      shopName,
+      shopId,
+      pageUrl,
+      pageId,
+      category,
+      textEffect,
+      animation,
+      animationDuration,
+      animationDelay,
+      backgroundEffect,
+      overlayColor,
+      overlayOpacity,
       isActive,
       order,
     } = body;
@@ -56,6 +71,7 @@ export const PUT = requireAdmin(async (request: NextRequest, { params }: { param
     const updateData: any = {};
     if (section !== undefined) updateData.section = section;
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    if (iconUrl !== undefined) updateData.iconUrl = iconUrl;
     if (title !== undefined) updateData.title = title;
     if (cta !== undefined) updateData.cta = cta;
     if (ctaText !== undefined) updateData.ctaText = ctaText;
@@ -69,11 +85,23 @@ export const PUT = requireAdmin(async (request: NextRequest, { params }: { param
     if (locationId !== undefined) updateData.locationId = locationId;
     if (lat !== undefined) updateData.lat = lat ? parseFloat(lat) : undefined;
     if (lng !== undefined) updateData.lng = lng ? parseFloat(lng) : undefined;
+    if (shopName !== undefined) updateData.shopName = shopName;
+    if (shopId !== undefined) updateData.shopId = shopId;
+    if (pageUrl !== undefined) updateData.pageUrl = pageUrl;
+    if (pageId !== undefined) updateData.pageId = pageId;
+    if (category !== undefined) updateData.category = category;
+    if (textEffect !== undefined) updateData.textEffect = textEffect;
+    if (animation !== undefined) updateData.animation = animation;
+    if (animationDuration !== undefined) updateData.animationDuration = animationDuration;
+    if (animationDelay !== undefined) updateData.animationDelay = animationDelay;
+    if (backgroundEffect !== undefined) updateData.backgroundEffect = backgroundEffect;
+    if (overlayColor !== undefined) updateData.overlayColor = overlayColor;
+    if (overlayOpacity !== undefined) updateData.overlayOpacity = overlayOpacity;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (order !== undefined) updateData.order = order;
 
     const banner = await Banner.findByIdAndUpdate(
-      params.id,
+      id,
       updateData,
       { new: true, runValidators: true }
     );
@@ -99,11 +127,12 @@ export const PUT = requireAdmin(async (request: NextRequest, { params }: { param
 });
 
 // DELETE - Delete banner
-export const DELETE = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const DELETE = requireAdmin(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
+    const { id } = await params;
 
-    const banner = await Banner.findByIdAndDelete(params.id);
+    const banner = await Banner.findByIdAndDelete(id);
 
     if (!banner) {
       return NextResponse.json(
@@ -124,4 +153,3 @@ export const DELETE = requireAdmin(async (request: NextRequest, { params }: { pa
     );
   }
 });
-

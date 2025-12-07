@@ -10,6 +10,10 @@ export interface IBusiness extends Document {
   imageUrl?: string;
   latitude?: number;
   longitude?: number;
+  location?: {
+    type: 'Point';
+    coordinates: [number, number]; // [longitude, latitude]
+  };
   isFeatured: boolean;
   specialOffers?: Types.ObjectId[];
   createdAt: Date;

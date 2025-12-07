@@ -94,9 +94,9 @@ export default function CategoryPage({ categoryName, categorySlug }: CategoryPag
 
         // Fetch all business types in parallel for better performance
         const [nearbyData, popularData, ratedData] = await Promise.all([
-          safeFetch(`/api/businesses/${categorySlug}?type=nearby&loc=${location.id}`),
-          safeFetch(`/api/businesses/${categorySlug}?type=popular&loc=${location.id}`),
-          safeFetch(`/api/businesses/${categorySlug}?type=rated&loc=${location.id}`),
+          safeFetch(`/api/categories/${categorySlug}/businesses?type=nearby&loc=${location.id}`),
+          safeFetch(`/api/categories/${categorySlug}/businesses?type=popular&loc=${location.id}`),
+          safeFetch(`/api/categories/${categorySlug}/businesses?type=rated&loc=${location.id}`),
         ]);
 
         if (nearbyData?.businesses && nearbyData.businesses.length > 0) {

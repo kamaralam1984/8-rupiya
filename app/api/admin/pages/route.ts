@@ -34,14 +34,17 @@ export const POST = requireAdmin(async (request: NextRequest) => {
     await connectDB();
 
     const body = await request.json();
-    const { title, slug, content, seoTitle, seoDescription, isPublished } = body;
+    const { title, slug, content, seoTitle, seoDescription, isPublished, designSettings } = body;
 
-    if (!title || !content) {
+    if (!title || !title.trim()) {
       return NextResponse.json(
-        { error: 'Title and content are required' },
+        { error: 'Page title is required' },
         { status: 400 }
       );
     }
+    
+    // Allow empty content (for pages that will be built with drag & drop)
+    const pageContent = content || '<p>Empty page - add content using the drag & drop builder</p>';
 
     // Auto-generate slug if not provided
     let pageSlug = slug || title
@@ -60,10 +63,11 @@ export const POST = requireAdmin(async (request: NextRequest) => {
     const page = await Page.create({
       title,
       slug: pageSlug,
-      content,
+      content: pageContent,
       seoTitle,
       seoDescription,
       isPublished: isPublished !== undefined ? isPublished : true,
+      designSettings: designSettings || {},
     });
 
     return NextResponse.json(

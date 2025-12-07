@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateDistance } from '@/app/utils/distance';
-import { MOCK_SHOPS, type MockShop } from '@/app/data/mockShops';
 import connectDB from '@/lib/mongodb';
-import Shop from '@/models/Shop';
+import Shop from '@/models/Shop'; // Old shop model
+import AdminShop from '@/lib/models/Shop'; // New admin shop model (shopsfromimage collection)
+import AgentShop from '@/lib/models/AgentShop'; // Agent shops
+import { PRICING_PLANS } from '@/app/utils/pricing';
 
 interface ShopWithDistance {
   id: string;
@@ -14,6 +16,7 @@ interface ShopWithDistance {
   city: string;
   state?: string;
   address: string;
+  area?: string; // Area/locality name
   phone?: string;
   email?: string;
   website?: string;
@@ -26,6 +29,11 @@ interface ShopWithDistance {
   featured?: boolean;
   sponsored?: boolean;
   distance: number; // Distance in kilometers
+  visitorCount?: number; // Number of visitors
+  planType?: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_BAR' | 'BANNER' | 'HERO'; // Pricing plan
+  priorityRank?: number; // Priority ranking for sorting
+  isLeftBar?: boolean;
+  isRightBar?: boolean;
 }
 
 /**
@@ -46,89 +54,245 @@ export async function GET(request: NextRequest) {
     const userLng = searchParams.get('userLng');
     const radiusKm = searchParams.get('radiusKm');
     const useMongoDB = searchParams.get('useMongoDB') === 'true';
+    const city = searchParams.get('city');
+    const area = searchParams.get('area');
+    const pincode = searchParams.get('pincode');
 
-    // Validate required parameters
-    if (!userLat || !userLng) {
+    // If city, area, or pincode is provided, we can search without coordinates
+    // But if coordinates are provided, use them for distance calculation
+    const hasLocationFilters = city || area || pincode;
+    const hasCoordinates = userLat && userLng;
+
+    let userLatNum: number | null = null;
+    let userLngNum: number | null = null;
+    
+    if (hasCoordinates) {
+      userLatNum = parseFloat(userLat!);
+      userLngNum = parseFloat(userLng!);
+
+      // Validate coordinates
+      if (isNaN(userLatNum) || isNaN(userLngNum)) {
+        return NextResponse.json(
+          { error: 'Invalid coordinates. userLat and userLng must be valid numbers' },
+          { status: 400 }
+        );
+      }
+
+      if (userLatNum < -90 || userLatNum > 90 || userLngNum < -180 || userLngNum > 180) {
+        return NextResponse.json(
+          { error: 'Coordinates out of valid range' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    const radiusKmNum = radiusKm ? parseFloat(radiusKm) : (hasCoordinates ? 10 : 0); // Default 10km if coordinates, 0 (all) if location filter
+
+    if (isNaN(radiusKmNum) || radiusKmNum < 0) {
       return NextResponse.json(
-        { error: 'userLat and userLng are required query parameters' },
+        { error: 'radiusKm must be a non-negative number (0 for all shops)' },
         { status: 400 }
       );
     }
 
-    const userLatNum = parseFloat(userLat);
-    const userLngNum = parseFloat(userLng);
-    const radiusKmNum = radiusKm ? parseFloat(radiusKm) : 10; // Default 10km
-
-    // Validate coordinates
-    if (isNaN(userLatNum) || isNaN(userLngNum)) {
+    // Validate that we have either coordinates or location filters
+    if (!hasCoordinates && !hasLocationFilters) {
       return NextResponse.json(
-        { error: 'Invalid coordinates. userLat and userLng must be valid numbers' },
+        { error: 'Either coordinates (userLat, userLng) or location filters (city, area, pincode) are required' },
         { status: 400 }
       );
     }
 
-    if (userLatNum < -90 || userLatNum > 90 || userLngNum < -180 || userLngNum > 180) {
-      return NextResponse.json(
-        { error: 'Coordinates out of valid range' },
-        { status: 400 }
-      );
-    }
-
-    if (isNaN(radiusKmNum) || radiusKmNum <= 0) {
-      return NextResponse.json(
-        { error: 'radiusKm must be a positive number' },
-        { status: 400 }
-      );
-    }
-
-    let shops: Array<MockShop | any> = [];
+    let shops: any[] = [];
 
     // Load shops from MongoDB or mock data
     if (useMongoDB) {
       try {
         await connectDB();
-        const dbShops = await Shop.find({}).lean();
-        shops = dbShops.map((shop) => ({
+        
+        // Build query filters for city, area, pincode
+        const queryFilter: any = {};
+        
+        if (city) {
+          queryFilter.$or = [
+            { city: new RegExp(city, 'i') },
+            { fullAddress: new RegExp(city, 'i') },
+            { address: new RegExp(city, 'i') },
+          ];
+        }
+        
+        if (area) {
+          if (queryFilter.$or) {
+            queryFilter.$or.push(
+              { area: new RegExp(area, 'i') },
+              { fullAddress: new RegExp(area, 'i') },
+              { address: new RegExp(area, 'i') }
+            );
+          } else {
+            queryFilter.$or = [
+              { area: new RegExp(area, 'i') },
+              { fullAddress: new RegExp(area, 'i') },
+              { address: new RegExp(area, 'i') },
+            ];
+          }
+        }
+        
+        if (pincode) {
+          if (queryFilter.$or) {
+            queryFilter.$or.push({ pincode: pincode });
+          } else {
+            queryFilter.pincode = pincode;
+          }
+        }
+        
+        // Also filter by coordinates if provided (for shops with valid coordinates)
+        if (hasCoordinates) {
+          // We'll filter by distance later, but ensure shops have coordinates
+          queryFilter.latitude = { $exists: true, $nin: [null, 0] };
+          queryFilter.longitude = { $exists: true, $nin: [null, 0] };
+        }
+        
+        // Fetch from all shop sources: old Shop model, new AdminShop model, and AgentShop model
+        // Apply filters to all queries - show all plan types
+        const [oldShops, adminShops, agentShops] = await Promise.all([
+          Shop.find(Object.keys(queryFilter).length > 0 ? queryFilter : {}).lean().catch(() => []), // Old shop model
+          AdminShop.find(Object.keys(queryFilter).length > 0 ? queryFilter : {}).lean().catch(() => []), // New admin shop model (shopsfromimage)
+          AgentShop.find(Object.keys(queryFilter).length > 0 ? queryFilter : {}).lean().catch(() => []), // Agent shops
+        ]);
+        
+        // Transform old shops
+        const transformedOldShops = oldShops.map((shop: any) => ({
           id: shop._id.toString(),
           name: shop.name,
           category: shop.category,
           imageUrl: shop.imageUrl,
-          rating: shop.rating,
-          reviews: shop.reviews,
-          city: shop.city,
-          state: shop.state,
-          address: shop.address,
-          phone: shop.phone,
-          email: shop.email,
-          website: shop.website,
+          rating: shop.rating || 4.5, // Default rating if not present
+          reviews: shop.reviews || 0,
+          city: shop.city || '',
+          state: shop.state || '',
+          address: shop.address || '',
+          phone: shop.phone || '',
+          email: shop.email || '',
+          website: shop.website || '',
           latitude: shop.latitude,
           longitude: shop.longitude,
-          description: shop.description,
-          offerPercent: shop.offerPercent,
-          priceLevel: shop.priceLevel,
-          tags: shop.tags,
-          featured: shop.featured,
-          sponsored: shop.sponsored,
+          description: shop.description || '',
+          offerPercent: shop.offerPercent || 0,
+          priceLevel: shop.priceLevel || '',
+          tags: shop.tags || [],
+          featured: shop.featured || false,
+          sponsored: shop.sponsored || false,
         }));
+        
+        // Transform admin shops (from shopsfromimage collection)
+        const transformedAdminShops = adminShops.map((shop: any) => ({
+          id: shop._id.toString(),
+          name: shop.shopName || shop.name,
+          category: shop.category,
+          imageUrl: shop.photoUrl || shop.iconUrl || shop.imageUrl,
+          rating: 4.5, // Default rating
+          reviews: 0,
+          city: shop.city || '',
+          state: '',
+          address: shop.fullAddress || shop.address || '',
+          area: shop.area || '',
+          phone: shop.mobile || '',
+          email: '',
+          website: '',
+          latitude: shop.latitude,
+          longitude: shop.longitude,
+          description: '',
+          offerPercent: 0,
+          priceLevel: '',
+          tags: [],
+          featured: shop.planType === 'FEATURED' || shop.isHomePageBanner || false,
+          sponsored: shop.planType === 'PREMIUM' || shop.planType === 'FEATURED' || false,
+          visitorCount: shop.visitorCount || 0,
+          planType: shop.planType || 'BASIC',
+          priorityRank: (() => {
+            const planType = (shop.planType || 'BASIC') as keyof typeof PRICING_PLANS;
+            const planDetails = PRICING_PLANS[planType] || PRICING_PLANS.BASIC;
+            return shop.priorityRank !== undefined && shop.priorityRank !== null 
+              ? shop.priorityRank 
+              : planDetails.priorityRank;
+          })(),
+          isLeftBar: shop.isLeftBar || shop.planType === 'LEFT_BAR' || false,
+          isRightBar: shop.isRightBar || shop.planType === 'RIGHT_BAR' || false,
+        }));
+        
+        // Transform agent shops
+        const transformedAgentShops = agentShops.map((shop: any) => ({
+          id: shop._id.toString(),
+          name: shop.shopName,
+          category: shop.category,
+          imageUrl: shop.photoUrl,
+          rating: 4.5, // Default rating
+          reviews: 0,
+          city: '', // Agent shops may not have city
+          area: shop.area || '',
+          state: '',
+          address: shop.address,
+          phone: shop.mobile || '',
+          email: '',
+          website: '',
+          latitude: shop.latitude,
+          longitude: shop.longitude,
+          description: '',
+          offerPercent: 0,
+          priceLevel: '',
+          tags: [],
+          featured: shop.planType === 'FEATURED' || false,
+          sponsored: shop.planType === 'PREMIUM' || shop.planType === 'FEATURED' || false,
+          visitorCount: shop.visitorCount || 0,
+          planType: shop.planType || 'BASIC',
+          priorityRank: (() => {
+            const planType = (shop.planType || 'BASIC') as keyof typeof PRICING_PLANS;
+            const planDetails = PRICING_PLANS[planType] || PRICING_PLANS.BASIC;
+            return planDetails.priorityRank;
+          })(),
+          isLeftBar: shop.planType === 'LEFT_BAR' || false,
+          isRightBar: shop.planType === 'RIGHT_BAR' || false,
+        }));
+        
+        // Combine all shops
+        shops = [...transformedOldShops, ...transformedAdminShops, ...transformedAgentShops];
+        
+        console.log(`Loaded ${oldShops.length} old shops, ${adminShops.length} admin shops, ${agentShops.length} agent shops`);
       } catch (dbError) {
-        console.error('MongoDB error, falling back to mock data:', dbError);
-        // Fallback to mock data if MongoDB fails
-        shops = MOCK_SHOPS;
+        console.error('MongoDB error:', dbError);
+        // Return empty array if MongoDB fails
+        shops = [];
       }
     } else {
-      // Use mock data
-      shops = MOCK_SHOPS;
+      // Return empty array if MongoDB is not used
+      shops = [];
     }
 
     // Calculate distance for each shop and filter by radius
     const shopsWithDistance: ShopWithDistance[] = shops
-      .map((shop) => {
-        const distance = calculateDistance(
-          userLatNum,
-          userLngNum,
-          shop.latitude,
-          shop.longitude
-        );
+      .map((shop: any) => {
+        // Calculate distance if coordinates are available
+        let distance = 0;
+        if (hasCoordinates && userLatNum !== null && userLngNum !== null && shop.latitude && shop.longitude) {
+          distance = calculateDistance(
+            userLatNum,
+            userLngNum,
+            shop.latitude,
+            shop.longitude
+          );
+        } else if (hasLocationFilters) {
+          // If searching by city/area/pincode without coordinates, set distance to 0
+          // Shops will be sorted by priority rank instead
+          distance = 0;
+        }
+
+        // Get plan type and priority rank
+        const planType = (shop.planType || 'BASIC') as keyof typeof PRICING_PLANS;
+        // Calculate priority rank from plan type if not set
+        const planDetails = PRICING_PLANS[planType] || PRICING_PLANS.BASIC;
+        const priorityRank = shop.priorityRank !== undefined && shop.priorityRank !== null 
+          ? shop.priorityRank 
+          : planDetails.priorityRank;
 
         return {
           id: shop.id,
@@ -140,6 +304,7 @@ export async function GET(request: NextRequest) {
           city: shop.city,
           state: shop.state,
           address: shop.address,
+          area: shop.area || '',
           phone: shop.phone,
           email: shop.email,
           website: shop.website,
@@ -149,13 +314,36 @@ export async function GET(request: NextRequest) {
           offerPercent: shop.offerPercent,
           priceLevel: shop.priceLevel,
           tags: shop.tags,
-          featured: shop.featured,
-          sponsored: shop.sponsored,
+          featured: shop.featured || planType === 'FEATURED',
+          sponsored: shop.sponsored || planType === 'PREMIUM' || planType === 'FEATURED',
           distance,
+          visitorCount: shop.visitorCount || 0,
+          planType: planType, // Add plan type
+          priorityRank: priorityRank, // Add priority rank
+          isLeftBar: shop.isLeftBar || planType === 'LEFT_BAR' || false,
+          isRightBar: shop.isRightBar || planType === 'RIGHT_BAR' || false,
         };
       })
-      .filter((shop) => shop.distance <= radiusKmNum) // Filter by radius
-      .sort((a, b) => a.distance - b.distance); // Sort by distance (nearest first)
+      .filter((shop) => {
+        // Filter by radius if coordinates are provided and radius is set
+        if (hasCoordinates && radiusKmNum > 0) {
+          return shop.distance <= radiusKmNum;
+        }
+        // If no coordinates or radius is 0, show all shops (filtered by city/area/pincode if provided)
+        return true;
+      })
+      .sort((a, b) => {
+        // Sort by priority rank first (higher = first), then by distance
+        // Priority order: HERO (200) > FEATURED (100) > BANNER (50) > LEFT_BAR/RIGHT_BAR (30/20) > PREMIUM (10) > BASIC (0)
+        if (b.priorityRank !== a.priorityRank) {
+          return b.priorityRank - a.priorityRank;
+        }
+        // If coordinates available, sort by distance; otherwise keep original order
+        if (hasCoordinates) {
+          return a.distance - b.distance;
+        }
+        return 0; // Keep original order if no coordinates
+      });
 
     return NextResponse.json(
       {
@@ -163,10 +351,15 @@ export async function GET(request: NextRequest) {
         shops: shopsWithDistance,
         count: shopsWithDistance.length,
         radiusKm: radiusKmNum,
-        userLocation: {
+        userLocation: hasCoordinates ? {
           latitude: userLatNum,
           longitude: userLngNum,
-        },
+        } : null,
+        filters: hasLocationFilters ? {
+          city: city || null,
+          area: area || null,
+          pincode: pincode || null,
+        } : null,
       },
       { status: 200 }
     );

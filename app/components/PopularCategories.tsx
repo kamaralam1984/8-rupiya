@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useLocation } from '../contexts/LocationContext';
 import type { Category } from '../types';
+import { safeJsonParse } from '../utils/fetchHelpers';
 
 export default function PopularCategories() {
   const router = useRouter();
@@ -16,9 +17,9 @@ export default function PopularCategories() {
     const fetchData = async () => {
       try {
         const res = await fetch(`/api/categories?loc=${location.id}`);
-        const data = await res.json();
+        const data = await safeJsonParse<{ categories?: Category[] }>(res);
         // Sort by item count and take top 6
-        const popular = (data.categories || [])
+        const popular = (data?.categories || [])
           .sort((a: Category, b: Category) => b.itemCount - a.itemCount)
           .slice(0, 6);
         setCategories(popular);

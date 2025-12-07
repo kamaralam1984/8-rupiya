@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 
 interface Banner {
   bannerId: string;
@@ -81,71 +81,24 @@ const fallbackSetB: Banner[] = [
   createBanner('asset-meta-alt', 'Graphic Designer Replaces Wordmarks In 30 Famous Logos With The Fonts They Use.jpeg', 'Wordmark Logos'),
 ];
 
-const FADE_DURATION = 600;
-const ROTATION_INTERVAL = 5000;
-
 export default function BottomStrip({ banners, onBannerClick }: BottomStripProps) {
-  const chunkBanners = (source: Banner[]) => {
-    const chunks: Banner[][] = [];
-    for (let i = 0; i < source.length; i += 20) {
-      chunks.push(source.slice(i, i + 20));
+  // Show all banners (up to 20), no rotation
+  const currentBanners = useMemo(() => {
+    if (banners.length > 0) {
+      return banners.slice(0, 20);
     }
-    return chunks;
-  };
-
-  const bannerSets = useMemo(() => {
-    const dynamicSets = chunkBanners(banners);
-    if (dynamicSets.length === 0) {
-      return [fallbackSetA, fallbackSetB];
-    }
-    return [...dynamicSets, fallbackSetA, fallbackSetB];
+    // Fallback to first 20 of fallback sets
+    return [...fallbackSetA, ...fallbackSetB].slice(0, 20);
   }, [banners]);
-
-  const [activeSetIndex, setActiveSetIndex] = useState(0);
-  const [isFading, setIsFading] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (bannerSets.length <= 1) return;
-    
-    // Clear any existing interval
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-
-    // Don't start interval if hovered
-    if (isHovered) return;
-
-    intervalRef.current = setInterval(() => {
-      setIsFading(true);
-      setTimeout(() => {
-        setActiveSetIndex((prev) => (prev + 1) % bannerSets.length);
-        setIsFading(false);
-      }, FADE_DURATION);
-    }, ROTATION_INTERVAL);
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [bannerSets.length, isHovered]);
-
-  useEffect(() => {
-    setActiveSetIndex(0);
-  }, [bannerSets.length]);
-
-  const currentBanners = bannerSets[activeSetIndex] || [];
   const renderPlaceholder = (position: number) => (
     <div
       onClick={() => window.location.href = '/advertise'}
-      className="inline-flex items-center justify-center h-16 md:h-20 px-4 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[100px]"
+      className="inline-flex items-center justify-center h-12 md:h-15 px-3 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[75px]"
       role="button"
       tabIndex={0}
       aria-label={`Advertise here - Bottom position ${position + 1}`}
     >
-      <span className="text-xs font-medium text-gray-500">Ad</span>
+      <span className="text-[10px] font-medium text-gray-500">Ad</span>
     </div>
   );
 
@@ -159,26 +112,19 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
   const mobileRow4 = currentBanners.slice(15, 20);
 
   return (
-    <div 
-      className="w-full mt-6"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <div className="w-full mt-6">
       {/* Desktop: 2 Rows of 10 images each */}
       <div className="hidden md:block relative" aria-live="polite">
-        <div
-          className={`transition-opacity ${isFading ? 'opacity-0' : 'opacity-100'}`}
-          style={{ transitionDuration: `${FADE_DURATION}ms` }}
-        >
+        <div>
           {/* Row 1: 10 images */}
           <div className="flex flex-wrap justify-center gap-2 mb-2">
           {[...Array(10)].map((_, index) => {
             const banner = row1[index];
             return banner ? (
-              <div key={banner.bannerId} className="relative group flex-1 max-w-[120px] min-w-[100px]">
+              <div key={banner.bannerId} className="relative group flex-1 max-w-[90px] min-w-[75px]">
                 <button
                   onClick={() => onBannerClick(banner.bannerId, 'bottom', index, banner.link)}
-                  className="relative w-full inline-flex items-center justify-center h-16 md:h-18 px-3 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 overflow-hidden"
+                  className="relative w-full inline-flex items-center justify-center h-15 md:h-17 px-2 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 overflow-hidden"
                   aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${index + 1}`}
                   data-banner-id={banner.bannerId}
                   data-section="bottom"
@@ -187,8 +133,8 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                   <Image
                     src={banner.imageUrl}
                     alt={banner.alt}
-                    width={70}
-                    height={56}
+                    width={53}
+                    height={42}
                     className={`${banner.isBusiness ? 'object-cover' : 'object-contain'} max-h-full max-w-full`}
                     loading="lazy"
                   />
@@ -207,7 +153,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                 )}
               </div>
             ) : (
-              <div key={`bottom-placeholder-${index}`} className="flex-1 max-w-[120px]">
+              <div key={`bottom-placeholder-${index}`} className="flex-1 max-w-[90px]">
                 {renderPlaceholder(index)}
               </div>
             );
@@ -219,10 +165,10 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
             const banner = row2[index];
             const actualIndex = index + 10;
             return banner ? (
-              <div key={banner.bannerId} className="relative group flex-1 max-w-[120px] min-w-[100px]">
+              <div key={banner.bannerId} className="relative group flex-1 max-w-[90px] min-w-[75px]">
                 <button
                   onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
-                  className="relative w-full inline-flex items-center justify-center h-16 md:h-18 px-3 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 overflow-hidden"
+                  className="relative w-full inline-flex items-center justify-center h-12 md:h-14 px-2 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 overflow-hidden"
                   aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${actualIndex + 1}`}
                   data-banner-id={banner.bannerId}
                   data-section="bottom"
@@ -231,23 +177,23 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                   <Image
                     src={banner.imageUrl}
                     alt={banner.alt}
-                    width={70}
-                    height={56}
+                    width={66}
+                    height={53}
                     className={`${banner.isBusiness ? 'object-cover' : 'object-contain'} max-h-full max-w-full`}
                     loading="lazy"
                   />
-                  {banner.isBusiness && (
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                  )}
-                </button>
-                {/* Distance badge for businesses */}
-                {banner.isBusiness && banner.distance !== undefined && (
-                  <div className="absolute top-1 right-1 z-10">
-                    <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg">
-                      {banner.distance.toFixed(1)}km
+                    {banner.isBusiness && (
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                    )}
+                  </button>
+                  {/* Distance badge for businesses */}
+                  {banner.isBusiness && banner.distance !== undefined && (
+                    <div className="absolute top-1 right-1 z-10">
+                      <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg">
+                        {banner.distance.toFixed(1)}km
                     </div>
-                  </div>
-                )}
+                    </div>
+                  )}
                 {/* Call button overlay on hover for businesses */}
                 {banner.isBusiness && (
                   <a
@@ -265,7 +211,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                 )}
               </div>
             ) : (
-              <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[120px]">
+              <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[90px]">
                 {renderPlaceholder(actualIndex)}
               </div>
             );
@@ -276,19 +222,16 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
 
       {/* Mobile: 4 Rows of 5 images each (smaller sizes) */}
       <div className="md:hidden relative" aria-live="polite">
-        <div
-          className={`transition-opacity ${isFading ? 'opacity-0' : 'opacity-100'}`}
-          style={{ transitionDuration: `${FADE_DURATION}ms` }}
-        >
+        <div>
           {/* Row 1: 5 images */}
           <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
             {[...Array(5)].map((_, index) => {
               const banner = mobileRow1[index];
               return banner ? (
-                <div key={banner.bannerId} className="relative group flex-1 max-w-[65px] sm:max-w-[75px] min-w-[50px] sm:min-w-[60px]">
+                <div key={banner.bannerId} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
                   <button
                     onClick={() => onBannerClick(banner.bannerId, 'bottom', index, banner.link)}
-                    className="relative w-full inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
+                    className="relative w-full inline-flex items-center justify-center h-10 sm:h-11 px-1 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
                     aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${index + 1}`}
                     data-banner-id={banner.bannerId}
                     data-section="bottom"
@@ -297,8 +240,8 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                     <Image
                       src={banner.imageUrl}
                       alt={banner.alt}
-                      width={35}
-                      height={28}
+                      width={33}
+                      height={26}
                       className={`${banner.isBusiness ? 'object-cover' : 'object-contain'} max-h-full max-w-full`}
                       loading="lazy"
                     />
@@ -317,15 +260,15 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                   )}
                 </div>
               ) : (
-                <div key={`bottom-placeholder-${index}`} className="flex-1 max-w-[65px] sm:max-w-[75px]">
+                <div key={`bottom-placeholder-${index}`} className="flex-1 max-w-[49px] sm:max-w-[56px]">
                   <div
                     onClick={() => window.location.href = '/advertise'}
-                    className="inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[50px] sm:min-w-[60px]"
+                    className="inline-flex items-center justify-center h-8 sm:h-9 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[38px] sm:min-w-[45px]"
                     role="button"
                     tabIndex={0}
                     aria-label={`Advertise here - Bottom position ${index + 1}`}
                   >
-                    <span className="text-[8px] sm:text-[9px] font-medium text-gray-500">Ad</span>
+                    <span className="text-[6px] sm:text-[7px] font-medium text-gray-500">Ad</span>
                   </div>
                 </div>
               );
@@ -337,10 +280,10 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
               const banner = mobileRow2[index];
               const actualIndex = index + 5;
               return banner ? (
-                <div key={banner.bannerId} className="relative group flex-1 max-w-[65px] sm:max-w-[75px] min-w-[50px] sm:min-w-[60px]">
+                <div key={banner.bannerId} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
                   <button
                     onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
-                    className="relative w-full inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
+                    className="relative w-full inline-flex items-center justify-center h-10 sm:h-11 px-1 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
                     aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${actualIndex + 1}`}
                     data-banner-id={banner.bannerId}
                     data-section="bottom"
@@ -349,8 +292,8 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                     <Image
                       src={banner.imageUrl}
                       alt={banner.alt}
-                      width={35}
-                      height={28}
+                      width={33}
+                      height={26}
                       className={`${banner.isBusiness ? 'object-cover' : 'object-contain'} max-h-full max-w-full`}
                       loading="lazy"
                     />
@@ -369,15 +312,15 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                   )}
                 </div>
               ) : (
-                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[65px] sm:max-w-[75px]">
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[49px] sm:max-w-[56px]">
                   <div
                     onClick={() => window.location.href = '/advertise'}
-                    className="inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[50px] sm:min-w-[60px]"
+                    className="inline-flex items-center justify-center h-8 sm:h-9 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[38px] sm:min-w-[45px]"
                     role="button"
                     tabIndex={0}
                     aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
                   >
-                    <span className="text-[8px] sm:text-[9px] font-medium text-gray-500">Ad</span>
+                    <span className="text-[6px] sm:text-[7px] font-medium text-gray-500">Ad</span>
                   </div>
                 </div>
               );
@@ -389,10 +332,10 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
               const banner = mobileRow3[index];
               const actualIndex = index + 10;
               return banner ? (
-                <div key={banner.bannerId} className="relative group flex-1 max-w-[65px] sm:max-w-[75px] min-w-[50px] sm:min-w-[60px]">
+                <div key={banner.bannerId} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
                   <button
                     onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
-                    className="relative w-full inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
+                    className="relative w-full inline-flex items-center justify-center h-10 sm:h-11 px-1 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
                     aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${actualIndex + 1}`}
                     data-banner-id={banner.bannerId}
                     data-section="bottom"
@@ -401,8 +344,8 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                     <Image
                       src={banner.imageUrl}
                       alt={banner.alt}
-                      width={35}
-                      height={28}
+                      width={33}
+                      height={26}
                       className={`${banner.isBusiness ? 'object-cover' : 'object-contain'} max-h-full max-w-full`}
                       loading="lazy"
                     />
@@ -421,15 +364,15 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                   )}
                 </div>
               ) : (
-                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[65px] sm:max-w-[75px]">
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[49px] sm:max-w-[56px]">
                   <div
                     onClick={() => window.location.href = '/advertise'}
-                    className="inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[50px] sm:min-w-[60px]"
+                    className="inline-flex items-center justify-center h-8 sm:h-9 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[38px] sm:min-w-[45px]"
                     role="button"
                     tabIndex={0}
                     aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
                   >
-                    <span className="text-[8px] sm:text-[9px] font-medium text-gray-500">Ad</span>
+                    <span className="text-[6px] sm:text-[7px] font-medium text-gray-500">Ad</span>
                   </div>
                 </div>
               );
@@ -441,10 +384,10 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
               const banner = mobileRow4[index];
               const actualIndex = index + 15;
               return banner ? (
-                <div key={banner.bannerId} className="relative group flex-1 max-w-[65px] sm:max-w-[75px] min-w-[50px] sm:min-w-[60px]">
+                <div key={banner.bannerId} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
                   <button
                     onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
-                    className="relative w-full inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
+                    className="relative w-full inline-flex items-center justify-center h-10 sm:h-11 px-1 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
                     aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${actualIndex + 1}`}
                     data-banner-id={banner.bannerId}
                     data-section="bottom"
@@ -453,8 +396,8 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                     <Image
                       src={banner.imageUrl}
                       alt={banner.alt}
-                      width={35}
-                      height={28}
+                      width={33}
+                      height={26}
                       className={`${banner.isBusiness ? 'object-cover' : 'object-contain'} max-h-full max-w-full`}
                       loading="lazy"
                     />
@@ -473,15 +416,15 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                   )}
                 </div>
               ) : (
-                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[65px] sm:max-w-[75px]">
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[49px] sm:max-w-[56px]">
                   <div
                     onClick={() => window.location.href = '/advertise'}
-                    className="inline-flex items-center justify-center h-10 sm:h-12 px-1 sm:px-1.5 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[50px] sm:min-w-[60px]"
+                    className="inline-flex items-center justify-center h-8 sm:h-9 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[38px] sm:min-w-[45px]"
                     role="button"
                     tabIndex={0}
                     aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
                   >
-                    <span className="text-[8px] sm:text-[9px] font-medium text-gray-500">Ad</span>
+                    <span className="text-[6px] sm:text-[7px] font-medium text-gray-500">Ad</span>
                   </div>
                 </div>
               );

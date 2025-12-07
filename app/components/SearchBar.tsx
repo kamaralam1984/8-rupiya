@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Location, SearchSuggestion } from '../types';
+import { safeJsonParse } from '../utils/fetchHelpers';
 
 interface SearchBarProps {
   location: Location;
@@ -32,8 +33,8 @@ export default function SearchBar({ location }: SearchBarProps) {
         const response = await fetch(
           `/api/search/suggestions?q=${encodeURIComponent(query)}&loc=${location.id}`
         );
-        const data = await response.json();
-        setSuggestions(data.suggestions || []);
+        const data = await safeJsonParse<{ suggestions?: SearchSuggestion[] }>(response);
+        setSuggestions(data?.suggestions || []);
         setShowSuggestions(true);
       } catch (error) {
         console.error('Error fetching suggestions:', error);

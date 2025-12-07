@@ -57,6 +57,16 @@ export default function CategoriesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Validate coordinates if provided
+      if (formData.latitude && (isNaN(parseFloat(formData.latitude)) || parseFloat(formData.latitude) < -90 || parseFloat(formData.latitude) > 90)) {
+        toast.error('Latitude must be a number between -90 and 90');
+        return;
+      }
+      if (formData.longitude && (isNaN(parseFloat(formData.longitude)) || parseFloat(formData.longitude) < -180 || parseFloat(formData.longitude) > 180)) {
+        toast.error('Longitude must be a number between -180 and 180');
+        return;
+      }
+
       const url = editingCategory ? `/api/admin/categories/${editingCategory._id}` : '/api/admin/categories';
       const method = editingCategory ? 'PUT' : 'POST';
 
@@ -77,10 +87,11 @@ export default function CategoriesPage() {
         resetForm();
         fetchCategories();
       } else {
-        toast.error(data.error || 'Operation failed');
+        toast.error(data.error || data.details || 'Operation failed');
       }
-    } catch (error) {
-      toast.error('Failed to save category');
+    } catch (error: any) {
+      console.error('Error saving category:', error);
+      toast.error(error.message || 'Failed to save category');
     }
   };
 
@@ -138,6 +149,30 @@ export default function CategoriesPage() {
       const data = await res.json();
       if (data.success) {
         toast.success(`Categories seeded! Created: ${data.results.created}, Updated: ${data.results.updated}`);
+        fetchCategories();
+      } else {
+        toast.error(data.error || 'Failed to seed categories');
+      }
+    } catch (error) {
+      toast.error('Failed to seed categories');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const handleSeedFlipkartJustDial = async () => {
+    if (!confirm('This will create/update all categories based on Flipkart and JustDial. This will add/update 100+ categories. Continue?')) return;
+    
+    setSeeding(true);
+    try {
+      const res = await fetch('/api/admin/categories/seed-flipkart-justdial', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Categories seeded! Created: ${data.results.created}, Updated: ${data.results.updated}, Skipped: ${data.results.skipped}`);
         fetchCategories();
       } else {
         toast.error(data.error || 'Failed to seed categories');
@@ -234,7 +269,26 @@ export default function CategoriesPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                <span>Seed Categories</span>
+                <span>Seed Categories (Folder)</span>
+              </>
+            )}
+          </button>
+          <button
+            onClick={handleSeedFlipkartJustDial}
+            disabled={seeding}
+            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {seeding ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <span>Seeding...</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Seed Flipkart & JustDial Categories</span>
               </>
             )}
           </button>

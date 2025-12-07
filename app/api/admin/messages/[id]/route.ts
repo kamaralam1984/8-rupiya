@@ -4,10 +4,11 @@ import { requireAdmin } from '@/lib/auth';
 import Message from '@/models/Message';
 
 // GET - Get single message
-export const GET = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const GET = requireAdmin(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
-    const message = await Message.findById(params.id).lean();
+    const { id } = await params;
+    const message = await Message.findById(id).lean();
     if (!message) return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     return NextResponse.json({ success: true, message }, { status: 200 });
   } catch (error: any) {
@@ -16,9 +17,10 @@ export const GET = requireAdmin(async (request: NextRequest, { params }: { param
 });
 
 // PATCH - Update message status
-export const PATCH = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const PATCH = requireAdmin(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
+    const { id } = await params;
     const body = await request.json();
     const { status } = body;
 
@@ -27,7 +29,7 @@ export const PATCH = requireAdmin(async (request: NextRequest, { params }: { par
     }
 
     const message = await Message.findByIdAndUpdate(
-      params.id,
+      id,
       { status },
       { new: true }
     );
@@ -40,10 +42,11 @@ export const PATCH = requireAdmin(async (request: NextRequest, { params }: { par
 });
 
 // DELETE - Delete message
-export const DELETE = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const DELETE = requireAdmin(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
-    const message = await Message.findByIdAndDelete(params.id);
+    const { id } = await params;
+    const message = await Message.findByIdAndDelete(id);
     if (!message) return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     return NextResponse.json({ success: true, message: 'Message deleted successfully' }, { status: 200 });
   } catch (error: any) {

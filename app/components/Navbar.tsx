@@ -7,11 +7,14 @@ import { useRouter } from 'next/navigation';
 import LocationSelector from './LocationSelector';
 import ProfileDropdown from './ProfileDropdown';
 import { useLocation } from '../contexts/LocationContext';
+import { useDistance } from '../contexts/DistanceContext';
 import { useAuth } from '../contexts/AuthContext';
 import type { SearchSuggestion } from '../types';
+import { safeJsonParse } from '../utils/fetchHelpers';
 
 export default function Navbar() {
   const { location: currentLocation, setLocation: setCurrentLocation } = useLocation();
+  const { distance, setDistance, isMounted: isDistanceMounted } = useDistance(); // Get distance from context
   const { isAuthenticated } = useAuth();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
@@ -19,10 +22,12 @@ export default function Navbar() {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showMobileLocation, setShowMobileLocation] = useState(false);
+  const [showDistanceSlider, setShowDistanceSlider] = useState(false);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const mobileLocationRef = useRef<HTMLDivElement>(null);
+  const distanceSliderRef = useRef<HTMLDivElement>(null);
 
   // Debounce search
   useEffect(() => {
@@ -40,8 +45,8 @@ export default function Navbar() {
         const response = await fetch(
           `/api/search/suggestions?q=${encodeURIComponent(query)}&loc=${currentLocation.id}`
         );
-        const data = await response.json();
-        setSuggestions(data.suggestions || []);
+        const data = await safeJsonParse<{ suggestions?: any[] }>(response);
+        setSuggestions(data?.suggestions || []);
         setShowSuggestions(true);
       } catch (error) {
         console.error('Error fetching suggestions:', error);
@@ -55,7 +60,7 @@ export default function Navbar() {
   const handleSubmit = (searchQuery?: string) => {
     const finalQuery = searchQuery || query;
     if (finalQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(finalQuery)}&loc=${currentLocation.id}`);
+      router.push(`/search?q=${encodeURIComponent(finalQuery)}&loc=${currentLocation.id}&distance=${distance}`);
       setShowSuggestions(false);
     }
   };
@@ -102,6 +107,12 @@ export default function Navbar() {
       ) {
         setShowMobileLocation(false);
       }
+      if (
+        distanceSliderRef.current &&
+        !distanceSliderRef.current.contains(event.target as Node)
+      ) {
+        setShowDistanceSlider(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -128,6 +139,9 @@ export default function Navbar() {
             </Link>
           </div>
 
+          {/* Golden Divider 1 - Logo to Search */}
+          <div className="hidden md:block w-[2px] h-12 bg-gradient-to-b from-transparent via-amber-400 via-yellow-500 to-transparent mx-2 animate-golden-glow"></div>
+
           {/* Center: Location + Search with enhanced design */}
           <div className="flex-1 max-w-4xl mx-4 hidden md:flex items-center gap-3">
             {/* Location Input - Enhanced */}
@@ -136,8 +150,8 @@ export default function Navbar() {
               onLocationChange={setCurrentLocation}
             />
 
-            {/* Search Input - Enhanced with gradient focus */}
-            <div className={`relative flex-1 transition-all duration-300 ${isSearchFocused ? 'scale-[1.02]' : ''}`} role="search">
+            {/* Search Input - Enhanced with gradient focus - 50% width */}
+            <div className={`relative w-1/2 transition-all duration-300 ${isSearchFocused ? 'scale-[1.02]' : ''}`} role="search">
               <div className="relative">
                 <div className={`absolute inset-0 bg-linear-to-r from-yellow-500/20 via-amber-400/20 to-yellow-600/20 rounded-xl blur-md transition-opacity ${isSearchFocused ? 'opacity-100' : 'opacity-0'}`}></div>
                 <div className="relative">
@@ -348,10 +362,75 @@ export default function Navbar() {
                 </div>
             </div>
             )}
-          </div>
+           </div>
 
-          {/* Right: CTAs */}
-          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
+           {/* Golden Divider 2 - Search to Distance Slider */}
+           <div className="hidden lg:block w-[2px] h-12 bg-gradient-to-b from-transparent via-amber-400 via-yellow-500 to-transparent mx-2 animate-golden-glow"></div>
+ 
+           {/* Distance Slider between Search and Promote (Desktop) */}
+           <div className="hidden lg:block relative" ref={distanceSliderRef}>
+             <button
+               onClick={() => setShowDistanceSlider(!showDistanceSlider)}
+               className="flex flex-col items-center justify-center px-3 py-2 group"
+               aria-label="Set search distance"
+             >
+               {/* Set Distance Label in Golden */}
+               <div className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 mb-2 group-hover:from-amber-300 group-hover:via-yellow-300 group-hover:to-amber-400 transition-all">
+                 Set Distance
+               </div>
+               <div className="text-xs font-semibold text-white mb-1 group-hover:text-amber-400 transition-colors">
+                 {!isDistanceMounted ? 'All' : distance === 0 ? 'All' : `${distance} km`}
+               </div>
+               <div className="w-36 h-1.5 bg-gray-700 rounded-full relative overflow-hidden distance-slider-glow">
+                 <div 
+                   className="absolute left-0 top-0 h-full bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-400 rounded-full transition-all duration-300"
+                   style={{ width: `${(distance / 50) * 100}%` }}
+                 ></div>
+                 <div 
+                   className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-amber-400 shadow-lg shadow-amber-400/50 transition-all duration-300"
+                   style={{ left: `calc(${(distance / 50) * 100}% - 8px)` }}
+                 ></div>
+               </div>
+             </button>
+             
+             {/* Distance Slider Popup */}
+             {showDistanceSlider && (
+               <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-2xl p-4 w-64 z-50 border border-gray-200">
+                 <div className="mb-3">
+                   <h3 className="text-sm font-semibold text-gray-900 mb-1">Search Distance</h3>
+                   <p className="text-xs text-gray-500">Set maximum distance for search results</p>
+                 </div>
+                 <div className="relative">
+                   <input
+                     type="range"
+                     min="0"
+                     max="50"
+                     value={distance}
+                     onChange={(e) => setDistance(Number(e.target.value))}
+                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-golden"
+                     style={{
+                       background: `linear-gradient(to right, 
+                         rgb(251 191 36) 0%, 
+                         rgb(251 191 36) ${(distance / 50) * 100}%, 
+                         rgb(229 231 235) ${(distance / 50) * 100}%, 
+                         rgb(229 231 235) 100%)`
+                     }}
+                   />
+                   <div className="flex justify-between mt-2 text-xs text-gray-600">
+                     <span>0 km</span>
+                     <span className="font-semibold text-amber-600">{distance === 0 ? 'All' : `${distance} km`}</span>
+                     <span>50 km</span>
+                   </div>
+                 </div>
+               </div>
+             )}
+           </div>
+
+           {/* Golden Divider 3 - Distance Slider to Promote */}
+           <div className="hidden lg:block w-[2px] h-12 bg-gradient-to-b from-transparent via-amber-400 via-yellow-500 to-transparent mx-2 animate-golden-glow"></div>
+ 
+           {/* Right: CTAs */}
+           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
             {/* Desktop CTAs */}
             <div className="hidden lg:flex items-center gap-3">
               {/* Promote Business */}

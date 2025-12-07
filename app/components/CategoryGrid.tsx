@@ -304,9 +304,9 @@ export default function CategoryGrid() {
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {categories.map((category) => (
+                  {categories.map((category, index) => (
                     <button
-                      key={`dropdown-${category.id}`}
+                      key={`dropdown-${category.id || category.slug || index}`}
                       onClick={() => {
                         setShowAllDropdown(false);
                         handleCategoryClick(category);
@@ -373,12 +373,12 @@ export default function CategoryGrid() {
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             <div className="flex gap-4 pb-2" style={{ width: 'max-content' }}>
-              {categories.map((category) => {
+              {categories.map((category, index) => {
                 const customImageUrl = getCategoryImageUrl(category.slug, category.iconUrl);
 
                 return (
                   <button
-                    key={category.id}
+                    key={`category-desktop-${category.id || category.slug || index}`}
                     onClick={() => handleCategoryClick(category)}
                     className="group shrink-0 flex flex-col items-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     aria-label={`Browse ${category.displayName} - ${category.itemCount} shops available`}
@@ -389,7 +389,7 @@ export default function CategoryGrid() {
                         <div className="relative w-full h-full rounded-full overflow-hidden bg-white border-2 border-gray-100 shadow-sm group-hover:shadow-md transition-all duration-200">
                           <Image
                             src={customImageUrl}
-                            alt={category.displayName}
+                            alt={category.displayName || category.slug || `Category ${category.id || ''}` || 'Category image'}
                             fill
                             className="object-cover"
                           />
@@ -446,12 +446,12 @@ export default function CategoryGrid() {
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             <div className="flex gap-3" style={{ width: 'max-content' }}>
-              {categories.map((category) => {
+              {categories.map((category, index) => {
                 const customImageUrl = getCategoryImageUrl(category.slug, category.iconUrl);
 
                 return (
                   <button
-                    key={category.id}
+                    key={`category-mobile-${category.id || category.slug || index}`}
                     onClick={() => handleCategoryClick(category)}
                     className="shrink-0 flex flex-col items-center focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[80px]"
                     aria-label={`Browse ${category.displayName} - ${category.itemCount} shops available`}
@@ -461,7 +461,7 @@ export default function CategoryGrid() {
                         <div className="relative w-full h-full rounded-full overflow-hidden bg-white border-2 border-gray-100 shadow-sm">
                           <Image
                             src={customImageUrl}
-                            alt={category.displayName}
+                            alt={category.displayName || category.slug || `Category ${category.id || ''}` || 'Category image'}
                             fill
                             className="object-cover"
                           />

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
 import Navbar from '@/app/components/Navbar';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, isAuthenticated } = useAuth();
@@ -139,6 +139,25 @@ export default function LoginPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="max-w-[98%] mx-auto px-2 sm:px-3 lg:px-4 py-8 sm:py-12">
+          <div className="max-w-md mx-auto">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-md border border-gray-100 p-8 text-center">
+              <p className="text-gray-600">Loading...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
 

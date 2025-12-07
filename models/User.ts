@@ -6,7 +6,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   phone?: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'editor' | 'operator';
   isEmailVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -38,14 +38,23 @@ const UserSchema = new Schema<IUser>(
     },
     phone: {
       type: String,
-      required: [true, 'Phone number is required'],
+      required: false, // Phone is optional
       unique: true,
+      sparse: true, // Allow multiple null values (for unique constraint)
       trim: true,
-      match: [/^\+?[1-9]\d{1,14}$/, 'Please provide a valid phone number'],
+      validate: {
+        validator: function(v: string | undefined) {
+          // If phone is provided, validate it; otherwise allow empty
+          if (!v || v.trim() === '') return true;
+          // Accept Indian phone numbers: +91XXXXXXXXXX or 0XXXXXXXXXX or XXXXXXXXXX
+          return /^(\+91|91|0)?[6-9]\d{9}$/.test(v.replace(/\s+/g, ''));
+        },
+        message: 'Please provide a valid phone number (Indian format: +91XXXXXXXXXX or 0XXXXXXXXXX)',
+      },
     },
     role: {
       type: String,
-      enum: ['user', 'admin'],
+      enum: ['user', 'admin', 'editor', 'operator'],
       default: 'user',
     },
     isEmailVerified: {
@@ -78,7 +87,18 @@ UserSchema.pre('save', async function (next) {
 UserSchema.methods.comparePassword = async function (
   candidatePassword: string
 ): Promise<boolean> {
-  return bcrypt.compare(candidatePassword, this.password);
+  if (!this.password) {
+    throw new Error('Password field is not available. Please select password field in query.');
+  }
+  if (!candidatePassword) {
+    return false;
+  }
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error: any) {
+    console.error('bcrypt.compare error:', error);
+    throw new Error('Password comparison failed');
+  }
 };
 
 // Note: Indexes are automatically created by unique: true in schema fields above

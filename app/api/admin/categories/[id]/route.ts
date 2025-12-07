@@ -4,11 +4,11 @@ import { requireAdmin } from '@/lib/auth';
 import Category from '@/models/Category';
 
 // GET - Get single category
-export const GET = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const GET = requireAdmin(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
-
-    const category = await Category.findById(params.id).lean();
+    const { id } = await context.params;
+    const category = await Category.findById(id).lean();
 
     if (!category) {
       return NextResponse.json(
@@ -28,9 +28,10 @@ export const GET = requireAdmin(async (request: NextRequest, { params }: { param
 });
 
 // PUT - Update category
-export const PUT = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const PUT = requireAdmin(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
+    const { id } = await context.params;
 
     const body = await request.json();
     const { name, slug, description, imageUrl, latitude, longitude, isActive } = body;
@@ -45,7 +46,7 @@ export const PUT = requireAdmin(async (request: NextRequest, { params }: { param
     if (isActive !== undefined) updateData.isActive = isActive;
 
     const category = await Category.findByIdAndUpdate(
-      params.id,
+      id,
       updateData,
       { new: true, runValidators: true }
     );
@@ -77,11 +78,11 @@ export const PUT = requireAdmin(async (request: NextRequest, { params }: { param
 });
 
 // DELETE - Delete category
-export const DELETE = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const DELETE = requireAdmin(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
-
-    const category = await Category.findByIdAndDelete(params.id);
+    const { id } = await context.params;
+    const category = await Category.findByIdAndDelete(id);
 
     if (!category) {
       return NextResponse.json(

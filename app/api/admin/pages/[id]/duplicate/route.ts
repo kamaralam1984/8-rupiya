@@ -4,11 +4,12 @@ import { requireAdmin } from '@/lib/auth';
 import Page from '@/models/Page';
 
 // POST - Duplicate a page
-export const POST = requireAdmin(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const POST = requireAdmin(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     await connectDB();
+    const { id } = await params;
 
-    const originalPage = await Page.findById(params.id);
+    const originalPage = await Page.findById(id);
     if (!originalPage) {
       return NextResponse.json(
         { error: 'Page not found' },

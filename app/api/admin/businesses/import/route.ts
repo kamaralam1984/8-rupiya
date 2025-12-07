@@ -80,6 +80,7 @@ export const POST = requireAdmin(async (request: NextRequest, user) => {
       for (const altName of alternativeNames) {
         const altPath = path.join(process.cwd(), 'app', altName);
         if (fs.existsSync(altPath)) {
+          found = true;
           const fileContent = fs.readFileSync(altPath, 'utf-8');
           const businesses: JsonBusiness[] = JSON.parse(fileContent);
           
@@ -147,12 +148,10 @@ export const POST = requireAdmin(async (request: NextRequest, user) => {
         }
       }
 
-      if (!found) {
-        return NextResponse.json(
-          { error: `JSON file not found. Tried: ${alternativeNames.join(', ')}` },
-          { status: 404 }
-        );
-      }
+      return NextResponse.json(
+        { error: `JSON file not found. Tried: ${alternativeNames.join(', ')}` },
+        { status: 404 }
+      );
     } else {
       const fileContent = fs.readFileSync(jsonFilePath, 'utf-8');
       const businesses: JsonBusiness[] = JSON.parse(fileContent);

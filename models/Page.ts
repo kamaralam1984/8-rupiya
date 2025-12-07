@@ -1,5 +1,30 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
+export interface PageDesignSettings {
+  backgroundColor?: string;
+  textColor?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  linkColor?: string;
+  layout?: string;
+  maxWidth?: string;
+  padding?: string;
+  margin?: string;
+  fontFamily?: string;
+  fontSize?: string;
+  lineHeight?: string;
+  headingFont?: string;
+  headingSize?: string;
+  sectionSpacing?: string;
+  contentSpacing?: string;
+  borderRadius?: string;
+  effects?: Record<string, boolean>;
+  functions?: Record<string, boolean>;
+  customCSS?: string;
+  customJS?: string;
+}
+
 export interface IPage extends Document {
   title: string;
   slug: string;
@@ -7,6 +32,7 @@ export interface IPage extends Document {
   seoTitle?: string;
   seoDescription?: string;
   isPublished: boolean;
+  designSettings?: PageDesignSettings;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +71,10 @@ const PageSchema = new Schema<IPage>(
     isPublished: {
       type: Boolean,
       default: true,
+    },
+    designSettings: {
+      type: Schema.Types.Mixed,
+      default: {},
     },
   },
   {
