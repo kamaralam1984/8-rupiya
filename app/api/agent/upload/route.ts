@@ -1,57 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { v2 as cloudinary } from 'cloudinary';
+import { verifyAgentToken, getAgentTokenFromRequest } from '@/lib/utils/agentAuth';
+
+/**
+ * Configure Cloudinary
+ * Requires env variables:
+ * - CLOUDINARY_CLOUD_NAME
+ * - CLOUDINARY_API_KEY
+ * - CLOUDINARY_API_SECRET
+ */
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify agent authentication
+    const token = getAgentTokenFromRequest(request);
+    
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const payload = verifyAgentToken(token);
+    if (!payload) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid or expired token' },
+        { status: 401 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
     if (!file) {
       return NextResponse.json(
-        { error: 'No file uploaded' },
+        { success: false, error: 'No file uploaded' },
         { status: 400 }
       );
     }
 
     // Validate file type
-    if (!file.type.startsWith('image/')) {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'File must be an image' },
+        { success: false, error: 'Invalid file type. Only images (JPEG, PNG, GIF, WebP) are allowed.' },
         { status: 400 }
       );
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate file size (max 3MB)
+    if (file.size > 3 * 1024 * 1024) {
       return NextResponse.json(
-        { error: 'File size must be less than 5MB' },
+        { success: false, error: 'File size must be less than 3MB' },
         { status: 400 }
       );
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Read file into buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'shops');
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
-    }
+    // Convert buffer to base64 data URI for Cloudinary
+    const base64Data = buffer.toString('base64');
+    const dataUri = `data:${file.type};base64,${base64Data}`;
 
-    // Generate unique filename
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000);
-    const extension = file.name.split('.').pop() || 'jpg';
-    const filename = `shop_${timestamp}_${random}.${extension}`;
-    const filepath = join(uploadsDir, filename);
+    // Upload to Cloudinary
+    const uploadResult = await cloudinary.uploader.upload(dataUri, {
+      folder: 'shops',
+      resource_type: 'image',
+      transformation: [
+        { width: 1200, height: 800, crop: 'limit' }, // Limit max dimensions
+        { quality: 'auto' }, // Auto quality optimization
+      ],
+    });
 
-    // Write file
-    await writeFile(filepath, buffer);
-
-    // Return public URL
-    const photoUrl = `/uploads/shops/${filename}`;
+    const photoUrl = uploadResult.secure_url;
 
     return NextResponse.json(
       {
@@ -63,7 +92,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Upload error:', error);
     return NextResponse.json(
-      { error: 'Upload failed', details: error.message },
+      { success: false, error: 'Upload failed', details: error.message },
       { status: 500 }
     );
   }

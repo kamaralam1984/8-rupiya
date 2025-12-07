@@ -38,6 +38,7 @@ export default function AddNewShopPage() {
   const [error, setError] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [locationError, setLocationError] = useState('');
+  const [showUploadOptions, setShowUploadOptions] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
     shopName: '',
@@ -121,6 +122,79 @@ export default function AddNewShopPage() {
     setStep(3); // Ab Step 3: Photo Upload
   };
 
+  // Compress image to ensure it's under 3MB
+  const compressImage = (file: File, maxSizeMB: number = 3): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = document.createElement('img');
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          let quality = 0.9;
+
+          // Calculate dimensions to keep aspect ratio
+          const maxDimension = 1920; // Max width/height
+          if (width > height) {
+            if (width > maxDimension) {
+              height = (height * maxDimension) / width;
+              width = maxDimension;
+            }
+          } else {
+            if (height > maxDimension) {
+              width = (width * maxDimension) / height;
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Try to compress, reducing quality if needed
+          const tryCompress = (q: number): void => {
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) {
+                  reject(new Error('Failed to compress image'));
+                  return;
+                }
+
+                const sizeInMB = blob.size / (1024 * 1024);
+                if (sizeInMB > maxSizeMB && q > 0.1) {
+                  // Reduce quality and try again
+                  tryCompress(q - 0.1);
+                } else {
+                  // Create a new File object with compressed blob
+                  const compressedFile = new File([blob], file.name, {
+                    type: file.type,
+                    lastModified: Date.now(),
+                  });
+                  resolve(compressedFile);
+                }
+              },
+              file.type,
+              q
+            );
+          };
+
+          tryCompress(quality);
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+    });
+  };
+
   // Main Photo Upload
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -128,11 +202,6 @@ export default function AddNewShopPage() {
 
     if (!file.type.startsWith('image/')) {
       setError('Please select an image file');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Image size must be less than 5MB');
       return;
     }
 
@@ -147,19 +216,31 @@ export default function AddNewShopPage() {
     setLoading(true);
 
     try {
+      // Compress image if it's larger than 3MB
+      let fileToUpload = file;
+      if (file.size > 3 * 1024 * 1024) {
+        setError('Compressing image to reduce size...');
+        fileToUpload = await compressImage(file, 3);
+        setError(''); // Clear compression message
+      }
+
       // Preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(fileToUpload);
 
       // Upload
       const uploadFormData = new FormData();
-      uploadFormData.append('file', file);
+      uploadFormData.append('file', fileToUpload);
 
+      const token = localStorage.getItem('agent_token');
       const uploadResponse = await fetch('/api/agent/upload', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
         body: uploadFormData,
       });
 
@@ -206,15 +287,21 @@ export default function AddNewShopPage() {
         if (!file.type.startsWith('image/')) {
           throw new Error(`${file.name} is not an image file`);
         }
-        if (file.size > 5 * 1024 * 1024) {
-          throw new Error(`${file.name} size must be less than 5MB`);
+        // Compress image if it's larger than 3MB
+        let fileToUpload = file;
+        if (file.size > 3 * 1024 * 1024) {
+          fileToUpload = await compressImage(file, 3);
         }
 
         const uploadFormData = new FormData();
-        uploadFormData.append('file', file);
+        uploadFormData.append('file', fileToUpload);
 
+        const token = localStorage.getItem('agent_token');
         const uploadResponse = await fetch('/api/agent/upload', {
           method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
           body: uploadFormData,
         });
 
@@ -723,30 +810,62 @@ export default function AddNewShopPage() {
                     )}
                   </div>
                 ) : (
-                  <div>
-                    <label className="cursor-pointer">
-                      <div className="space-y-4">
-                        <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mx-auto">
-                          <span className="text-3xl">📷</span>
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <p className="text-gray-700 font-semibold mb-2">Upload Shop Photo (Required)</p>
+                      <p className="text-gray-500 text-sm mb-4">Maximum size: 3MB</p>
+                      {PRICING_PLANS[formData.planType].maxPhotos === 1 && (
+                        <p className="text-xs text-orange-600 mb-4">
+                          ⚠️ This plan allows only 1 photo
+                        </p>
+                      )}
+                    </div>
+                    
+                    {/* Two Options: Camera and File Upload */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Camera Option */}
+                      <label className="cursor-pointer">
+                        <div className="border-2 border-dashed border-blue-300 rounded-lg p-6 hover:bg-blue-50 transition-colors">
+                          <div className="space-y-3">
+                            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto">
+                              <span className="text-2xl">📷</span>
+                            </div>
+                            <div>
+                              <p className="text-gray-700 font-semibold text-sm">Camera</p>
+                              <p className="text-gray-500 text-xs mt-1">Take Photo</p>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-gray-700 font-semibold">Take Photo</p>
-                          <p className="text-gray-500 text-sm mt-1">Click to upload shop front photo (Required)</p>
-                          {PRICING_PLANS[formData.planType].maxPhotos === 1 && (
-                            <p className="text-xs text-orange-600 mt-1">
-                              ⚠️ This plan allows only 1 photo
-                            </p>
-                          )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageSelect}
+                          className="hidden"
+                          capture="environment"
+                        />
+                      </label>
+
+                      {/* File Upload Option */}
+                      <label className="cursor-pointer">
+                        <div className="border-2 border-dashed border-green-300 rounded-lg p-6 hover:bg-green-50 transition-colors">
+                          <div className="space-y-3">
+                            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto">
+                              <span className="text-2xl">📁</span>
+                            </div>
+                            <div>
+                              <p className="text-gray-700 font-semibold text-sm">Gallery</p>
+                              <p className="text-gray-500 text-xs mt-1">Upload Image</p>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageSelect}
-                        className="hidden"
-                        capture="environment"
-                      />
-                    </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageSelect}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
                   </div>
                 )}
               </div>
