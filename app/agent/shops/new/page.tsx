@@ -810,15 +810,15 @@ export default function AddNewShopPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                      <div className="space-y-4">
                     <div className="text-center">
                       <p className="text-gray-700 font-semibold mb-2">Upload Shop Photo (Required)</p>
                       <p className="text-gray-500 text-sm mb-4">Maximum size: 3MB</p>
-                      {PRICING_PLANS[formData.planType].maxPhotos === 1 && (
+                          {PRICING_PLANS[formData.planType].maxPhotos === 1 && (
                         <p className="text-xs text-orange-600 mb-4">
-                          ⚠️ This plan allows only 1 photo
-                        </p>
-                      )}
+                              ⚠️ This plan allows only 1 photo
+                            </p>
+                          )}
                     </div>
                     
                     {/* Two Options: Camera and File Upload */}
@@ -834,16 +834,16 @@ export default function AddNewShopPage() {
                               <p className="text-gray-700 font-semibold text-sm">Camera</p>
                               <p className="text-gray-500 text-xs mt-1">Take Photo</p>
                             </div>
-                          </div>
                         </div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageSelect}
-                          className="hidden"
-                          capture="environment"
-                        />
-                      </label>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        className="hidden"
+                        capture="environment"
+                      />
+                    </label>
 
                       {/* File Upload Option */}
                       <label className="cursor-pointer">
