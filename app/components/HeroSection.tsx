@@ -59,18 +59,21 @@ export default function HeroSection({ category }: HeroSectionProps) {
               website: shop.website || undefined,
               area: shop.area || '',
               city: shop.city || '',
+              visitorCount: shop.visitorCount || 0,
             });
 
-            // Transform hero shop
-            const heroShop = searchData.mainResults[0];
-            const heroBanner = heroShop ? {
-              bannerId: heroShop.id,
-              imageUrl: heroShop.imageUrl || heroShop.photoUrl || '/placeholder-shop.jpg',
-              alt: heroShop.name || heroShop.shopName || 'Shop',
-              link: heroShop.shopUrl ? `/shop/${heroShop.shopUrl}` : `/contact/${heroShop.id}`,
-              title: heroShop.name || heroShop.shopName || 'Shop',
+            // Transform hero shop - ONLY if planType is 'HERO'
+            const heroShopFromSearch = searchData.mainResults.find((shop: any) => shop.planType === 'HERO');
+            const heroBanner = heroShopFromSearch ? {
+              bannerId: heroShopFromSearch.id,
+              imageUrl: heroShopFromSearch.imageUrl || heroShopFromSearch.photoUrl || '/placeholder-shop.jpg',
+              alt: heroShopFromSearch.name || heroShopFromSearch.shopName || 'Shop',
+              link: heroShopFromSearch.shopUrl ? `/shop/${heroShopFromSearch.shopUrl}` : `/contact/${heroShopFromSearch.id}`,
+              title: heroShopFromSearch.name || heroShopFromSearch.shopName || 'Shop',
               ctaText: 'View Shop',
-              advertiser: heroShop.name || heroShop.shopName || 'Shop',
+              advertiser: heroShopFromSearch.name || heroShopFromSearch.shopName || 'Shop',
+              distance: heroShopFromSearch.distance || 0,
+              visitorCount: heroShopFromSearch.visitorCount || 0,
             } : undefined;
 
             // Transform rails - limit to 3 for left/right, 20 for bottom
@@ -256,48 +259,87 @@ export default function HeroSection({ category }: HeroSectionProps) {
         
         console.log(`🌍 Total shops from all locations: ${allShops.length}`);
         
-        // Hero: Show shop from ALL locations with highest priority (HERO plan) or any shop
-        const heroShop = [
-          ...allShops.filter(s => !usedShopIds.has(s.id)), // From all locations
-          ...nearbyShops.filter(s => !usedShopIds.has(s.id)) // Also check nearby
-        ]
+        // Step 1: Deduplicate all shops by ID first (combine all sources and remove duplicates)
+        const allUniqueShops = new Map<string, any>();
+        
+        // Add shops from all sources, keeping the first occurrence
+        [...allShops, ...nearbyShops, ...patnaAreaShops].forEach((shop: any) => {
+          if (shop && shop.id && !allUniqueShops.has(shop.id)) {
+            allUniqueShops.set(shop.id, shop);
+          }
+        });
+        
+        const uniqueShopsArray = Array.from(allUniqueShops.values());
+        console.log(`✅ Deduplicated shops: ${uniqueShopsArray.length} unique shops from ${allShops.length + nearbyShops.length + patnaAreaShops.length} total`);
+        
+        // Step 2: Hero - Show shop ONLY if planType is 'HERO' (Hero Plan)
+        const heroShop = uniqueShopsArray
           .filter((shop) => {
-            // Filter shops with HERO plan or highest priority, and not already used
-            return (shop.planType === 'HERO' || (shop.priorityRank || 0) >= 200) && 
-                   shop.latitude && shop.longitude && 
-                   !usedShopIds.has(shop.id);
+            return shop.planType === 'HERO' && 
+                   shop.latitude && shop.longitude;
           })
           .sort((a, b) => {
-            // Sort by priority rank first, then distance
+            // Sort by priority rank first (higher = first), then by distance (nearest first)
             const priorityA = a.priorityRank || 0;
             const priorityB = b.priorityRank || 0;
             if (priorityB !== priorityA) {
               return priorityB - priorityA;
             }
             return (a.distance || 999999) - (b.distance || 999999);
-          })[0] || allShops
-          .filter((shop) => {
-            return shop.latitude && shop.longitude && !usedShopIds.has(shop.id);
-          })
-          .sort((a, b) => (b.priorityRank || 0) - (a.priorityRank || 0))[0];
+          })[0];
         
         // Mark hero shop as used
         if (heroShop) {
           usedShopIds.add(heroShop.id);
+          console.log(`🎯 Hero shop selected: ${heroShop.name || heroShop.shopName} (ID: ${heroShop.id})`);
         }
+        
+        // Step 3: Left Rail - Get exactly 3 unique shops (exclude hero shop)
+        const leftBarShops = uniqueShopsArray
+          .filter((shop) => {
+            return !usedShopIds.has(shop.id) && 
+                   shop && shop.id && (shop.name || shop.shopName) &&
+                   (shop.distance || 0) <= 1000;
+          })
+          .sort((a, b) => {
+            // Sort by priority rank first (higher = first), then by distance (nearest first)
+            const priorityA = a.priorityRank || 0;
+            const priorityB = b.priorityRank || 0;
+            if (priorityB !== priorityA) {
+              return priorityB - priorityA;
+            }
+            const distanceA = a.distance || 999999;
+            const distanceB = b.distance || 999999;
+            return distanceA - distanceB;
+          })
+          .slice(0, 3) // Get exactly 3 shops
+          .map((shop) => {
+            usedShopIds.add(shop.id); // Mark as used
+            return {
+              bannerId: shop.id,
+              imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
+              alt: shop.name || shop.shopName || 'Shop',
+              link: shop.website || shop.shopUrl || `/shop/${shop.id}` || `/contact/${shop.id}`,
+              advertiser: shop.name || shop.shopName || 'Shop',
+              lat: shop.latitude || 0,
+              lng: shop.longitude || 0,
+              distance: shop.distance || 0,
+              isBusiness: true,
+              website: shop.website || undefined,
+              area: shop.area || '',
+              city: shop.city || '',
+              visitorCount: shop.visitorCount || 0,
+            };
+          });
+        
+        console.log(`🏪 Left rail shops: ${leftBarShops.length} shops`, leftBarShops.map(s => s.advertiser));
 
-        // Filter shops and sort by distance (nearest first)
-        // Left bar: Show all nearby shops (prioritize by distance, then by priority rank)
-        // Exclude hero shop and ensure no duplicates
-        const leftBarShops = [
-          ...nearbyShops.filter(s => !usedShopIds.has(s.id)), // Exclude already used shops
-          // Add Patna area shops if not enough shops
-          ...patnaAreaShops.filter((shop: any) => !nearbyShops.find(s => s.id === shop.id) && !usedShopIds.has(shop.id))
-        ]
+        // Step 4: Right Rail - Get exactly 3 unique shops (exclude hero and left rail shops)
+        const rightBarShops = uniqueShopsArray
           .filter((shop) => {
-            // Include all shops - with or without coordinates, within 0-1000 km range
-            const shopDistance = shop.distance || 0;
-            return shop && shop.id && (shop.name || shop.shopName) && shopDistance <= 1000;
+            return !usedShopIds.has(shop.id) && 
+                   shop && shop.id && (shop.name || shop.shopName) &&
+                   (shop.distance || 0) <= 1000;
           })
           .sort((a, b) => {
             // Sort by priority rank first (higher = first), then by distance (nearest first)
@@ -310,7 +352,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
             const distanceB = b.distance || 999999;
             return distanceA - distanceB;
           })
-          .slice(0, 3)
+          .slice(0, 3) // Get exactly 3 shops
           .map((shop) => {
             usedShopIds.add(shop.id); // Mark as used
             return {
@@ -326,52 +368,17 @@ export default function HeroSection({ category }: HeroSectionProps) {
               website: shop.website || undefined,
               area: shop.area || '',
               city: shop.city || '',
+              visitorCount: shop.visitorCount || 0,
             };
           });
         
-        // If not enough shops, fetch more to fill slots
-        if (leftBarShops.length < 3) {
-          const additionalShops = [
-            ...nearbyShops.filter(s => !usedShopIds.has(s.id)),
-            ...patnaAreaShops.filter((shop: any) => !usedShopIds.has(shop.id))
-          ]
-            .filter((shop) => {
-              const shopDistance = shop.distance || 0;
-              return shop && shop.id && (shop.name || shop.shopName) && shopDistance <= 1000;
-            })
-            .slice(0, 3 - leftBarShops.length)
-            .map((shop) => {
-              usedShopIds.add(shop.id);
-              return {
-                bannerId: shop.id,
-                imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
-                alt: shop.name || shop.shopName || 'Shop',
-                link: shop.website || shop.shopUrl || `/shop/${shop.id}` || `/contact/${shop.id}`,
-                advertiser: shop.name || shop.shopName || 'Shop',
-                lat: shop.latitude || 0,
-                lng: shop.longitude || 0,
-                distance: shop.distance || 0,
-                isBusiness: true,
-                website: shop.website || undefined,
-                area: shop.area || '',
-                city: shop.city || '',
-              };
-            });
-          leftBarShops.push(...additionalShops);
-        }
+        console.log(`🏪 Right rail shops: ${rightBarShops.length} shops`, rightBarShops.map(s => s.advertiser));
         
-        console.log(`🏪 Left bar shops prepared: ${leftBarShops.length} shops`, leftBarShops);
-
-        // Right bar: Show all nearby shops (exclude already used shops)
-        const rightBarShops = [
-          ...nearbyShops.filter(s => !usedShopIds.has(s.id)), // Exclude already used shops
-          // Add Patna area shops if not enough shops
-          ...patnaAreaShops.slice(4).filter((shop: any) => !nearbyShops.find(s => s.id === shop.id) && !usedShopIds.has(shop.id))
-        ]
+        // Step 5: Bottom Strip - Get exactly 20 unique shops (exclude hero, left, and right rail shops)
+        const bottomShops = uniqueShopsArray
           .filter((shop) => {
-            // Include all shops - with or without coordinates, within 0-1000 km range
-            const shopDistance = shop.distance || 0;
-            return shop && shop.id && (shop.name || shop.shopName) && shopDistance <= 1000;
+            return !usedShopIds.has(shop.id) && 
+                   shop && shop.id && (shop.name || shop.shopName);
           })
           .sort((a, b) => {
             // Sort by priority rank first (higher = first), then by distance (nearest first)
@@ -384,7 +391,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
             const distanceB = b.distance || 999999;
             return distanceA - distanceB;
           })
-          .slice(0, 3) // Get first 3 unused shops
+          .slice(0, 20) // Get exactly 20 shops
           .map((shop) => {
             usedShopIds.add(shop.id); // Mark as used
             return {
@@ -400,112 +407,24 @@ export default function HeroSection({ category }: HeroSectionProps) {
               website: shop.website || undefined,
               area: shop.area || '',
               city: shop.city || '',
+              visitorCount: shop.visitorCount || 0,
             };
           });
         
-        // If not enough shops, fetch more to fill slots
-        if (rightBarShops.length < 3) {
-          const additionalShops = [
-            ...nearbyShops.filter(s => !usedShopIds.has(s.id)),
-            ...patnaAreaShops.filter((shop: any) => !usedShopIds.has(shop.id))
-          ]
-            .filter((shop) => {
-              const shopDistance = shop.distance || 0;
-              return shop && shop.id && (shop.name || shop.shopName) && shopDistance <= 1000;
-            })
-            .slice(0, 3 - rightBarShops.length)
-            .map((shop) => {
-              usedShopIds.add(shop.id);
-              return {
-                bannerId: shop.id,
-                imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
-                alt: shop.name || shop.shopName || 'Shop',
-                link: shop.website || shop.shopUrl || `/shop/${shop.id}` || `/contact/${shop.id}`,
-                advertiser: shop.name || shop.shopName || 'Shop',
-                lat: shop.latitude || 0,
-                lng: shop.longitude || 0,
-                distance: shop.distance || 0,
-                isBusiness: true,
-                website: shop.website || undefined,
-                area: shop.area || '',
-                city: shop.city || '',
-              };
-            });
-          rightBarShops.push(...additionalShops);
+        console.log(`🏪 Bottom strip shops: ${bottomShops.length} shops`, bottomShops.map(s => s.advertiser));
+        
+        // Verify no duplicates across all sections
+        const allDisplayedIds = new Set<string>();
+        if (heroShop) allDisplayedIds.add(heroShop.id);
+        leftBarShops.forEach(s => allDisplayedIds.add(s.bannerId));
+        rightBarShops.forEach(s => allDisplayedIds.add(s.bannerId));
+        bottomShops.forEach(s => allDisplayedIds.add(s.bannerId));
+        
+        console.log(`✅ Total unique shops displayed: ${allDisplayedIds.size} (Hero: ${heroShop ? 1 : 0}, Left: ${leftBarShops.length}, Right: ${rightBarShops.length}, Bottom: ${bottomShops.length})`);
+        
+        if (allDisplayedIds.size !== (leftBarShops.length + rightBarShops.length + bottomShops.length + (heroShop ? 1 : 0))) {
+          console.warn('⚠️ WARNING: Duplicate shops detected!');
         }
-        
-        console.log(`🏪 Right bar shops prepared: ${rightBarShops.length} shops`);
-        
-        // Bottom strip: show ALL shops from all locations (exclude already used shops, fill all 20 slots)
-        const bottomShops = [
-          ...allShops.filter(s => !usedShopIds.has(s.id)), // Exclude already used shops
-          ...patnaAreaShops.filter((shop: any) => !usedShopIds.has(shop.id)) // Add more if needed
-        ]
-          .filter((shop) => {
-            // Include all shops from all locations
-            return shop && shop.id && (shop.name || shop.shopName);
-          })
-          .sort((a, b) => {
-            // Sort by priority rank first (higher = first), then by distance (nearest first)
-            const priorityA = a.priorityRank || 0;
-            const priorityB = b.priorityRank || 0;
-            if (priorityB !== priorityA) {
-              return priorityB - priorityA;
-            }
-            const distanceA = a.distance || 999999;
-            const distanceB = b.distance || 999999;
-            return distanceA - distanceB;
-          })
-          .slice(0, 20) // Fill all 20 slots
-          .map((shop) => {
-            usedShopIds.add(shop.id); // Mark as used
-            return {
-              bannerId: shop.id,
-              imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
-              alt: shop.name || shop.shopName || 'Shop',
-              link: shop.website || shop.shopUrl || `/shop/${shop.id}` || `/contact/${shop.id}`,
-              advertiser: shop.name || shop.shopName || 'Shop',
-              lat: shop.latitude || 0,
-              lng: shop.longitude || 0,
-              distance: shop.distance || 0,
-              isBusiness: true,
-              website: shop.website || undefined,
-              area: shop.area || '',
-              city: shop.city || '',
-            };
-          });
-        
-        // If not enough shops, fetch more to fill all 20 slots
-        if (bottomShops.length < 20) {
-          const additionalShops = [
-            ...allShops.filter(s => !usedShopIds.has(s.id)),
-            ...patnaAreaShops.filter((shop: any) => !usedShopIds.has(shop.id))
-          ]
-            .filter((shop) => {
-              return shop && shop.id && (shop.name || shop.shopName);
-            })
-            .slice(0, 20 - bottomShops.length)
-            .map((shop) => {
-              usedShopIds.add(shop.id);
-              return {
-                bannerId: shop.id,
-                imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
-                alt: shop.name || shop.shopName || 'Shop',
-                link: shop.website || shop.shopUrl || `/shop/${shop.id}` || `/contact/${shop.id}`,
-                advertiser: shop.name || shop.shopName || 'Shop',
-                lat: shop.latitude || 0,
-                lng: shop.longitude || 0,
-                distance: shop.distance || 0,
-                isBusiness: true,
-                website: shop.website || undefined,
-                area: shop.area || '',
-                city: shop.city || '',
-              };
-            });
-          bottomShops.push(...additionalShops);
-        }
-        
-        console.log(`🏪 Bottom strip shops prepared: ${bottomShops.length} shops (from all locations)`);
 
         // Combine banner data with nearby shops
         // Left bar: nearby shops (prioritized) - no banners, only shops
@@ -524,7 +443,8 @@ export default function HeroSection({ category }: HeroSectionProps) {
         console.log(`✅ Combined bottom shops: ${combinedBottom.length}`, combinedBottom.map(s => s.advertiser));
 
         setData({
-          hero: heroShop
+          // Hero: Only show if planType is 'HERO', otherwise show banner or undefined
+          hero: heroShop && heroShop.planType === 'HERO'
             ? {
                 bannerId: heroShop.id,
                 imageUrl: heroShop.imageUrl || '/placeholder-shop.jpg',
@@ -539,6 +459,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
                 lng: heroShop.longitude,
                 area: heroShop.area || '',
                 city: heroShop.city || '',
+                visitorCount: heroShop.visitorCount || 0,
               } as any
             : heroData?.banners?.[0]
             ? {

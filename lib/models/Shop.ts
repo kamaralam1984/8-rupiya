@@ -21,6 +21,9 @@ export interface IShop extends Document {
   iconUrl: string;       // same as photoUrl for now
   shopUrl: string;       // Unique URL slug for the shop (e.g., "/shop/abc-store-123")
   createdByAdmin?: Types.ObjectId; // Reference to User (admin) - optional for agent-created shops
+  createdByAgent?: Types.ObjectId; // Reference to Agent - for agent-created shops
+  agentName?: string; // Agent name for quick reference
+  agentCode?: string; // Agent code for quick reference
   paymentStatus: 'PAID' | 'PENDING'; // Payment status
   paymentExpiryDate: Date; // 365 days from payment date
   lastPaymentDate: Date; // Date when payment was last made
@@ -132,6 +135,21 @@ const ShopSchema = new Schema<IShop>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: false, // Made optional to allow agent-created shops
+    },
+    createdByAgent: {
+      type: Schema.Types.ObjectId,
+      ref: 'Agent',
+      required: false, // For agent-created shops
+    },
+    agentName: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Agent name cannot exceed 100 characters'],
+    },
+    agentCode: {
+      type: String,
+      trim: true,
+      maxlength: [50, 'Agent code cannot exceed 50 characters'],
     },
     paymentStatus: {
       type: String,

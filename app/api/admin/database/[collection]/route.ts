@@ -121,6 +121,75 @@ export const GET = requireAdmin(async (
         .limit(limit)
         .toArray();
       console.log(`Fetched ${documents.length} documents`);
+      
+      // For shops collection, populate agent information if createdByAgent exists
+      if ((collectionName === 'shops' || collectionName === 'shopsfromimage') && documents.length > 0) {
+        try {
+          const Agent = (await import('@/lib/models/Agent')).default;
+          const agentIds: mongoose.Types.ObjectId[] = [];
+          
+          documents.forEach((doc: any) => {
+            if (doc.createdByAgent) {
+              let agentId: mongoose.Types.ObjectId | null = null;
+              if (doc.createdByAgent instanceof mongoose.Types.ObjectId) {
+                agentId = doc.createdByAgent;
+              } else if (typeof doc.createdByAgent === 'string') {
+                try {
+                  agentId = new mongoose.Types.ObjectId(doc.createdByAgent);
+                } catch (e) {
+                  // Invalid ObjectId string, skip
+                }
+              } else if (doc.createdByAgent && typeof doc.createdByAgent === 'object' && doc.createdByAgent.toString) {
+                try {
+                  agentId = new mongoose.Types.ObjectId(doc.createdByAgent.toString());
+                } catch (e) {
+                  // Invalid ObjectId, skip
+                }
+              }
+              if (agentId && !agentIds.some(id => id.toString() === agentId!.toString())) {
+                agentIds.push(agentId);
+              }
+            }
+          });
+          
+          if (agentIds.length > 0) {
+            const agents = await Agent.find({
+              _id: { $in: agentIds }
+            }).select('name agentCode').lean();
+            
+            const agentMap = new Map();
+            agents.forEach((agent: any) => {
+              agentMap.set(agent._id.toString(), agent);
+            });
+            
+            // Add agent info to documents
+            documents = documents.map((doc: any) => {
+              if (doc.createdByAgent) {
+                let agentIdStr = '';
+                if (doc.createdByAgent instanceof mongoose.Types.ObjectId) {
+                  agentIdStr = doc.createdByAgent.toString();
+                } else if (typeof doc.createdByAgent === 'string') {
+                  agentIdStr = doc.createdByAgent;
+                } else if (doc.createdByAgent && typeof doc.createdByAgent === 'object' && doc.createdByAgent.toString) {
+                  agentIdStr = doc.createdByAgent.toString();
+                }
+                
+                if (agentIdStr) {
+                  const agent = agentMap.get(agentIdStr);
+                  if (agent) {
+                    doc.agentName = agent.name || doc.agentName;
+                    doc.agentCode = agent.agentCode || doc.agentCode;
+                  }
+                }
+              }
+              return doc;
+            });
+          }
+        } catch (agentError: any) {
+          console.error('Error populating agent info:', agentError);
+          // Continue without agent info if population fails
+        }
+      }
     } catch (findError: any) {
       console.error(`Error fetching documents from ${collectionName}:`, findError);
       // If find fails, try with empty query and no sort

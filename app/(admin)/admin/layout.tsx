@@ -141,7 +141,6 @@ export default function AdminLayout({
     { name: 'Agents', href: '/admin/agents', icon: '👤', color: 'violet', allowedRoles: ['admin', 'editor'] },
     { name: 'Revenue', href: '/admin/revenue', icon: '💰', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
     { name: 'Database', href: '/admin/database', icon: '🗄️', color: 'slate', allowedRoles: ['admin'] }, // Sirf Admin
-    { name: 'Locations', href: '/admin/locations', icon: '📍', color: 'indigo', allowedRoles: ['admin', 'editor'] },
     { name: 'Pages', href: '/admin/pages', icon: '📄', color: 'pink', allowedRoles: ['admin', 'editor'] },
   ];
 

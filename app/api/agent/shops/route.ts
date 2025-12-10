@@ -299,14 +299,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Also create shop in Admin Shop database (for website display)
+    // Sabhi details ke sath shop ko main shops database me save karo
     try {
       // Get agent info for admin shop creation
       const agent = await Agent.findById(payload.agentId);
       
-      // Extract area and city from address if possible
+      // Extract area, city, and district from address if possible
       const addressParts = address.split(',');
       const extractedArea = addressParts[0]?.trim() || '';
       const extractedCity = addressParts[addressParts.length - 1]?.trim() || '';
+      // Try to extract district from address (usually second last part)
+      const extractedDistrict = addressParts.length > 2 ? addressParts[addressParts.length - 2]?.trim() : undefined;
       
       // Create admin shop - use agent's ObjectId as createdByAdmin
       // This allows us to track which agent created the shop
@@ -314,28 +317,45 @@ export async function POST(request: NextRequest) {
       // In production, you might want to create a system admin user or make this field optional
       const agentObjectId = new mongoose.Types.ObjectId(payload.agentId);
       
-      // Prepare admin shop data with plan-based features (planFeatures already defined above)
+      // Prepare admin shop data with ALL details - exactly like admin panel me show hota hai
       // Use the same shop URL for consistency
       const adminShopData: any = {
         shopName: shopName.trim(),
         ownerName: ownerName.trim(),
         category: categoryName, // Use category name
-        categoryRef: categoryRef, // Link to Category model
+        categoryRef: categoryRef || undefined, // Link to Category model
         mobile: mobile?.trim() || undefined,
         area: extractedArea || undefined,
         fullAddress: address.trim(),
         city: extractedCity || undefined,
         pincode: pincode?.trim() || undefined,
+        district: extractedDistrict || undefined, // District for revenue tracking
         latitude: Number(latitude),
         longitude: Number(longitude),
         photoUrl: photoUrl.trim(),
         iconUrl: photoUrl.trim(), // Same as photoUrl
         shopUrl: shop.shopUrl, // Use the same shop URL generated for AgentShop
-        // createdByAdmin is optional now - leave it undefined for agent-created shops
+        // Agent information - kaun agent ne shop add kiya
+        createdByAgent: agent ? new mongoose.Types.ObjectId(payload.agentId) : undefined,
+        agentName: agent?.name || undefined,
+        agentCode: agent?.agentCode || undefined,
+        // Payment details - sabhi payment fields add karo
+        paymentStatus: paymentStatus || 'PENDING',
+        paymentExpiryDate: paymentStatus === 'PAID' ? expiryDate : (() => {
+          const defaultExpiry = new Date();
+          defaultExpiry.setDate(defaultExpiry.getDate() + 365);
+          return defaultExpiry;
+        })(),
+        lastPaymentDate: paymentStatus === 'PAID' ? paymentDate : new Date(),
+        // Plan details - sabhi plan fields add karo
         planType: finalPlanType,
         planAmount: finalAmount,
         planStartDate: paymentStatus === 'PAID' ? paymentDate : new Date(),
-        planEndDate: paymentStatus === 'PAID' ? expiryDate : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        planEndDate: paymentStatus === 'PAID' ? expiryDate : (() => {
+          const defaultEnd = new Date();
+          defaultEnd.setDate(defaultEnd.getDate() + 365);
+          return defaultEnd;
+        })(),
         // Plan-based features automatically set
         priorityRank: planFeatures.priorityRank,
         isHomePageBanner: planFeatures.canBeHomePageBanner,
@@ -347,21 +367,18 @@ export async function POST(request: NextRequest) {
         // Premium/Featured features - plan ke hisab se set karo
         additionalPhotos: (planFeatures.maxPhotos === 10 && additionalPhotos && Array.isArray(additionalPhotos) && additionalPhotos.length > 0) 
           ? additionalPhotos.slice(0, 9) // Max 9 additional photos (total 10 with main photo)
-          : undefined,
+          : [],
         shopLogo: planFeatures.hasLogo ? undefined : undefined, // Logo upload later
-        offers: planFeatures.hasOffers ? [] : undefined, // Offers section ke liye empty array
+        offers: planFeatures.hasOffers ? [] : [], // Offers section ke liye empty array
         whatsappNumber: planFeatures.hasWhatsApp ? mobile?.trim() : undefined, // WhatsApp number set karo agar plan allow karta hai
+        createdAt: new Date(), // Explicit creation date
       };
       
-      // Only add payment dates if payment is PAID
-      if (paymentStatus === 'PAID') {
-        adminShopData.lastPaymentDate = paymentDate;
-        adminShopData.paymentExpiryDate = expiryDate;
-      }
+      // Create shop in main shops database
+      const createdAdminShop = await AdminShop.create(adminShopData);
       
-      await AdminShop.create(adminShopData);
-      
-      console.log(`Shop ${shop._id} also created in admin Shop database`);
+      console.log(`Shop ${shop._id} successfully created in main shops database with ID: ${createdAdminShop._id}`);
+      console.log(`All shop details saved: shopName=${shopName}, category=${categoryName}, planType=${finalPlanType}, paymentStatus=${paymentStatus}`);
     } catch (adminShopError: any) {
       console.error('Error creating shop in admin database:', adminShopError);
       console.error('Admin shop error details:', {
@@ -375,6 +392,12 @@ export async function POST(request: NextRequest) {
       // However, if it's a critical error, we might want to handle it differently
       if (adminShopError.name === 'ValidationError') {
         console.warn('AdminShop validation failed, but AgentShop was created successfully');
+        // Log validation errors for debugging
+        if (adminShopError.errors) {
+          Object.keys(adminShopError.errors).forEach((key) => {
+            console.error(`Validation error for field ${key}:`, adminShopError.errors[key].message);
+          });
+        }
       }
     }
 

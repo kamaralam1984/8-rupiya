@@ -105,9 +105,14 @@ const CategoryIcon = ({ categorySlug, className }: { categorySlug: string; class
   );
 };
 
+interface CategoryWithDistance extends Category {
+  distance?: number;
+  visitorCount?: number;
+}
+
 export default function CategoryGrid() {
   const { location } = useLocation();
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<CategoryWithDistance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAllDropdown, setShowAllDropdown] = useState(false);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
@@ -123,7 +128,43 @@ export default function CategoryGrid() {
         const response = await fetch(`/api/categories?loc=${location.id}`);
         const data = await response.json();
         console.log('Categories fetched:', data.categories?.length || 0, 'categories');
-        setCategories(data.categories || []);
+        
+        // Fetch nearest shop for each category to get distance/time/visitor count
+        const categoriesWithDistance = await Promise.all(
+          (data.categories || []).map(async (category: Category) => {
+            try {
+              // Fetch nearest shop in this category
+              const shopsResponse = await fetch(
+                `/api/categories/${category.slug}/businesses?type=nearby&userLat=${location.latitude || ''}&userLng=${location.longitude || ''}&limit=1`
+              );
+              const shopsData = await shopsResponse.json();
+              
+              if (shopsData.success && shopsData.businesses && shopsData.businesses.length > 0) {
+                const nearestShop = shopsData.businesses[0];
+                return {
+                  ...category,
+                  distance: nearestShop.distance || 0,
+                  visitorCount: nearestShop.visitorCount || 0,
+                };
+              }
+              
+              return {
+                ...category,
+                distance: 0,
+                visitorCount: 0,
+              };
+            } catch (error) {
+              console.error(`Error fetching shop for category ${category.slug}:`, error);
+              return {
+                ...category,
+                distance: 0,
+                visitorCount: 0,
+              };
+            }
+          })
+        );
+        
+        setCategories(categoriesWithDistance);
       } catch (error) {
         console.error('Error fetching categories:', error);
         // Fallback to empty array on error
@@ -133,8 +174,25 @@ export default function CategoryGrid() {
       }
     };
 
-    fetchCategories();
-  }, [location.id]);
+    if (location.latitude && location.longitude) {
+      fetchCategories();
+    } else {
+      // If no location, fetch categories without distance
+      const fetchCategoriesWithoutDistance = async () => {
+        try {
+          const response = await fetch(`/api/categories?loc=${location.id}`);
+          const data = await response.json();
+          setCategories(data.categories || []);
+        } catch (error) {
+          console.error('Error fetching categories:', error);
+          setCategories([]);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchCategoriesWithoutDistance();
+    }
+  }, [location.id, location.latitude, location.longitude]);
 
   const handleCategoryClick = (category: Category) => {
     const params = new URLSearchParams({
@@ -399,8 +457,41 @@ export default function CategoryGrid() {
                           <CategoryIcon categorySlug={category.slug} className="w-16 h-16 md:w-20 md:h-20" />
                         </div>
                       )}
+                      {/* Distance, Time, and Visitor Count Badge */}
+                      {(category.distance !== undefined || category.visitorCount !== undefined) && (
+                        <div className="absolute -top-1 -right-1 z-10">
+                          <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg flex flex-col items-center gap-0.5">
+                            {category.distance !== undefined && category.distance > 0 && (
+                              <>
+                                <div className="flex items-center gap-0.5">
+                                  <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  <span>{category.distance.toFixed(1)}km</span>
+                                </div>
+                                <div className="flex items-center gap-0.5">
+                                  <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span>{Math.round(category.distance * 1.5)}min</span>
+                                </div>
+                              </>
+                            )}
+                            {category.visitorCount !== undefined && (
+                              <div className="flex items-center gap-0.5">
+                                <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                <span>{category.visitorCount || 0}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       {category.sponsored && (
-                        <span className="absolute -top-1 -right-1 bg-yellow-400 text-yellow-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
+                        <span className="absolute -top-1 -left-1 bg-yellow-400 text-yellow-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
                           Ad
                         </span>
                       )}
@@ -471,8 +562,41 @@ export default function CategoryGrid() {
                           <CategoryIcon categorySlug={category.slug} className="w-16 h-16" />
                         </div>
                       )}
+                      {/* Distance, Time, and Visitor Count Badge */}
+                      {(category.distance !== undefined || category.visitorCount !== undefined) && (
+                        <div className="absolute -top-1 -right-1 z-10">
+                          <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[7px] font-bold shadow-lg flex flex-col items-center gap-0.5">
+                            {category.distance !== undefined && category.distance > 0 && (
+                              <>
+                                <div className="flex items-center gap-0.5">
+                                  <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  <span>{category.distance.toFixed(1)}km</span>
+                                </div>
+                                <div className="flex items-center gap-0.5">
+                                  <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span>{Math.round(category.distance * 1.5)}min</span>
+                                </div>
+                              </>
+                            )}
+                            {category.visitorCount !== undefined && (
+                              <div className="flex items-center gap-0.5">
+                                <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                <span>{category.visitorCount || 0}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       {category.sponsored && (
-                        <span className="absolute -top-1 -right-1 bg-yellow-400 text-yellow-900 text-xs font-bold px-1 py-0.5 rounded-full">
+                        <span className="absolute -top-1 -left-1 bg-yellow-400 text-yellow-900 text-xs font-bold px-1 py-0.5 rounded-full">
                           Ad
                         </span>
                       )}

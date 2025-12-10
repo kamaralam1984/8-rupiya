@@ -189,6 +189,7 @@ export async function GET(request: NextRequest) {
           tags: shop.tags || [],
           featured: shop.featured || false,
           sponsored: shop.sponsored || false,
+          visitorCount: shop.visitorCount || 0,
         }));
         
         // Transform admin shops (from shopsfromimage collection)

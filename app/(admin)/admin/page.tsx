@@ -26,13 +26,8 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [bannersRes, locationsRes, pagesRes] = await Promise.all([
+        const [bannersRes, pagesRes] = await Promise.all([
           fetch('/api/admin/banners', {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
-          fetch('/api/admin/locations', {
             headers: {
               Authorization: `Bearer ${token}`,
             },
@@ -46,7 +41,6 @@ export default function AdminDashboard() {
 
         // Check for 403 errors (role mismatch) and try to refresh token
         const has403Error = !bannersRes.ok && bannersRes.status === 403 ||
-                           !locationsRes.ok && locationsRes.status === 403 ||
                            !pagesRes.ok && pagesRes.status === 403;
 
         if (has403Error && !tokenRefreshAttempted) {
@@ -65,13 +59,8 @@ export default function AdminDashboard() {
             
             // Retry fetching stats with new token
             const newToken = data.token;
-            const [retryBannersRes, retryLocationsRes, retryPagesRes] = await Promise.all([
+            const [retryBannersRes, retryPagesRes] = await Promise.all([
               fetch('/api/admin/banners', {
-                headers: {
-                  Authorization: `Bearer ${newToken}`,
-                },
-              }),
-              fetch('/api/admin/locations', {
                 headers: {
                   Authorization: `Bearer ${newToken}`,
                 },
@@ -83,17 +72,16 @@ export default function AdminDashboard() {
               }),
             ]);
 
-            const [bannersData, locationsData, pagesData] = await Promise.all([
+            const [bannersData, pagesData] = await Promise.all([
               safeJsonParse<{ banners?: any[] }>(retryBannersRes),
-              safeJsonParse<{ locations?: any[] }>(retryLocationsRes),
               safeJsonParse<{ pages?: any[] }>(retryPagesRes),
             ]);
 
             setStats({
               totalBanners: bannersData?.banners?.length || 0,
               activeBanners: bannersData?.banners?.filter((b: any) => b.isActive).length || 0,
-              totalLocations: locationsData?.locations?.length || 0,
-              activeLocations: locationsData?.locations?.filter((l: any) => l.isActive).length || 0,
+              totalLocations: 0,
+              activeLocations: 0,
               totalPages: pagesData?.pages?.length || 0,
               publishedPages: pagesData?.pages?.filter((p: any) => p.isPublished).length || 0,
             });
@@ -110,25 +98,23 @@ export default function AdminDashboard() {
         }
 
         // Check if any request failed
-        if (!bannersRes.ok || !locationsRes.ok || !pagesRes.ok) {
+        if (!bannersRes.ok || !pagesRes.ok) {
           const errors = [];
           if (!bannersRes.ok) errors.push(`Banners: ${bannersRes.status}`);
-          if (!locationsRes.ok) errors.push(`Locations: ${locationsRes.status}`);
           if (!pagesRes.ok) errors.push(`Pages: ${pagesRes.status}`);
           console.error('Failed to fetch stats:', errors.join(', '));
         }
 
-        const [bannersData, locationsData, pagesData] = await Promise.all([
+        const [bannersData, pagesData] = await Promise.all([
           safeJsonParse<{ banners?: any[] }>(bannersRes),
-          safeJsonParse<{ locations?: any[] }>(locationsRes),
           safeJsonParse<{ pages?: any[] }>(pagesRes),
         ]);
 
         setStats({
           totalBanners: bannersData?.banners?.length || 0,
           activeBanners: bannersData?.banners?.filter((b: any) => b.isActive).length || 0,
-          totalLocations: locationsData?.locations?.length || 0,
-          activeLocations: locationsData?.locations?.filter((l: any) => l.isActive).length || 0,
+          totalLocations: 0,
+          activeLocations: 0,
           totalPages: pagesData?.pages?.length || 0,
           publishedPages: pagesData?.pages?.filter((p: any) => p.isPublished).length || 0,
         });
@@ -174,7 +160,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <div className="bg-gradient-to-br from-white to-blue-50 rounded-xl shadow-sm border border-blue-200 p-5 hover:shadow-lg hover:scale-105 transition-all duration-200">
           <div className="flex items-center justify-between">
             <div className="flex-1">
@@ -203,20 +189,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-white to-purple-50 rounded-xl shadow-sm border border-purple-200 p-5 hover:shadow-lg hover:scale-105 transition-all duration-200">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">Locations</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats?.totalLocations || 0}</p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-          </div>
-        </div>
 
         <div className="bg-gradient-to-br from-white to-indigo-50 rounded-xl shadow-sm border border-indigo-200 p-5 hover:shadow-lg hover:scale-105 transition-all duration-200">
           <div className="flex items-center justify-between">
@@ -293,58 +265,6 @@ export default function AdminDashboard() {
             <p className="text-sm text-gray-700 mb-3 leading-relaxed">Add, edit, or delete banners for hero, left, right, and bottom sections. Upload images directly from your computer.</p>
             <div className="flex items-center gap-1 text-amber-600 font-bold text-sm group-hover:text-amber-700">
               <span>Go to Banners</span>
-              <svg className="w-3 h-3 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          href="/admin/locations"
-          className="group relative overflow-hidden bg-gradient-to-br from-indigo-50 via-purple-50 to-indigo-100 rounded-xl shadow-lg p-4 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 hover:-translate-y-1"
-        >
-          {/* Multi-color Border Glow Effect */}
-          <div 
-            className="absolute inset-0 rounded-xl"
-            style={{
-              background: 'linear-gradient(45deg, #ef4444, #3b82f6, #10b981, #f59e0b, #8b5cf6, #ec4899, #06b6d4, #ef4444)',
-              backgroundSize: '400% 400%',
-              animation: 'multicolorGlow 3s ease-in-out infinite',
-              filter: 'blur(10px)',
-              zIndex: 0,
-              margin: '-2px',
-              opacity: 0.6,
-            }}
-          />
-          <div className="absolute inset-[2px] bg-gradient-to-br from-indigo-50 via-purple-50 to-indigo-100 rounded-xl z-0" />
-          {/* Animated Background */}
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-400/0 via-indigo-400/10 to-indigo-400/0 group-hover:via-indigo-400/20 transition-all duration-500 -translate-x-full group-hover:translate-x-full"></div>
-          
-          {/* Glow Effect */}
-          <div className="absolute -top-5 -right-5 w-16 h-16 bg-indigo-400/20 rounded-full blur-xl group-hover:bg-indigo-400/40 group-hover:scale-150 transition-all duration-500"></div>
-          
-          <div className="relative z-10 bg-transparent">
-            <div className="flex items-start justify-between mb-3">
-              <div className="relative">
-                <div className="absolute inset-0 bg-indigo-400/30 rounded-xl blur-lg group-hover:blur-xl group-hover:bg-indigo-400/50 transition-all duration-300"></div>
-                <div className="relative p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="p-1 bg-white/50 backdrop-blur-sm rounded-lg group-hover:bg-white/80 group-hover:rotate-12 transition-all duration-300">
-                <svg className="w-3 h-3 text-indigo-600 group-hover:text-indigo-700 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </div>
-            <h2 className="text-lg font-extrabold text-gray-900 mb-2 group-hover:text-indigo-700 transition-colors">Manage Locations</h2>
-            <p className="text-sm text-gray-700 mb-3 leading-relaxed">Add, edit, or delete locations, areas, and pincodes. Set coordinates for distance-based sorting.</p>
-            <div className="flex items-center gap-1 text-indigo-600 font-bold text-sm group-hover:text-indigo-700">
-              <span>Go to Locations</span>
               <svg className="w-3 h-3 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>

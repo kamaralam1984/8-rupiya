@@ -16,6 +16,7 @@ interface Banner {
   website?: string;
   area?: string;
   city?: string;
+  visitorCount?: number;
 }
 
 interface BottomStripProps {
@@ -67,7 +68,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
           {[...Array(10)].map((_, index) => {
             const banner = row1[index];
             return banner ? (
-              <div key={banner.bannerId} className="relative group flex-1 max-w-[90px] min-w-[75px]">
+              <div key={`bottom-row1-${index}-${banner.bannerId || index}`} className="relative group flex-1 max-w-[90px] min-w-[75px]">
                 <a
                   href={banner.website || banner.link || `/shop/${banner.bannerId}`}
                   target={banner.website ? '_blank' : undefined}
@@ -86,11 +87,36 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                       loading="lazy"
                     />
                   )}
-                  {/* Distance badge overlay */}
-                  {banner.distance !== undefined && (
+                  {/* Distance, time, and visitor badge overlay */}
+                  {(banner.distance !== undefined || banner.visitorCount !== undefined) && (
                     <div className="absolute top-1 right-1 z-10">
-                      <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg">
-                        {banner.distance.toFixed(1)}km
+                      <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg flex flex-col items-center gap-0.5">
+                        {banner.distance !== undefined && (
+                          <div className="flex items-center gap-0.5">
+                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span>{banner.distance.toFixed(1)}km</span>
+                          </div>
+                        )}
+                        {banner.distance !== undefined && (
+                          <div className="flex items-center gap-0.5">
+                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>{Math.round(banner.distance * 1.5)}min</span>
+                          </div>
+                        )}
+                        {banner.visitorCount !== undefined && (
+                          <div className="flex items-center gap-0.5">
+                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span>{banner.visitorCount || 0}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -109,7 +135,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
             const banner = row2[index];
             const actualIndex = index + 10;
             return banner ? (
-              <div key={banner.bannerId} className="relative group flex-1 max-w-[90px] min-w-[75px]">
+              <div key={`bottom-row2-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[90px] min-w-[75px]">
                 <a
                   href={banner.website || banner.link || `/shop/${banner.bannerId}`}
                   target={banner.website ? '_blank' : undefined}
@@ -128,11 +154,36 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                       loading="lazy"
                     />
                   )}
-                  {/* Distance badge overlay */}
-                  {banner.distance !== undefined && (
+                  {/* Distance, time, and visitor badge overlay */}
+                  {(banner.distance !== undefined || banner.visitorCount !== undefined) && (
                     <div className="absolute top-1 right-1 z-10">
-                      <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg">
-                        {banner.distance.toFixed(1)}km
+                      <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg flex flex-col items-center gap-0.5">
+                        {banner.distance !== undefined && (
+                          <div className="flex items-center gap-0.5">
+                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span>{banner.distance.toFixed(1)}km</span>
+                          </div>
+                        )}
+                        {banner.distance !== undefined && (
+                          <div className="flex items-center gap-0.5">
+                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>{Math.round(banner.distance * 1.5)}min</span>
+                          </div>
+                        )}
+                        {banner.visitorCount !== undefined && (
+                          <div className="flex items-center gap-0.5">
+                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span>{banner.visitorCount || 0}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -156,7 +207,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
             {[...Array(5)].map((_, index) => {
               const banner = mobileRow1[index];
               return banner ? (
-                <div key={banner.bannerId} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
+                <div key={`bottom-mobile-row1-${index}-${banner.bannerId || index}`} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
                   <a
                     href={banner.website || banner.link || `/shop/${banner.bannerId}`}
                     onClick={() => onBannerClick(banner.bannerId, 'bottom', index, banner.website || banner.link)}
@@ -194,7 +245,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
               const banner = mobileRow2[index];
               const actualIndex = index + 5;
               return banner ? (
-                <div key={banner.bannerId} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
+                <div key={`bottom-mobile-row2-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
                   <button
                     onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
                     className="relative w-full inline-flex items-center justify-center h-10 sm:h-11 px-1 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
@@ -221,12 +272,19 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                     )}
                   </button>
-                  {/* Distance and time badge for businesses */}
-                  {banner.isBusiness && banner.distance !== undefined && (
+                  {/* Distance, time, and visitor badge for businesses */}
+                  {banner.isBusiness && (banner.distance !== undefined || banner.visitorCount !== undefined) && (
                     <div className="absolute top-0.5 right-0.5 z-10">
                       <div className="bg-blue-600 text-white px-0.5 py-0 rounded text-[6px] font-bold shadow-lg flex flex-col items-center gap-0">
-                        <span>{banner.distance.toFixed(1)}</span>
-                        <span className="text-[5px]">{Math.round(banner.distance * 1.5)}m</span>
+                        {banner.distance !== undefined && (
+                          <>
+                            <span>{banner.distance.toFixed(1)}</span>
+                            <span className="text-[5px]">{Math.round(banner.distance * 1.5)}m</span>
+                          </>
+                        )}
+                        {banner.visitorCount !== undefined && (
+                          <span className="text-[5px]">👁️{banner.visitorCount || 0}</span>
+                        )}
                       </div>
                     </div>
                   )}
@@ -252,7 +310,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
               const banner = mobileRow3[index];
               const actualIndex = index + 10;
               return banner ? (
-                <div key={banner.bannerId} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
+                <div key={`bottom-mobile-row3-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
                   <button
                     onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
                     className="relative w-full inline-flex items-center justify-center h-10 sm:h-11 px-1 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
@@ -279,12 +337,19 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                     )}
                   </button>
-                  {/* Distance and time badge for businesses */}
-                  {banner.isBusiness && banner.distance !== undefined && (
+                  {/* Distance, time, and visitor badge for businesses */}
+                  {banner.isBusiness && (banner.distance !== undefined || banner.visitorCount !== undefined) && (
                     <div className="absolute top-0.5 right-0.5 z-10">
                       <div className="bg-blue-600 text-white px-0.5 py-0 rounded text-[6px] font-bold shadow-lg flex flex-col items-center gap-0">
-                        <span>{banner.distance.toFixed(1)}</span>
-                        <span className="text-[5px]">{Math.round(banner.distance * 1.5)}m</span>
+                        {banner.distance !== undefined && (
+                          <>
+                            <span>{banner.distance.toFixed(1)}</span>
+                            <span className="text-[5px]">{Math.round(banner.distance * 1.5)}m</span>
+                          </>
+                        )}
+                        {banner.visitorCount !== undefined && (
+                          <span className="text-[5px]">👁️{banner.visitorCount || 0}</span>
+                        )}
                       </div>
                     </div>
                   )}
@@ -310,7 +375,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
               const banner = mobileRow4[index];
               const actualIndex = index + 15;
               return banner ? (
-                <div key={banner.bannerId} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
+                <div key={`bottom-mobile-row4-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
                   <button
                     onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
                     className="relative w-full inline-flex items-center justify-center h-10 sm:h-11 px-1 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
@@ -337,12 +402,19 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                     )}
                   </button>
-                  {/* Distance and time badge for businesses */}
-                  {banner.isBusiness && banner.distance !== undefined && (
+                  {/* Distance, time, and visitor badge for businesses */}
+                  {banner.isBusiness && (banner.distance !== undefined || banner.visitorCount !== undefined) && (
                     <div className="absolute top-0.5 right-0.5 z-10">
                       <div className="bg-blue-600 text-white px-0.5 py-0 rounded text-[6px] font-bold shadow-lg flex flex-col items-center gap-0">
-                        <span>{banner.distance.toFixed(1)}</span>
-                        <span className="text-[5px]">{Math.round(banner.distance * 1.5)}m</span>
+                        {banner.distance !== undefined && (
+                          <>
+                            <span>{banner.distance.toFixed(1)}</span>
+                            <span className="text-[5px]">{Math.round(banner.distance * 1.5)}m</span>
+                          </>
+                        )}
+                        {banner.visitorCount !== undefined && (
+                          <span className="text-[5px]">👁️{banner.visitorCount || 0}</span>
+                        )}
                       </div>
                     </div>
                   )}

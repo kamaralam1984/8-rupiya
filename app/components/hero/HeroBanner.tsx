@@ -21,6 +21,7 @@ interface HeroBannerData {
   lng?: number;
   area?: string;
   city?: string;
+  visitorCount?: number;
   // New fields for effects and animations
   textEffect?: string;
   animation?: string;
@@ -187,7 +188,7 @@ export default function HeroBanner({ hero, onBannerClick, height = 'h-[480px]', 
     animationDelay: heroBanner.animationDelay ? `${heroBanner.animationDelay}s` : '0s',
   };
 
-  // If it's a shop (isBusiness), show shop card instead of image
+  // If it's a shop (isBusiness), show ONLY shop image (no text, no details)
   if (heroBanner.isBusiness) {
     return (
       <Link
@@ -198,33 +199,26 @@ export default function HeroBanner({ hero, onBannerClick, height = 'h-[480px]', 
           }
           onBannerClick(heroBanner.bannerId, 'hero', 0, heroBanner.link);
         }}
-        className={`relative w-full ${height} rounded-xl overflow-hidden shadow-lg border-2 border-blue-300 hover:border-blue-500 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 group transition-all duration-300 hover:scale-[1.02] flex flex-col justify-center items-center p-6 sm:p-8`}
+        className={`relative w-full ${height} rounded-xl overflow-hidden shadow-lg border-2 border-blue-300 hover:border-blue-500 group transition-all duration-300 hover:scale-[1.02]`}
         aria-label={`Shop: ${heroBanner.title || heroBanner.advertiser}`}
       >
-        <div className="text-center z-10">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            {heroBanner.title || heroBanner.advertiser}
-          </h2>
-          {(heroBanner.area || heroBanner.city) && (
-            <p className="text-sm sm:text-base md:text-lg text-gray-600 mb-3">
-              📍 {heroBanner.area || heroBanner.city}
-            </p>
-          )}
-          {heroBanner.distance !== undefined && (
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="text-lg sm:text-xl font-bold text-blue-600">
-                {heroBanner.distance.toFixed(1)} km away
-              </span>
-            </div>
-          )}
-          <div className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-colors inline-block">
-            {heroBanner.ctaText || 'View Shop'}
+        {/* Shop Image Only - No Text, No Details */}
+        {heroBanner.imageUrl ? (
+          <Image
+            src={heroBanner.imageUrl}
+            alt={heroBanner.title || heroBanner.advertiser || 'Shop'}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            priority
+            sizes="(max-width: 1024px) 100vw, 60vw"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+            <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
           </div>
-        </div>
+        )}
       </Link>
     );
   }
@@ -287,19 +281,21 @@ export default function HeroBanner({ hero, onBannerClick, height = 'h-[480px]', 
         </div>
       )}
       
-      {/* Distance and Time Badge */}
-      {(heroBanner.distance !== undefined || heroBanner.isBusiness) && (
+      {/* Distance, Time, and Visitor Count Badge */}
+      {(heroBanner.distance !== undefined || heroBanner.isBusiness || heroBanner.visitorCount !== undefined) && (
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20">
           <div className="bg-white/95 backdrop-blur-md px-3 py-2 rounded-lg shadow-lg border border-white/50 flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="text-sm font-bold text-gray-900">
-                {heroBanner.distance ? `${heroBanner.distance.toFixed(1)} km` : 'Nearby'}
-              </span>
-            </div>
+            {heroBanner.distance !== undefined && (
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-sm font-bold text-gray-900">
+                  {heroBanner.distance ? `${heroBanner.distance.toFixed(1)} km` : 'Nearby'}
+                </span>
+              </div>
+            )}
             {heroBanner.distance && (
               <div className="flex items-center gap-2">
                 <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -307,6 +303,17 @@ export default function HeroBanner({ hero, onBannerClick, height = 'h-[480px]', 
                 </svg>
                 <span className="text-sm font-bold text-gray-900">
                   {Math.round(heroBanner.distance * 1.5)} min
+                </span>
+              </div>
+            )}
+            {heroBanner.visitorCount !== undefined && (
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                <span className="text-sm font-bold text-gray-900">
+                  {heroBanner.visitorCount || 0} visitors
                 </span>
               </div>
             )}

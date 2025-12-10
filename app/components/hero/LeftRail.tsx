@@ -17,6 +17,7 @@ interface Banner {
   website?: string;
   area?: string;
   city?: string;
+  visitorCount?: number;
 }
 
 interface LeftRailProps {
@@ -71,7 +72,7 @@ export default function LeftRail({ banners, onBannerClick, height = 'h-[480px]',
           const distance = banner ? getBannerDistance(banner, userLat ?? null, userLng ?? null) : null;
           return banner ? (
             <div
-              key={banner.bannerId}
+              key={`left-rail-${index}-${banner.bannerId || index}`}
               className="relative group"
             >
               {/* Show shop with image */}
@@ -104,9 +105,21 @@ export default function LeftRail({ banners, onBannerClick, height = 'h-[480px]',
                       📍 {banner.area || banner.city}
                     </p>
                   )}
+                  <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                    {(distance !== null || banner.distance !== undefined) && (
+                      <p className="text-[8px] sm:text-[10px] text-blue-300 font-semibold drop-shadow">
+                        {((distance ?? banner.distance) || 0).toFixed(1)} km
+                      </p>
+                    )}
+                    {banner.visitorCount !== undefined && (
+                      <p className="text-[8px] sm:text-[10px] text-white/80 font-semibold drop-shadow">
+                        👁️ {banner.visitorCount || 0}
+                      </p>
+                    )}
+                  </div>
                   {(distance !== null || banner.distance !== undefined) && (
-                    <p className="text-[8px] sm:text-[10px] text-blue-300 font-semibold drop-shadow">
-                      {((distance ?? banner.distance) || 0).toFixed(1)} km away
+                    <p className="text-[7px] sm:text-[9px] text-amber-300 font-semibold drop-shadow">
+                      ⏱️ {Math.round(((distance ?? banner.distance) || 0) * 1.5)} min
                     </p>
                   )}
                   {banner.website && (
@@ -119,8 +132,8 @@ export default function LeftRail({ banners, onBannerClick, height = 'h-[480px]',
               {/* Distance and Call Button Overlay */}
               {(distance !== null || banner.isBusiness) && (
                 <>
-                  {/* Mobile: Always visible distance and time badge */}
-                  {(distance !== null || banner.distance) && (
+                  {/* Mobile: Always visible distance, time, and visitor badge */}
+                  {(distance !== null || banner.distance || banner.visitorCount !== undefined) && (
                     <div className="absolute top-1 right-1 sm:hidden z-10">
                       <div className="bg-blue-600 text-white px-1.5 py-0.5 rounded-md shadow-lg flex flex-col items-center gap-0.5">
                         <div className="flex items-center gap-1">
@@ -140,12 +153,23 @@ export default function LeftRail({ banners, onBannerClick, height = 'h-[480px]',
                             {Math.round(((distance ?? banner.distance) || 0) * 1.5)}min
                           </span>
                         </div>
+                        {banner.visitorCount !== undefined && (
+                          <div className="flex items-center gap-0.5">
+                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span className="text-[7px] font-semibold leading-tight">
+                              {banner.visitorCount || 0}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
-                  {/* Desktop: Hover overlay with distance and time */}
+                  {/* Desktop: Hover overlay with distance, time, and visitor count */}
                   <div className="hidden sm:block absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex flex-col items-center justify-end pb-2 sm:pb-3 pointer-events-none">
-                    {(distance !== null || banner.distance) && (
+                    {(distance !== null || banner.distance || banner.visitorCount !== undefined) && (
                       <div className="bg-white/95 backdrop-blur-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg shadow-lg border border-white/20">
                         <div className="flex flex-col items-center gap-1">
                           <div className="flex items-center gap-1.5 sm:gap-2">
@@ -165,6 +189,17 @@ export default function LeftRail({ banners, onBannerClick, height = 'h-[480px]',
                               {Math.round(((distance ?? banner.distance) || 0) * 1.5)} min
                             </span>
                           </div>
+                          {banner.visitorCount !== undefined && (
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              <span className="text-[10px] sm:text-xs font-bold text-gray-900">
+                                {banner.visitorCount || 0} visitors
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

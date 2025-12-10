@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface Document {
   _id: string;
@@ -184,6 +185,139 @@ export default function CollectionViewerPage() {
         <div className="bg-white rounded-xl shadow-lg p-12 text-center">
           <p className="text-gray-600 text-lg">No documents found</p>
         </div>
+      ) : collectionName === 'shops' || collectionName === 'shopsfromimage' ? (
+        <>
+          {/* Special Shops Table View - Admin Panel Style */}
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Image</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Shop Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Owner</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plan</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pincode</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Days Remaining</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agent Info</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {documents.map((doc, index) => {
+                    const shopName = doc.shopName || doc.name || 'N/A';
+                    const ownerName = doc.ownerName || 'N/A';
+                    const category = doc.category || 'N/A';
+                    const planType = doc.planType || 'BASIC';
+                    const paymentStatus = doc.paymentStatus || 'PENDING';
+                    const photoUrl = doc.photoUrl || doc.imageUrl || doc.iconUrl || '/placeholder-shop.jpg';
+                    const pincode = doc.pincode || 'N/A';
+                    const city = doc.city || '';
+                    const area = doc.area || '';
+                    const location = [area, city].filter(Boolean).join(', ') || 'N/A';
+                    const createdAt = doc.createdAt ? new Date(doc.createdAt) : new Date();
+                    const paymentExpiryDate = doc.paymentExpiryDate ? new Date(doc.paymentExpiryDate) : null;
+                    const planEndDate = doc.planEndDate ? new Date(doc.planEndDate) : null;
+                    const expiryDate = paymentExpiryDate || planEndDate;
+                    const daysRemaining = expiryDate ? Math.max(0, Math.ceil((expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 'N/A';
+                    const agentName = doc.agentName || 'N/A';
+                    const agentCode = doc.agentCode || '';
+                    const createdByAgent = doc.createdByAgent || null;
+                    
+                    return (
+                      <tr key={doc._id || index} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
+                            <Image
+                              src={photoUrl}
+                              alt={shopName}
+                              fill
+                              className="object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/placeholder-shop.jpg';
+                              }}
+                            />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{shopName}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{ownerName}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{category}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                            planType === 'HERO' ? 'bg-purple-100 text-purple-800' :
+                            planType === 'BANNER' ? 'bg-indigo-100 text-indigo-800' :
+                            planType === 'LEFT_BAR' || planType === 'RIGHT_BAR' ? 'bg-blue-100 text-blue-800' :
+                            planType === 'FEATURED' ? 'bg-yellow-100 text-yellow-800' :
+                            planType === 'PREMIUM' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {planType}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                            paymentStatus === 'PAID' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {paymentStatus}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{location}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{pincode}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">
+                          {createdAt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="px-4 py-3">
+                          {typeof daysRemaining === 'number' ? (
+                            <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                              daysRemaining > 30 ? 'bg-green-100 text-green-800' :
+                              daysRemaining > 7 ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {daysRemaining} days
+                            </span>
+                          ) : (
+                            <span className="text-sm text-gray-500">{daysRemaining}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700">
+                          {createdByAgent ? (
+                            <div className="space-y-1">
+                              <div className="font-semibold text-blue-600">{agentName}</div>
+                              {agentCode && <div className="text-xs text-gray-500">Code: {agentCode}</div>}
+                              <div className="text-xs text-gray-400 font-mono">ID: {String(createdByAgent).slice(0, 8)}...</div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">Admin</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => setExpandedDoc(expandedDoc === doc._id ? null : doc._id)}
+                            className="text-blue-600 hover:text-blue-700 text-xs font-semibold"
+                          >
+                            {expandedDoc === doc._id ? 'Hide' : 'View'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {expandedDoc && (
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+              <h4 className="font-semibold text-gray-900 mb-4">Full Document Details</h4>
+              <pre className="bg-gray-100 p-4 rounded-lg overflow-auto max-h-96 text-xs">
+                {JSON.stringify(documents.find(d => d._id === expandedDoc), null, 2)}
+              </pre>
+            </div>
+          )}
+        </>
       ) : viewMode === 'grid' ? (
         <>
           {/* Grid View */}
