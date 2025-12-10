@@ -19,6 +19,7 @@ export interface IShop extends Document {
   longitude: number;
   photoUrl: string;      // original image URL
   iconUrl: string;       // same as photoUrl for now
+  shopUrl: string;       // Unique URL slug for the shop (e.g., "/shop/abc-store-123")
   createdByAdmin?: Types.ObjectId; // Reference to User (admin) - optional for agent-created shops
   paymentStatus: 'PAID' | 'PENDING'; // Payment status
   paymentExpiryDate: Date; // 365 days from payment date
@@ -119,6 +120,13 @@ const ShopSchema = new Schema<IShop>(
       type: String,
       required: [true, 'Icon URL is required'],
       trim: true,
+    },
+    shopUrl: {
+      type: String,
+      required: [true, 'Shop URL is required'],
+      trim: true,
+      unique: true, // Ensure each shop has a unique URL
+      index: true, // Index for faster lookups
     },
     createdByAdmin: {
       type: Schema.Types.ObjectId,

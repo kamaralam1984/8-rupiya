@@ -11,12 +11,18 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, token, updateUser } = useAuth();
+  const { user, token, updateUser, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    toast.success('Logged out successfully');
+    router.push('/login?redirect=/admin');
+  };
 
   useEffect(() => {
     const checkAdminAccess = async () => {
@@ -137,7 +143,6 @@ export default function AdminLayout({
     { name: 'Database', href: '/admin/database', icon: '🗄️', color: 'slate', allowedRoles: ['admin'] }, // Sirf Admin
     { name: 'Locations', href: '/admin/locations', icon: '📍', color: 'indigo', allowedRoles: ['admin', 'editor'] },
     { name: 'Pages', href: '/admin/pages', icon: '📄', color: 'pink', allowedRoles: ['admin', 'editor'] },
-    { name: 'Location Images', href: '/admin/location-images', icon: '🖼️', color: 'teal', allowedRoles: ['admin', 'editor'] },
   ];
 
   // Filter navigation based on user role
@@ -256,6 +261,17 @@ export default function AdminLayout({
               {user.role === 'operator' && '👁️ Operator'}
             </div>
           </div>
+          
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            className="w-full mt-2 px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all duration-200 hover:shadow-sm flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Logout
+          </button>
         </div>
       </aside>
 
@@ -283,6 +299,15 @@ export default function AdminLayout({
                 </svg>
                 Back to Site
               </Link>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all duration-200 hover:shadow-sm flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+              </button>
             </div>
           </div>
         </header>

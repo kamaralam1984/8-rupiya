@@ -24,8 +24,16 @@ if (!global.mongoose) {
 }
 
 async function connectDB(): Promise<typeof mongoose> {
+  // Check if connection is ready and connected
   if (cached.conn) {
+    // Check connection state
+    if (mongoose.connection.readyState === 1) {
     return cached.conn;
+    } else {
+      // Connection exists but not ready, reset it
+      cached.conn = null;
+      cached.promise = null;
+    }
   }
 
   if (!cached.promise) {
@@ -33,10 +41,31 @@ async function connectDB(): Promise<typeof mongoose> {
       bufferCommands: false,
       serverSelectionTimeoutMS: 10000, // 10 seconds timeout
       socketTimeoutMS: 45000, // 45 seconds socket timeout
+      maxPoolSize: 10, // Maintain up to 10 socket connections
+      minPoolSize: 1, // Maintain at least 1 socket connection
+      maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
+      heartbeatFrequencyMS: 10000, // Check connection health every 10 seconds
     };
 
     cached.promise = mongoose.connect(MONGODB_URI!, opts).then(async (mongooseInstance) => {
       console.log('✅ MongoDB Connected');
+      
+      // Handle connection events
+      mongoose.connection.on('error', (err) => {
+        console.error('❌ MongoDB Connection Error:', err);
+        cached.conn = null;
+        cached.promise = null;
+      });
+      
+      mongoose.connection.on('disconnected', () => {
+        console.warn('⚠️ MongoDB Disconnected');
+        cached.conn = null;
+        cached.promise = null;
+      });
+      
+      mongoose.connection.on('reconnected', () => {
+        console.log('✅ MongoDB Reconnected');
+      });
       
       // Auto-import businesses if database is empty (runs once on first connection)
       if (process.env.AUTO_IMPORT_BUSINESSES !== 'false') {

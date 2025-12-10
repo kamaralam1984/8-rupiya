@@ -6,6 +6,7 @@ import AdminShop from '@/lib/models/Shop'; // Admin shop model
 import Category from '@/models/Category'; // Category model
 import { verifyAgentToken, getAgentTokenFromRequest } from '@/lib/utils/agentAuth';
 import { calculateAgentCommission, PRICING_PLANS, PlanType } from '@/app/utils/pricing';
+import { generateShopUrl } from '@/lib/utils/slugGenerator';
 import mongoose from 'mongoose';
 
 // GET /api/agent/shops - List shops with filters
@@ -231,7 +232,8 @@ export async function POST(request: NextRequest) {
     // Create shop in AgentShop collection
     let shop;
     try {
-      shop = await AgentShop.create({
+      // First create with temp URL, then update with actual URL based on shop ID
+      const tempShop = await AgentShop.create({
         shopName: shopName.trim(),
         ownerName: ownerName.trim(),
         mobile: mobile.trim(),
@@ -239,6 +241,7 @@ export async function POST(request: NextRequest) {
         pincode: pincode.trim(),
         address: address.trim(),
         photoUrl: photoUrl.trim(),
+        shopUrl: 'temp', // Temporary value, will be updated
         latitude: Number(latitude),
         longitude: Number(longitude),
         paymentStatus: paymentStatus || 'PENDING',
@@ -256,6 +259,13 @@ export async function POST(request: NextRequest) {
         // Plan-based features automatically set ho jayenge
         visitorCount: 0,
       });
+
+      // Generate unique shop URL based on shop name and ID
+      const shopUrl = generateShopUrl(tempShop.shopName, tempShop._id.toString());
+      tempShop.shopUrl = shopUrl;
+      await tempShop.save();
+      
+      shop = tempShop;
     } catch (agentShopError: any) {
       console.error('AgentShop creation error:', agentShopError);
       console.error('AgentShop error details:', {
@@ -305,6 +315,7 @@ export async function POST(request: NextRequest) {
       const agentObjectId = new mongoose.Types.ObjectId(payload.agentId);
       
       // Prepare admin shop data with plan-based features (planFeatures already defined above)
+      // Use the same shop URL for consistency
       const adminShopData: any = {
         shopName: shopName.trim(),
         ownerName: ownerName.trim(),
@@ -319,6 +330,7 @@ export async function POST(request: NextRequest) {
         longitude: Number(longitude),
         photoUrl: photoUrl.trim(),
         iconUrl: photoUrl.trim(), // Same as photoUrl
+        shopUrl: shop.shopUrl, // Use the same shop URL generated for AgentShop
         // createdByAdmin is optional now - leave it undefined for agent-created shops
         planType: finalPlanType,
         planAmount: finalAmount,
@@ -391,6 +403,7 @@ export async function POST(request: NextRequest) {
           category: shop.category,
           planType: shop.planType,
           paymentStatus: shop.paymentStatus,
+          shopUrl: shop.shopUrl, // Include shop URL in response
         },
       },
       { 

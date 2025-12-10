@@ -7,6 +7,13 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
+    // Check if connection is ready
+    const mongoose = (await import('mongoose')).default;
+    if (mongoose.connection.readyState !== 1) {
+      // Connection not ready, try to reconnect
+      await connectDB();
+    }
+
     const settings = await HomepageSettings.findOne({ isActive: true }).lean();
 
     if (!settings) {

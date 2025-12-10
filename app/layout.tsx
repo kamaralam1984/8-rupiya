@@ -4,6 +4,8 @@ import "./globals.css";
 import { LocationProvider } from "./contexts/LocationContext";
 import { DistanceProvider } from "./contexts/DistanceContext";
 import { AuthProvider } from "./contexts/AuthContext";
+import { AgentAuthProvider } from "./contexts/AgentAuthContext";
+import { SearchProvider } from "./contexts/SearchContext";
 import Toaster from "./components/Toaster";
 
 const geistSans = Geist({
@@ -37,8 +39,12 @@ export default function RootLayout({
         <LocationProvider>
           <DistanceProvider>
             <AuthProvider>
-              {children}
-              <Toaster />
+              <AgentAuthProvider>
+                <SearchProvider>
+                  {children}
+                  <Toaster />
+                </SearchProvider>
+              </AgentAuthProvider>
             </AuthProvider>
           </DistanceProvider>
         </LocationProvider>

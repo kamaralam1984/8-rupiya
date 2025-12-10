@@ -5,6 +5,7 @@ import Shop from '@/models/Shop'; // Old model (for backward compatibility)
 import NewShop from '@/lib/models/Shop'; // New model for image-based shop creation
 import Category from '@/models/Category'; // Category model
 import { reverseGeocode, reverseGeocodeGoogle } from '@/lib/extractMeta';
+import { generateShopUrl } from '@/lib/utils/slugGenerator';
 
 /**
  * POST /api/admin/shops
@@ -126,7 +127,8 @@ export const POST = requireAdmin(async (request: NextRequest) => {
     }
 
     // Step 5: Create and save Shop document with new model
-    const shop = await NewShop.create({
+    // First create a temporary shop to get the ID, then update with the URL
+    const tempShop = await NewShop.create({
       shopName: shopName.trim(),
       ownerName: ownerName.trim(),
       category: categoryName, // Keep category name for backward compatibility
@@ -140,9 +142,17 @@ export const POST = requireAdmin(async (request: NextRequest) => {
       longitude: lon,
       photoUrl: photoUrl.trim(),
       iconUrl: photoUrl.trim(), // Same as photoUrl for now
+      shopUrl: 'temp', // Temporary value, will be updated
       createdByAdmin: adminUserId,
       paymentStatus: 'PENDING', // Set as pending by default
     });
+
+    // Generate unique shop URL based on shop name and ID
+    const shopUrl = generateShopUrl(tempShop.shopName, tempShop._id.toString());
+    tempShop.shopUrl = shopUrl;
+    await tempShop.save();
+    
+    const shop = tempShop;
 
     // Convert shop document to plain object for response
     const shopResponse = {
@@ -159,6 +169,7 @@ export const POST = requireAdmin(async (request: NextRequest) => {
       longitude: shop.longitude,
       photoUrl: shop.photoUrl,
       iconUrl: shop.iconUrl,
+      shopUrl: shop.shopUrl, // Include shop URL in response
       createdAt: shop.createdAt,
     };
 

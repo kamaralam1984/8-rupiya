@@ -17,6 +17,10 @@ interface HeroBannerData {
   isBusiness?: boolean;
   userLat?: number | null;
   userLng?: number | null;
+  lat?: number;
+  lng?: number;
+  area?: string;
+  city?: string;
   // New fields for effects and animations
   textEffect?: string;
   animation?: string;
@@ -183,6 +187,49 @@ export default function HeroBanner({ hero, onBannerClick, height = 'h-[480px]', 
     animationDelay: heroBanner.animationDelay ? `${heroBanner.animationDelay}s` : '0s',
   };
 
+  // If it's a shop (isBusiness), show shop card instead of image
+  if (heroBanner.isBusiness) {
+    return (
+      <Link
+        href={heroBanner.link}
+        onClick={(e) => {
+          if (heroBanner.link === '#') {
+            e.preventDefault();
+          }
+          onBannerClick(heroBanner.bannerId, 'hero', 0, heroBanner.link);
+        }}
+        className={`relative w-full ${height} rounded-xl overflow-hidden shadow-lg border-2 border-blue-300 hover:border-blue-500 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 group transition-all duration-300 hover:scale-[1.02] flex flex-col justify-center items-center p-6 sm:p-8`}
+        aria-label={`Shop: ${heroBanner.title || heroBanner.advertiser}`}
+      >
+        <div className="text-center z-10">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+            {heroBanner.title || heroBanner.advertiser}
+          </h2>
+          {(heroBanner.area || heroBanner.city) && (
+            <p className="text-sm sm:text-base md:text-lg text-gray-600 mb-3">
+              📍 {heroBanner.area || heroBanner.city}
+            </p>
+          )}
+          {heroBanner.distance !== undefined && (
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="text-lg sm:text-xl font-bold text-blue-600">
+                {heroBanner.distance.toFixed(1)} km away
+              </span>
+            </div>
+          )}
+          <div className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold text-lg hover:bg-blue-700 transition-colors inline-block">
+            {heroBanner.ctaText || 'View Shop'}
+          </div>
+        </div>
+      </Link>
+    );
+  }
+
+  // Fallback to image banner if not a shop
   return (
     <div 
       className={`relative w-full ${height} rounded-xl overflow-hidden shadow-lg border border-gray-200 group ${animationClass}`}

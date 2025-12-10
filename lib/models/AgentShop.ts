@@ -9,6 +9,7 @@ export interface IAgentShop extends Document {
   address: string;
   photoUrl: string;
   additionalPhotos?: string[]; // Additional photos (optional, max 9 = total 10 with main photo)
+  shopUrl: string; // Unique URL slug for the shop (e.g., "/shop/abc-store-123")
   latitude: number;
   longitude: number;
   paymentStatus: 'PAID' | 'PENDING';
@@ -81,6 +82,13 @@ const AgentShopSchema = new Schema<IAgentShop>(
         },
         message: 'Maximum 9 additional photos allowed (total 10 with main photo)',
       },
+    },
+    shopUrl: {
+      type: String,
+      required: [true, 'Shop URL is required'],
+      trim: true,
+      unique: true, // Ensure each shop has a unique URL
+      index: true, // Index for faster lookups
     },
     latitude: {
       type: Number,

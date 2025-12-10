@@ -32,13 +32,20 @@ export async function GET(request: NextRequest) {
     const shops = [...adminShops, ...agentShops].map((shop: any) => ({
       id: shop._id.toString(),
       name: shop.shopName || shop.name,
+      shopName: shop.shopName || shop.name,
       category: shop.category,
-      imageUrl: shop.photoUrl || shop.iconUrl || shop.imageUrl,
-      latitude: shop.latitude,
-      longitude: shop.longitude,
+      imageUrl: shop.photoUrl || shop.iconUrl || shop.imageUrl || '/placeholder-shop.jpg',
+      photoUrl: shop.photoUrl || shop.iconUrl,
+      shopUrl: shop.shopUrl,
+      latitude: shop.latitude || 0,
+      longitude: shop.longitude || 0,
       planType: shop.planType || 'BASIC',
+      priorityRank: shop.priorityRank || 0,
       isLeftBar: shop.isLeftBar || shop.planType === 'LEFT_BAR' || false,
       isRightBar: shop.isRightBar || shop.planType === 'RIGHT_BAR' || false,
+      website: shop.website || '',
+      area: shop.area || '',
+      city: shop.city || '',
       distance: 0, // Will be calculated on frontend if location available
     }));
 
@@ -56,6 +63,8 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+
 
 
 

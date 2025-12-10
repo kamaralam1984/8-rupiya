@@ -2,122 +2,75 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useEffect, useRef, KeyboardEvent } from 'react';
-import { useRouter } from 'next/navigation';
-import LocationSelector from './LocationSelector';
+import { useState, useEffect, useRef } from 'react';
 import ProfileDropdown from './ProfileDropdown';
-import { useLocation } from '../contexts/LocationContext';
-import { useDistance } from '../contexts/DistanceContext';
 import { useAuth } from '../contexts/AuthContext';
-import type { SearchSuggestion } from '../types';
-import { safeJsonParse } from '../utils/fetchHelpers';
+import { useSearch } from '../contexts/SearchContext';
 
 export default function Navbar() {
-  const { location: currentLocation, setLocation: setCurrentLocation } = useLocation();
-  const { distance, setDistance, isMounted: isDistanceMounted } = useDistance(); // Get distance from context
   const { isAuthenticated } = useAuth();
-  const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [showMobileLocation, setShowMobileLocation] = useState(false);
-  const [showDistanceSlider, setShowDistanceSlider] = useState(false);
-  const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const suggestionsRef = useRef<HTMLDivElement>(null);
-  const mobileLocationRef = useRef<HTMLDivElement>(null);
-  const distanceSliderRef = useRef<HTMLDivElement>(null);
+  const { setSearchParams } = useSearch();
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [pincode, setPincode] = useState('');
+  const [area, setArea] = useState('');
+  const [category, setCategory] = useState('');
+  const [categories, setCategories] = useState<string[]>([]);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Debounce search
+  // Fetch categories
   useEffect(() => {
-    if (query.length < 2) {
-      const clearSuggestions = () => {
-        setSuggestions([]);
-        setShowSuggestions(false);
-      };
-      clearSuggestions();
-      return;
-    }
-
-    const timer = setTimeout(async () => {
+    const fetchCategories = async () => {
       try {
-        const response = await fetch(
-          `/api/search/suggestions?q=${encodeURIComponent(query)}&loc=${currentLocation.id}`
-        );
-        const data = await safeJsonParse<{ suggestions?: any[] }>(response);
-        setSuggestions(data?.suggestions || []);
-        setShowSuggestions(true);
+        const res = await fetch('/api/categories');
+        const data = await res.json();
+        if (data.success && data.categories) {
+          setCategories(data.categories.map((cat: any) => cat.displayName || cat.name || cat.slug));
+        }
       } catch (error) {
-        console.error('Error fetching suggestions:', error);
-        setSuggestions([]);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [query, currentLocation.id]);
-
-  const handleSubmit = (searchQuery?: string) => {
-    const finalQuery = searchQuery || query;
-    if (finalQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(finalQuery)}&loc=${currentLocation.id}&distance=${distance}`);
-      setShowSuggestions(false);
-    }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setSelectedIndex((prev) => 
-        prev < suggestions.length - 1 ? prev + 1 : prev
-      );
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (selectedIndex >= 0 && suggestions[selectedIndex]) {
-        handleSubmit(suggestions[selectedIndex].title);
-      } else {
-        handleSubmit();
-      }
-    } else if (e.key === 'Escape') {
-      setShowSuggestions(false);
-      setSelectedIndex(-1);
-    }
-  };
-
-  const handleSuggestionClick = (suggestion: SearchSuggestion) => {
-    handleSubmit(suggestion.title);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        suggestionsRef.current &&
-        !suggestionsRef.current.contains(event.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(event.target as Node)
-      ) {
-        setShowSuggestions(false);
-      }
-      if (
-        mobileLocationRef.current &&
-        !mobileLocationRef.current.contains(event.target as Node)
-      ) {
-        setShowMobileLocation(false);
-      }
-      if (
-        distanceSliderRef.current &&
-        !distanceSliderRef.current.contains(event.target as Node)
-      ) {
-        setShowDistanceSlider(false);
+        console.error('Error fetching categories:', error);
       }
     };
+    fetchCategories();
+  }, []);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowSearchDropdown(false);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const searchData: any = {};
+    if (pincode.trim()) searchData.pincode = pincode.trim();
+    if (area.trim()) searchData.area = area.trim();
+    if (category.trim()) searchData.category = category.trim();
+
+    if (pincode.trim() || area.trim() || category.trim()) {
+      // Set search params to trigger search on homepage
+      setSearchParams(searchData);
+      setShowSearchDropdown(false);
+      // Scroll to hero section
+      setTimeout(() => {
+        const heroSection = document.getElementById('hero-section');
+        if (heroSection) {
+          heroSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  };
+
+  const clearSearch = () => {
+    setPincode('');
+    setArea('');
+    setCategory('');
+    setSearchParams({});
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-gray-900/95 backdrop-blur-md shadow-md border-b border-amber-500/40">
@@ -139,297 +92,176 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Golden Divider 1 - Logo to Search */}
-          <div className="hidden md:block w-[2px] h-12 bg-gradient-to-b from-transparent via-amber-400 via-yellow-500 to-transparent mx-2 animate-golden-glow"></div>
+          {/* Center: Search Dropdown */}
+          <div className="flex-1 max-w-2xl mx-4 hidden md:block relative" ref={dropdownRef}>
+            <button
+              onClick={() => setShowSearchDropdown(!showSearchDropdown)}
+              className="w-full h-12 pl-4 pr-12 py-3 text-sm text-gray-500 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 bg-white shadow-sm transition-all text-left flex items-center justify-between"
+              aria-label="Search shops"
+            >
+              <span className="truncate">
+                {pincode || area || category ? (
+                  <span className="text-gray-900">
+                    {pincode && `Pincode: ${pincode}`}
+                    {area && `${pincode ? ', ' : ''}Area: ${area}`}
+                    {category && `${pincode || area ? ', ' : ''}Category: ${category}`}
+                  </span>
+                ) : (
+                  'Search by Pincode, Area, Category...'
+                )}
+              </span>
+              <svg className="w-5 h-5 text-gray-400 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
 
-          {/* Center: Location + Search with enhanced design */}
-          <div className="flex-1 max-w-4xl mx-4 hidden md:flex items-center gap-3">
-            {/* Location Input - Enhanced */}
-            <LocationSelector 
-              currentLocation={currentLocation}
-              onLocationChange={setCurrentLocation}
-            />
-
-            {/* Search Input - Enhanced with gradient focus - 50% width */}
-            <div className={`relative w-1/2 transition-all duration-300 ${isSearchFocused ? 'scale-[1.02]' : ''}`} role="search">
-              <div className="relative">
-                <div className={`absolute inset-0 bg-linear-to-r from-yellow-500/20 via-amber-400/20 to-yellow-600/20 rounded-xl blur-md transition-opacity ${isSearchFocused ? 'opacity-100' : 'opacity-0'}`}></div>
-                <div className="relative">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={query}
-                    onChange={(e) => {
-                      setQuery(e.target.value);
-                      setSelectedIndex(-1);
-                    }}
-                    onKeyDown={handleKeyDown}
-                    onFocus={() => {
-                      setIsSearchFocused(true);
-                      if (query.length >= 2) setShowSuggestions(true);
-                    }}
-                    onBlur={() => setIsSearchFocused(false)}
-                    placeholder="Search businesses, services, products..."
-                    className="w-full h-12 pl-4 pr-24 py-3 text-sm text-gray-900 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 bg-white shadow-sm transition-all"
-                    aria-label="Search businesses, services or categories"
-                  />
-                  {/* Voice Search Icon - Enhanced */}
-                  {/* Voice search button removed as requested */}
-                  {/* Search Button - Enhanced with gradient */}
-                  <button
-                    onClick={() => handleSubmit()}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 bg-custom-gradient rounded-xl flex items-center justify-center transition-all shadow-md hover:shadow-lg hover:opacity-90 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-                    aria-label="Search"
-                  >
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              {/* Enhanced Suggestions Dropdown */}
-              {showSuggestions && suggestions.length > 0 && (
-                <div
-                  ref={suggestionsRef}
-                  className="absolute z-50 w-full mt-3 bg-white border-2 border-gray-100 rounded-2xl shadow-2xl max-h-96 overflow-y-auto backdrop-blur-sm"
-                >
-                  <div className="p-2">
-                    {suggestions.slice(0, 6).map((suggestion, index) => (
-                      <button
-                        key={suggestion.id}
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        onMouseEnter={() => setSelectedIndex(index)}
-                        className={`w-full px-4 py-3 text-left rounded-xl hover:bg-linear-to-r hover:from-yellow-50 hover:via-amber-50 hover:to-orange-100 focus:bg-linear-to-r focus:from-yellow-50 focus:via-amber-50 focus:to-orange-100 focus:outline-none transition-all ${
-                          index === selectedIndex ? 'bg-linear-to-r from-yellow-50 via-amber-50 to-orange-100 ring-2 ring-amber-300' : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
-                            suggestion.type === 'shop' ? 'bg-linear-to-br from-blue-100 to-blue-200 text-blue-700' :
-                            suggestion.type === 'category' ? 'bg-linear-to-br from-green-100 to-green-200 text-green-700' :
-                            'bg-linear-to-br from-purple-100 to-purple-200 text-purple-700'
-                          }`}>
-                            {suggestion.type === 'shop' ? (
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                              </svg>
-                            ) : suggestion.type === 'category' ? (
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                              </svg>
-                            ) : (
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-semibold text-gray-900 truncate">
-                              {suggestion.title}
-                            </div>
-                            {suggestion.subtitle && (
-                              <div className="text-xs text-gray-500 truncate mt-0.5">
-                                {suggestion.subtitle}
-                              </div>
-                            )}
-                          </div>
-                          <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
-                      </button>
-                    ))}
+            {/* Dropdown Menu */}
+            {showSearchDropdown && (
+              <div className="absolute z-50 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-2xl p-4">
+                <form onSubmit={handleSearch} className="space-y-4">
+                  {/* Pincode */}
+                  <div>
+                    <label htmlFor="search-pincode" className="block text-sm font-medium text-gray-700 mb-2">
+                      Pincode
+                    </label>
+                    <input
+                      type="text"
+                      id="search-pincode"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                      placeholder="Enter pincode (e.g., 800001)"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
-                </div>
-              )}
-            </div>
+
+                  {/* Area */}
+                  <div>
+                    <label htmlFor="search-area" className="block text-sm font-medium text-gray-700 mb-2">
+                      Area
+                    </label>
+                    <input
+                      type="text"
+                      id="search-area"
+                      value={area}
+                      onChange={(e) => setArea(e.target.value)}
+                      placeholder="Enter area (e.g., Bailey Road)"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Category */}
+                  <div>
+                    <label htmlFor="search-category" className="block text-sm font-medium text-gray-700 mb-2">
+                      Category
+                    </label>
+                    <select
+                      id="search-category"
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="submit"
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                    >
+                      Search
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearSearch}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
 
-          {/* Mobile: Search + Location Icon */}
-          <div className="flex-1 md:hidden mx-1 sm:mx-2 min-w-0 flex items-center gap-1.5 relative">
-            {/* Location Icon Button */}
-            <div className="relative shrink-0" ref={mobileLocationRef}>
-              <button
-                onClick={() => setShowMobileLocation(!showMobileLocation)}
-                className="p-1.5 sm:p-2 text-white bg-custom-gradient rounded-lg shadow-md transition-all hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-                aria-label={`Current location: ${currentLocation.displayName}. Click to change location.`}
-                aria-expanded={showMobileLocation}
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
-              {/* Mobile Location Dropdown */}
-              {showMobileLocation && (
-                <div className="absolute left-0 top-full mt-2 z-50 w-[calc(100vw-3rem)] max-w-[20rem] sm:max-w-[22rem]">
-                  <LocationSelector 
-                    currentLocation={currentLocation}
-                    onLocationChange={(location) => {
-                      setCurrentLocation(location);
-                      setShowMobileLocation(false);
-                    }}
-                    forceOpen={true}
-                    hideButton={true}
-                  />
-                </div>
-              )}
-            </div>
-            
-            {/* Search Bar - Smaller */}
-            <div className="relative flex-1 min-w-0" role="search">
-                <input
-                ref={inputRef}
-                  type="text"
-                  value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setSelectedIndex(-1);
-                }}
-                onKeyDown={handleKeyDown}
-                onFocus={() => {
-                  setIsSearchFocused(true);
-                  if (query.length >= 2) setShowSuggestions(true);
-                }}
-                onBlur={() => setIsSearchFocused(false)}
-                  placeholder="Search..."
-                className="w-full h-8 sm:h-9 pl-2.5 sm:pl-3 pr-8 sm:pr-9 py-1.5 sm:py-2 text-xs text-gray-900 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                aria-label="Search businesses, services or categories"
-                />
-                <button
-                  onClick={() => handleSubmit()}
-                className="absolute right-0.5 sm:right-1 top-1/2 -translate-y-1/2 w-6 h-6 sm:w-7 sm:h-7 bg-custom-gradient rounded-lg flex items-center justify-center text-white shadow-md hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-                  aria-label="Search"
-                >
-                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </button>
-              </div>
-            
-            {/* Mobile Suggestions Dropdown */}
-            {showSuggestions && suggestions.length > 0 && (
-              <div
-                ref={suggestionsRef}
-                className="absolute z-50 w-full mt-2 bg-white border-2 border-gray-100 rounded-2xl shadow-2xl max-h-80 overflow-y-auto backdrop-blur-sm top-full left-0"
-              >
-                <div className="p-2">
-                  {suggestions.slice(0, 6).map((suggestion, index) => (
-                    <button
-                      key={suggestion.id}
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      onMouseEnter={() => setSelectedIndex(index)}
-                      className={`w-full px-3 py-2.5 text-left rounded-xl hover:bg-linear-to-r hover:from-yellow-50 hover:via-amber-50 hover:to-orange-100 focus:bg-linear-to-r focus:from-yellow-50 focus:via-amber-50 focus:to-orange-100 focus:outline-none transition-all ${
-                        index === selectedIndex ? 'bg-linear-to-r from-yellow-50 via-amber-50 to-orange-100 ring-2 ring-amber-300' : ''
-                      }`}
+          {/* Mobile: Search Icon */}
+          <div className="md:hidden">
+            <button
+              onClick={() => setShowSearchDropdown(!showSearchDropdown)}
+              className="p-2 text-white hover:text-amber-400 transition-colors"
+              aria-label="Search"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+
+            {/* Mobile Dropdown */}
+            {showSearchDropdown && (
+              <div className="absolute top-full left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg p-4">
+                <form onSubmit={handleSearch} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Pincode</label>
+                    <input
+                      type="text"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                      placeholder="Enter pincode"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Area</label>
+                    <input
+                      type="text"
+                      value={area}
+                      onChange={(e) => setArea(e.target.value)}
+                      placeholder="Enter area"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white"
                     >
-                      <div className="flex items-center gap-2">
-                        <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center shadow-sm ${
-                          suggestion.type === 'shop' ? 'bg-linear-to-br from-blue-100 to-blue-200 text-blue-700' :
-                          suggestion.type === 'category' ? 'bg-linear-to-br from-green-100 to-green-200 text-green-700' :
-                          'bg-linear-to-br from-purple-100 to-purple-200 text-purple-700'
-                        }`}>
-                          {suggestion.type === 'shop' ? (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                          ) : suggestion.type === 'category' ? (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                            </svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold text-gray-900 truncate">
-                            {suggestion.title}
-                          </div>
-                          {suggestion.subtitle && (
-                            <div className="text-[10px] text-gray-500 truncate mt-0.5">
-                              {suggestion.subtitle}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                      <option value="">Select Category</option>
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold"
+                    >
+                      Search
                     </button>
-                  ))}
-                </div>
-            </div>
+                    <button
+                      type="button"
+                      onClick={clearSearch}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </form>
+              </div>
             )}
-           </div>
+          </div>
 
-           {/* Golden Divider 2 - Search to Distance Slider */}
-           <div className="hidden lg:block w-[2px] h-12 bg-gradient-to-b from-transparent via-amber-400 via-yellow-500 to-transparent mx-2 animate-golden-glow"></div>
- 
-           {/* Distance Slider between Search and Promote (Desktop) */}
-           <div className="hidden lg:block relative" ref={distanceSliderRef}>
-             <button
-               onClick={() => setShowDistanceSlider(!showDistanceSlider)}
-               className="flex flex-col items-center justify-center px-3 py-2 group"
-               aria-label="Set search distance"
-             >
-               {/* Set Distance Label in Golden */}
-               <div className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 mb-2 group-hover:from-amber-300 group-hover:via-yellow-300 group-hover:to-amber-400 transition-all">
-                 Set Distance
-               </div>
-               <div className="text-xs font-semibold text-white mb-1 group-hover:text-amber-400 transition-colors">
-                 {!isDistanceMounted ? 'All' : distance === 0 ? 'All' : `${distance} km`}
-               </div>
-               <div className="w-36 h-1.5 bg-gray-700 rounded-full relative overflow-hidden distance-slider-glow">
-                 <div 
-                   className="absolute left-0 top-0 h-full bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-400 rounded-full transition-all duration-300"
-                   style={{ width: `${(distance / 50) * 100}%` }}
-                 ></div>
-                 <div 
-                   className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-amber-400 shadow-lg shadow-amber-400/50 transition-all duration-300"
-                   style={{ left: `calc(${(distance / 50) * 100}% - 8px)` }}
-                 ></div>
-               </div>
-             </button>
-             
-             {/* Distance Slider Popup */}
-             {showDistanceSlider && (
-               <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-2xl p-4 w-64 z-50 border border-gray-200">
-                 <div className="mb-3">
-                   <h3 className="text-sm font-semibold text-gray-900 mb-1">Search Distance</h3>
-                   <p className="text-xs text-gray-500">Set maximum distance for search results</p>
-                 </div>
-                 <div className="relative">
-                   <input
-                     type="range"
-                     min="0"
-                     max="50"
-                     value={distance}
-                     onChange={(e) => setDistance(Number(e.target.value))}
-                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-golden"
-                     style={{
-                       background: `linear-gradient(to right, 
-                         rgb(251 191 36) 0%, 
-                         rgb(251 191 36) ${(distance / 50) * 100}%, 
-                         rgb(229 231 235) ${(distance / 50) * 100}%, 
-                         rgb(229 231 235) 100%)`
-                     }}
-                   />
-                   <div className="flex justify-between mt-2 text-xs text-gray-600">
-                     <span>0 km</span>
-                     <span className="font-semibold text-amber-600">{distance === 0 ? 'All' : `${distance} km`}</span>
-                     <span>50 km</span>
-                   </div>
-                 </div>
-               </div>
-             )}
-           </div>
-
-           {/* Golden Divider 3 - Distance Slider to Promote */}
-           <div className="hidden lg:block w-[2px] h-12 bg-gradient-to-b from-transparent via-amber-400 via-yellow-500 to-transparent mx-2 animate-golden-glow"></div>
- 
-           {/* Right: CTAs */}
+          {/* Right: CTAs */}
            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
             {/* Desktop CTAs */}
             <div className="hidden lg:flex items-center gap-3">

@@ -96,12 +96,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Validate that we have either coordinates or location filters
-    if (!hasCoordinates && !hasLocationFilters) {
-      return NextResponse.json(
-        { error: 'Either coordinates (userLat, userLng) or location filters (city, area, pincode) are required' },
-        { status: 400 }
-      );
-    }
+    // If neither is provided, allow fetching all shops (for homepage display)
+    // No error - just fetch all shops
 
     let shops: any[] = [];
 
@@ -154,10 +150,21 @@ export async function GET(request: NextRequest) {
         
         // Fetch from all shop sources: old Shop model, new AdminShop model, and AgentShop model
         // Apply filters to all queries - show all plan types
+        // If no filters, fetch all shops (limit to reasonable number)
+        const limitCount = Object.keys(queryFilter).length > 0 ? undefined : 100; // Limit to 100 if no filters
         const [oldShops, adminShops, agentShops] = await Promise.all([
-          Shop.find(Object.keys(queryFilter).length > 0 ? queryFilter : {}).lean().catch(() => []), // Old shop model
-          AdminShop.find(Object.keys(queryFilter).length > 0 ? queryFilter : {}).lean().catch(() => []), // New admin shop model (shopsfromimage)
-          AgentShop.find(Object.keys(queryFilter).length > 0 ? queryFilter : {}).lean().catch(() => []), // Agent shops
+          (Object.keys(queryFilter).length > 0 
+            ? Shop.find(queryFilter).lean() 
+            : Shop.find({}).limit(limitCount!).lean()
+          ).catch(() => []), // Old shop model
+          (Object.keys(queryFilter).length > 0 
+            ? AdminShop.find(queryFilter).lean() 
+            : AdminShop.find({}).limit(limitCount!).lean()
+          ).catch(() => []), // New admin shop model (shopsfromimage)
+          (Object.keys(queryFilter).length > 0 
+            ? AgentShop.find(queryFilter).lean() 
+            : AgentShop.find({}).limit(limitCount!).lean()
+          ).catch(() => []), // Agent shops
         ]);
         
         // Transform old shops

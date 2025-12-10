@@ -14,6 +14,9 @@ interface Banner {
   lng?: number;
   distance?: number;
   isBusiness?: boolean;
+  website?: string;
+  area?: string;
+  city?: string;
 }
 
 interface RightRailProps {
@@ -24,29 +27,7 @@ interface RightRailProps {
   userLng?: number | null;
 }
 
-const encodeAssetPath = (path: string) =>
-  encodeURI(path).replace(/#/g, '%23');
-
-const createBanner = (id: string, fileName: string, alt: string): Banner => ({
-  bannerId: id,
-  imageUrl: encodeAssetPath(`/Assets/${fileName}`),
-  alt,
-  link: '#',
-});
-
-const fallbackSetA: Banner[] = [
-  createBanner('right-asset-godrej', 'Godrej_Logo.svg.png', 'Godrej'),
-  createBanner('right-asset-dabur', 'Dabur_Logo.svg.png', 'Dabur'),
-  createBanner('right-asset-adani', 'Adani_2012_logo.png', 'Adani'),
-  createBanner('right-asset-bajaj', 'Bajaj_Motorcycles_logo.svg.png', 'Bajaj'),
-];
-
-const fallbackSetB: Banner[] = [
-  createBanner('right-asset-asianpaints', 'ASIANPAINT.NS-6124f67e.png', 'Asian Paints'),
-  createBanner('right-asset-hdfc', 'HDFC-Bank-logo.jpg', 'HDFC Bank'),
-  createBanner('right-asset-indigo', 'IndiGo-Logo.jpg', 'IndiGo'),
-  createBanner('right-asset-flipkart', 'Flipkart-logo (1).jpg', 'Flipkart'),
-];
+// Fallback banners removed - only shops will be shown
 
 export default function RightRail({ banners, onBannerClick, height = 'h-[480px]', userLat, userLng }: RightRailProps) {
   // Sort banners by distance if user location is available
@@ -58,12 +39,10 @@ export default function RightRail({ banners, onBannerClick, height = 'h-[480px]'
     return banners || [];
   }, [banners, userLat, userLng]);
 
-  // Show only first 4 banners (no rotation)
+  // Show only first 3 banners (no rotation) - only shops
   const currentBanners = useMemo(() => {
-    if (sortedBanners.length > 0) {
-      return sortedBanners.slice(0, 4);
-    }
-    return fallbackSetA.slice(0, 4);
+    // Show all shops (with or without websites)
+    return sortedBanners.slice(0, 3);
   }, [sortedBanners]);
 
   const renderPlaceholder = (position: number) => (
@@ -87,7 +66,7 @@ export default function RightRail({ banners, onBannerClick, height = 'h-[480px]'
       aria-live="polite"
     >
       <div className="w-full h-full flex flex-col gap-1 sm:gap-2">
-        {[0, 1, 2, 3].map((index) => {
+        {[0, 1, 2].map((index) => {
           const banner = currentBanners[index];
           const distance = banner ? getBannerDistance(banner, userLat ?? null, userLng ?? null) : null;
           return banner ? (
@@ -95,27 +74,48 @@ export default function RightRail({ banners, onBannerClick, height = 'h-[480px]'
               key={banner.bannerId}
               className="relative group w-full"
             >
-              <button
-                onClick={() => onBannerClick(banner.bannerId, 'right', index, banner.link)}
-                className="relative w-full flex-1 min-h-[56px] sm:min-h-[125px] rounded-lg bg-white shadow-sm overflow-hidden hover:scale-[1.02] hover:shadow-md transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Right slot ${index + 1}`}
-                data-banner-id={banner.bannerId}
-                data-section="right"
-                data-position={index}
+              {/* Show shop with image */}
+              <a
+                href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                target={banner.website ? '_blank' : undefined}
+                rel={banner.website ? 'noopener noreferrer' : undefined}
+                onClick={() => onBannerClick(banner.bannerId, 'right', index, banner.website || banner.link)}
+                className="relative block w-full flex-1 min-h-[56px] sm:min-h-[125px] rounded-lg bg-white shadow-sm overflow-hidden hover:scale-[1.02] hover:shadow-md transition-all duration-150 group"
+                aria-label={`Shop: ${banner.advertiser || banner.alt} - ${banner.area || ''} - Right slot ${index + 1}`}
               >
-                <Image
-                  src={banner.imageUrl}
-                  alt={banner.alt}
-                  fill
-                  className={`${banner.isBusiness ? 'object-cover' : 'object-contain'} p-1 sm:p-2`}
-                  loading="lazy"
-                  sizes="(max-width: 640px) 22vw, (max-width: 1024px) 18vw, 20vw"
-                />
-                {/* Gradient overlay for businesses */}
-                {banner.isBusiness && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                {/* Shop Image */}
+                {banner.imageUrl && (
+                  <Image
+                    src={banner.imageUrl}
+                    alt={banner.advertiser || banner.alt}
+                    fill
+                    className="object-cover"
+                    loading="lazy"
+                    sizes="(max-width: 640px) 22vw, (max-width: 1024px) 18vw, 20vw"
+                  />
                 )}
-              </button>
+                {/* Overlay with shop info */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent flex flex-col justify-end p-2 sm:p-3">
+                  <h3 className="text-[10px] sm:text-xs font-bold text-white mb-0.5 line-clamp-2 drop-shadow-lg">
+                    {banner.advertiser || banner.alt}
+                  </h3>
+                  {(banner.area || banner.city) && (
+                    <p className="text-[8px] sm:text-[10px] text-white/90 mb-1 line-clamp-1 drop-shadow">
+                      📍 {banner.area || banner.city}
+                    </p>
+                  )}
+                  {(distance !== null || banner.distance !== undefined) && (
+                    <p className="text-[8px] sm:text-[10px] text-amber-300 font-semibold drop-shadow">
+                      {((distance ?? banner.distance) || 0).toFixed(1)} km away
+                    </p>
+                  )}
+                  {banner.website && (
+                    <p className="text-[7px] sm:text-[9px] text-white/80 mt-1 truncate">
+                      {banner.website.replace(/^https?:\/\//, '').replace(/^www\./, '')}
+                    </p>
+                  )}
+                </div>
+              </a>
               {/* Distance and Call Button Overlay */}
               {(distance !== null || banner.isBusiness) && (
                 <>
