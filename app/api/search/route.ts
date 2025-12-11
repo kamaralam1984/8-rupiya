@@ -163,6 +163,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Build MongoDB query
+    // If no search params, show all shops (empty query)
     const query: any = {};
 
     if (pincode) {
@@ -174,6 +175,7 @@ export async function GET(request: NextRequest) {
         { area: new RegExp(area, 'i') },
         { address: new RegExp(area, 'i') },
         { fullAddress: new RegExp(area, 'i') },
+        { city: new RegExp(area, 'i') },
       ];
     }
 
@@ -198,35 +200,55 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch shops from all sources
-    const [adminShops, agentShops, oldShops] = await Promise.all([
-      AdminShop.find(query).limit(200).lean().catch(() => []),
-      AgentShop.find(query).limit(200).lean().catch(() => []),
-      OldShop ? OldShop.find(query).limit(200).lean().catch(() => []) : Promise.resolve([]),
+    // If no search params, ensure we still fetch shops (empty query = all shops)
+    // Also ensure paymentStatus is PAID or not set (show active shops)
+    if (Object.keys(query).length === 0) {
+      // No filters - show all active shops
+      query.$or = [
+        { paymentStatus: 'PAID' },
+        { paymentStatus: { $exists: false } },
+      ];
+    } else {
+      // Add payment status filter to existing query
+      const paymentFilter = {
+        $or: [
+          { paymentStatus: 'PAID' },
+          { paymentStatus: { $exists: false } },
+        ],
+      };
+      if (query.$and) {
+        query.$and.push(paymentFilter);
+      } else if (query.$or) {
+        query.$and = [{ $or: query.$or }, paymentFilter];
+        delete query.$or;
+      } else {
+        Object.assign(query, paymentFilter);
+      }
+    }
+
+    // Fetch shops from all sources - PRIORITIZE AgentShops
+    const [agentShops, adminShops, oldShops] = await Promise.all([
+      AgentShop.find(query).limit(200).lean().catch((err) => {
+        console.error('Error fetching AgentShops:', err);
+        return [];
+      }),
+      AdminShop.find(query).limit(200).lean().catch((err) => {
+        console.error('Error fetching AdminShops:', err);
+        return [];
+      }),
+      OldShop ? OldShop.find(query).limit(200).lean().catch((err) => {
+        console.error('Error fetching OldShops:', err);
+        return [];
+      }) : Promise.resolve([]),
     ]);
 
-    // Transform shops
+    // Log counts for debugging
+    console.log(`🔍 Search Results: AgentShops=${agentShops.length}, AdminShops=${adminShops.length}, OldShops=${oldShops.length}`);
+    console.log(`🔍 Query used:`, JSON.stringify(query, null, 2));
+
+    // Transform shops - AgentShops FIRST (priority)
     const allShops: Shop[] = [
-      ...adminShops.map((shop: any) => ({
-        id: shop._id.toString(),
-        name: shop.shopName || shop.name,
-        shopName: shop.shopName || shop.name,
-        category: shop.category,
-        area: shop.area,
-        city: shop.city,
-        pincode: shop.pincode,
-        imageUrl: shop.photoUrl || shop.iconUrl || shop.imageUrl,
-        photoUrl: shop.photoUrl,
-        latitude: shop.latitude,
-        longitude: shop.longitude,
-        shopUrl: shop.shopUrl,
-        website: shop.website,
-        mobile: shop.mobile,
-        visitorCount: shop.visitorCount || 0,
-        priorityRank: shop.priorityRank || 0,
-        planType: shop.planType,
-        offers: shop.offers || [],
-      })),
+      // AgentShops - HIGHEST PRIORITY
       ...agentShops.map((shop: any) => ({
         id: shop._id.toString(),
         name: shop.shopName || shop.name,
@@ -246,7 +268,31 @@ export async function GET(request: NextRequest) {
         priorityRank: shop.priorityRank || 0,
         planType: shop.planType,
         offers: shop.offers || [],
+        source: 'agent', // Mark as agent shop for priority
       })),
+      // AdminShops - SECOND PRIORITY
+      ...adminShops.map((shop: any) => ({
+        id: shop._id.toString(),
+        name: shop.shopName || shop.name,
+        shopName: shop.shopName || shop.name,
+        category: shop.category,
+        area: shop.area,
+        city: shop.city,
+        pincode: shop.pincode,
+        imageUrl: shop.photoUrl || shop.iconUrl || shop.imageUrl,
+        photoUrl: shop.photoUrl,
+        latitude: shop.latitude,
+        longitude: shop.longitude,
+        shopUrl: shop.shopUrl,
+        website: shop.website,
+        mobile: shop.mobile,
+        visitorCount: shop.visitorCount || 0,
+        priorityRank: shop.priorityRank || 0,
+        planType: shop.planType,
+        offers: shop.offers || [],
+        source: 'admin',
+      })),
+      // OldShops - LOWEST PRIORITY
       ...oldShops.map((shop: any) => ({
         id: shop._id.toString(),
         name: shop.name || shop.shopName,
@@ -266,6 +312,7 @@ export async function GET(request: NextRequest) {
         priorityRank: shop.priorityRank || 0,
         planType: shop.planType,
         offers: shop.offers || [],
+        source: 'old',
       })),
     ];
 
@@ -275,12 +322,21 @@ export async function GET(request: NextRequest) {
     );
 
     // Calculate scores for all shops
-    const scoredShops = uniqueShops.map((shop) => ({
-      ...shop,
-      score: calculateShopScore(shop, searchParamsObj, userLat, userLng),
-    }));
+    const scoredShops = uniqueShops.map((shop) => {
+      let baseScore = calculateShopScore(shop, searchParamsObj, userLat, userLng);
+      
+      // Boost score for agent shops (priority)
+      if ((shop as any).source === 'agent') {
+        baseScore += 20; // Add 20 points boost for agent shops
+      }
+      
+      return {
+        ...shop,
+        score: baseScore,
+      };
+    });
 
-    // Sort by score (descending)
+    // Sort by score (descending) - agent shops will rank higher
     scoredShops.sort((a, b) => (b.score || 0) - (a.score || 0));
 
     // Deduplication Set

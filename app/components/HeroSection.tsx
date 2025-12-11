@@ -6,8 +6,9 @@ import { useSearch } from '../contexts/SearchContext';
 import type { HeroSectionData } from '../types';
 import { safeJsonParse } from '../utils/fetchHelpers';
 import LeftRail from './hero/LeftRail';
-import RightRail from './hero/RightRail';
+import RightSide from './hero/RightSide';
 import HeroBanner from './hero/HeroBanner';
+import BottomRail from './hero/BottomRail';
 import BottomStrip from './hero/BottomStrip';
 import MobileRails from './hero/MobileRails';
 import BestDealsSlider from './hero/BestDealsSlider';
@@ -45,6 +46,9 @@ export default function HeroSection({ category }: HeroSectionProps) {
           }>(searchRes);
 
           if (searchData?.success) {
+            // Track used shop IDs to prevent duplicates
+            const usedShopIds = new Set<string>();
+
             // Transform search results to banner format
             const transformShopToBanner = (shop: any) => ({
               bannerId: shop.id,
@@ -76,10 +80,55 @@ export default function HeroSection({ category }: HeroSectionProps) {
               visitorCount: heroShopFromSearch.visitorCount || 0,
             } : undefined;
 
-            // Transform rails - limit to 3 for left/right, 20 for bottom
-            const leftBanners = searchData.leftRail.slice(0, 3).map(transformShopToBanner);
-            const rightBanners = searchData.rightRail.slice(0, 3).map(transformShopToBanner);
-            const bottomBanners = searchData.bottomStrip.slice(0, 20).map(transformShopToBanner);
+            // Don't mark hero shop as used - it will also appear in bottom strip
+            // Hero shops appear in both Hero section AND Bottom Strip
+
+            // Transform left rail - only LEFT_BAR plan shops
+            const leftBanners = searchData.leftRail
+              .filter((shop: any) => shop?.id && shop.planType === 'LEFT_BAR' && !usedShopIds.has(shop.id))
+              .slice(0, 3)
+              .map((shop: any) => {
+                usedShopIds.add(shop.id); // Mark as used
+                return transformShopToBanner(shop);
+              });
+
+            // Transform right rail - only RIGHT_SIDE plan shops
+            const rightBanners = searchData.rightRail
+              .filter((shop: any) => shop?.id && shop.planType === 'RIGHT_SIDE' && !usedShopIds.has(shop.id))
+              .slice(0, 3)
+              .map((shop: any) => {
+                usedShopIds.add(shop.id); // Mark as used
+                return transformShopToBanner(shop);
+              });
+
+            // Transform bottom strip - BASIC plan shops and HERO plan shops (HERO shops appear in both hero and bottom)
+            const bottomBanners = searchData.bottomStrip
+              .filter((shop: any) => {
+                const isBasicPlan = shop?.planType === 'BASIC' || !shop?.planType || shop?.planType === '';
+                const isHeroPlan = shop?.planType === 'HERO';
+                return shop?.id && (isBasicPlan || isHeroPlan) && !usedShopIds.has(shop.id);
+              })
+              .sort((a: any, b: any) => {
+                // HERO shops first (sorted by popularityScore/visitorCount), then BASIC shops
+                const isHeroA = a.planType === 'HERO';
+                const isHeroB = b.planType === 'HERO';
+                if (isHeroA && isHeroB) {
+                  return (b.visitorCount || 0) - (a.visitorCount || 0);
+                } else if (isHeroA && !isHeroB) {
+                  return -1;
+                } else if (!isHeroA && isHeroB) {
+                  return 1;
+                }
+                return 0;
+              })
+              .slice(0, 30) // Show 30 shops in bottom strip
+              .map((shop: any) => {
+                // Don't mark HERO shops as used (they're already in hero section)
+                if (shop.planType !== 'HERO') {
+                  usedShopIds.add(shop.id);
+                }
+                return transformShopToBanner(shop);
+              });
 
             setData({
               hero: heroBanner || undefined,
@@ -172,7 +221,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
             console.log('📍 Trying to fetch shops by plan types for left/right rails...');
             const [leftBarRes, rightBarRes, heroRes] = await Promise.all([
               fetch('/api/shops/by-plan?planType=LEFT_BAR&limit=10').catch(() => null),
-              fetch('/api/shops/by-plan?planType=RIGHT_BAR&limit=10').catch(() => null),
+              fetch('/api/shops/by-plan?planType=RIGHT_SIDE&limit=10').catch(() => null),
               fetch('/api/shops/by-plan?planType=HERO&limit=10').catch(() => null),
             ]);
             
@@ -255,6 +304,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
           website?: string;
           area?: string;
           city?: string;
+          visitorCount?: number;
         }>;
         
         console.log(`🌍 Total shops from all locations: ${allShops.length}`);
@@ -279,7 +329,12 @@ export default function HeroSection({ category }: HeroSectionProps) {
                    shop.latitude && shop.longitude;
           })
           .sort((a, b) => {
-            // Sort by priority rank first (higher = first), then by distance (nearest first)
+            // Sort by popularityScore (visitorCount) first, then priority rank, then distance
+            const popularityA = a.visitorCount || 0;
+            const popularityB = b.visitorCount || 0;
+            if (popularityB !== popularityA) {
+              return popularityB - popularityA;
+            }
             const priorityA = a.priorityRank || 0;
             const priorityB = b.priorityRank || 0;
             if (priorityB !== priorityA) {
@@ -288,18 +343,17 @@ export default function HeroSection({ category }: HeroSectionProps) {
             return (a.distance || 999999) - (b.distance || 999999);
           })[0];
         
-        // Mark hero shop as used
+        // Mark hero shop as used (but it will also appear in bottom strip)
         if (heroShop) {
-          usedShopIds.add(heroShop.id);
-          console.log(`🎯 Hero shop selected: ${heroShop.name || heroShop.shopName} (ID: ${heroShop.id})`);
+          console.log(`🎯 Hero shop selected: ${heroShop.name || heroShop.shopName} (ID: ${heroShop.id}, Visitors: ${heroShop.visitorCount || 0})`);
         }
         
-        // Step 3: Left Rail - Get exactly 3 unique shops (exclude hero shop)
+        // Step 3: Left Rail - Get shops with planType 'LEFT_BAR' only
         const leftBarShops = uniqueShopsArray
           .filter((shop) => {
-            return !usedShopIds.has(shop.id) && 
+            return shop.planType === 'LEFT_BAR' && 
                    shop && shop.id && (shop.name || shop.shopName) &&
-                   (shop.distance || 0) <= 1000;
+                   shop.latitude && shop.longitude;
           })
           .sort((a, b) => {
             // Sort by priority rank first (higher = first), then by distance (nearest first)
@@ -332,14 +386,14 @@ export default function HeroSection({ category }: HeroSectionProps) {
             };
           });
         
-        console.log(`🏪 Left rail shops: ${leftBarShops.length} shops`, leftBarShops.map(s => s.advertiser));
+        console.log(`🏪 Left rail shops (LEFT_BAR plan): ${leftBarShops.length} shops`, leftBarShops.map(s => s.advertiser));
 
-        // Step 4: Right Rail - Get exactly 3 unique shops (exclude hero and left rail shops)
+        // Step 4: Right Side - Get shops with planType 'RIGHT_SIDE' only
         const rightBarShops = uniqueShopsArray
           .filter((shop) => {
-            return !usedShopIds.has(shop.id) && 
+            return shop.planType === 'RIGHT_SIDE' && 
                    shop && shop.id && (shop.name || shop.shopName) &&
-                   (shop.distance || 0) <= 1000;
+                   shop.latitude && shop.longitude;
           })
           .sort((a, b) => {
             // Sort by priority rank first (higher = first), then by distance (nearest first)
@@ -372,16 +426,40 @@ export default function HeroSection({ category }: HeroSectionProps) {
             };
           });
         
-        console.log(`🏪 Right rail shops: ${rightBarShops.length} shops`, rightBarShops.map(s => s.advertiser));
+        console.log(`🏪 Right side shops (RIGHT_SIDE plan): ${rightBarShops.length} shops`, rightBarShops.map(s => s.advertiser));
         
-        // Step 5: Bottom Strip - Get exactly 20 unique shops (exclude hero, left, and right rail shops)
+        // Step 5: Bottom Strip - Get shops with planType 'BASIC' and 'HERO' (Hero shops also appear here)
+        // Hero shops appear in both Hero section AND Bottom Strip
         const bottomShops = uniqueShopsArray
           .filter((shop) => {
-            return !usedShopIds.has(shop.id) && 
+            // Include BASIC plan shops and HERO plan shops (HERO shops appear in both hero section and bottom strip)
+            const isBasicPlan = shop.planType === 'BASIC' || !shop.planType || shop.planType === '';
+            const isHeroPlan = shop.planType === 'HERO';
+            return (isBasicPlan || isHeroPlan) && 
                    shop && shop.id && (shop.name || shop.shopName);
           })
           .sort((a, b) => {
-            // Sort by priority rank first (higher = first), then by distance (nearest first)
+            // For HERO plan shops, sort by popularityScore (visitorCount) first
+            // For BASIC plan shops, sort by priority rank, then distance
+            const isHeroA = a.planType === 'HERO';
+            const isHeroB = b.planType === 'HERO';
+            
+            if (isHeroA && isHeroB) {
+              // Both HERO: sort by popularityScore (visitorCount) first
+              const popularityA = a.visitorCount || 0;
+              const popularityB = b.visitorCount || 0;
+              if (popularityB !== popularityA) {
+                return popularityB - popularityA;
+              }
+            } else if (isHeroA && !isHeroB) {
+              // HERO shops come first
+              return -1;
+            } else if (!isHeroA && isHeroB) {
+              // HERO shops come first
+              return 1;
+            }
+            
+            // For BASIC plans or same type, sort by priority rank, then distance
             const priorityA = a.priorityRank || 0;
             const priorityB = b.priorityRank || 0;
             if (priorityB !== priorityA) {
@@ -391,9 +469,12 @@ export default function HeroSection({ category }: HeroSectionProps) {
             const distanceB = b.distance || 999999;
             return distanceA - distanceB;
           })
-          .slice(0, 20) // Get exactly 20 shops
+          .slice(0, 30) // Get exactly 30 shops from Shop.ts (AdminShop)
           .map((shop) => {
-            usedShopIds.add(shop.id); // Mark as used
+            // Don't mark as used if it's a HERO shop (it's already in hero section)
+            if (shop.planType !== 'HERO') {
+              usedShopIds.add(shop.id);
+            }
             return {
               bannerId: shop.id,
               imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
@@ -438,7 +519,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
         console.log(`✅ Combined right shops: ${combinedRight.length}`, combinedRight.map(s => s.advertiser));
 
         // Bottom strip: nearby shops (prioritized) - no banners, only shops
-        const combinedBottom = bottomShops.slice(0, 20);
+        const combinedBottom = bottomShops.slice(0, 30); // Show 30 shops from Shop.ts
         
         console.log(`✅ Combined bottom shops: ${combinedBottom.length}`, combinedBottom.map(s => s.advertiser));
 
@@ -488,7 +569,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
 
   const handleBannerClick = async (
     bannerId: string,
-    section: 'hero' | 'left' | 'right' | 'bottom',
+    section: 'hero' | 'left' | 'right' | 'bottom' | 'bottomrail',
     position: number,
     link: string
   ) => {
@@ -579,7 +660,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
           </div>
 
           {/* RIGHT COLUMN (20%) */}
-          <RightRail 
+          <RightSide 
             banners={data.right} 
             onBannerClick={handleBannerClick} 
             height="h-[391px]"
@@ -605,7 +686,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
           </div>
 
           {/* RIGHT COLUMN */}
-          <RightRail 
+          <RightSide 
             banners={data.right} 
             onBannerClick={handleBannerClick} 
             height="h-[293px]"
@@ -631,7 +712,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
           </div>
 
           {/* RIGHT COLUMN */}
-          <RightRail 
+          <RightSide 
             banners={data.right} 
             onBannerClick={handleBannerClick} 
             height="h-[176px] sm:h-[240px]"
@@ -640,8 +721,19 @@ export default function HeroSection({ category }: HeroSectionProps) {
           />
         </div>
 
-        {/* BOTTOM STRIP - Full Width */}
-        <BottomStrip banners={data.bottom} onBannerClick={handleBannerClick} />
+        {/* BOTTOM RAIL - 12 Featured Shops */}
+        <BottomRail 
+          banners={data.bottom} 
+          onBannerClick={handleBannerClick}
+          userLat={location.latitude}
+          userLng={location.longitude}
+        />
+
+        {/* BOTTOM STRIP - 30 Nearby Shops */}
+        <BottomStrip 
+          banners={data.bottom} 
+          onBannerClick={handleBannerClick}
+        />
       </div>
     </section>
   );

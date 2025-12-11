@@ -22,7 +22,7 @@ export interface IAgentShop extends Document {
   lastPaymentDate: Date; // Date when payment was last made
   visitorCount: number; // Number of visitors/views
   // Pricing Plan System
-  planType: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_BAR' | 'BANNER' | 'HERO';
+  planType: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_SIDE' | 'BOTTOM_RAIL' | 'BANNER' | 'HERO';
   planAmount: number; // Actual amount paid
   district?: string; // District for revenue tracking
   agentCommission: number; // Commission earned by agent
@@ -48,7 +48,7 @@ const AgentShopSchema = new Schema<IAgentShop>(
       type: String,
       required: [true, 'Mobile number is required'],
       trim: true,
-      match: [/^\+?[1-9]\d{1,14}$/, 'Please provide a valid mobile number'],
+      match: [/^(\+?\d{1,3}[-.\s]?)?(\d{10})$/, 'Please provide a valid 10-digit mobile number'],
     },
     category: {
       type: String,
@@ -153,7 +153,7 @@ const AgentShopSchema = new Schema<IAgentShop>(
     },
     planType: {
       type: String,
-      enum: ['BASIC', 'PREMIUM', 'FEATURED', 'LEFT_BAR', 'RIGHT_BAR', 'BANNER', 'HERO'],
+      enum: ['BASIC', 'PREMIUM', 'FEATURED', 'LEFT_BAR', 'RIGHT_SIDE', 'BOTTOM_RAIL', 'BANNER', 'HERO'],
       default: 'BASIC',
       required: true,
     },

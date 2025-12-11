@@ -29,7 +29,7 @@ export const PUT = requireAdmin(async (
       );
     }
 
-    const validPlans: PlanType[] = ['BASIC', 'PREMIUM', 'FEATURED', 'LEFT_BAR', 'RIGHT_BAR', 'BANNER', 'HERO'];
+    const validPlans: PlanType[] = ['BASIC', 'PREMIUM', 'FEATURED', 'LEFT_BAR', 'RIGHT_SIDE', 'BOTTOM_RAIL', 'BANNER', 'HERO'];
     if (!validPlans.includes(planType as PlanType)) {
       return NextResponse.json(
         { error: 'Invalid plan type' },

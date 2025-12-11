@@ -15,22 +15,52 @@ export default function Navbar() {
   const [area, setArea] = useState('');
   const [category, setCategory] = useState('');
   const [categories, setCategories] = useState<string[]>([]);
+  const [pincodes, setPincodes] = useState<string[]>([]);
+  const [areas, setAreas] = useState<string[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fetch categories
+  // Fetch search options (pincodes, areas, categories) from shops data
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchSearchOptions = async () => {
       try {
-        const res = await fetch('/api/categories');
-        const data = await res.json();
-        if (data.success && data.categories) {
-          setCategories(data.categories.map((cat: any) => cat.displayName || cat.name || cat.slug));
+        // Fetch from shops data (connects to admin panel shops)
+        const [searchOptionsRes, categoriesRes] = await Promise.all([
+          fetch('/api/shops/search-options'),
+          fetch('/api/categories'),
+        ]);
+
+        const searchOptionsData = await searchOptionsRes.json();
+        const categoriesData = await categoriesRes.json();
+
+        // Set pincodes and areas from shops data
+        if (searchOptionsData.success) {
+          setPincodes(searchOptionsData.pincodes || []);
+          setAreas(searchOptionsData.areas || []);
+          // Use categories from shops data if available, otherwise from categories API
+          if (searchOptionsData.categories && searchOptionsData.categories.length > 0) {
+            setCategories(searchOptionsData.categories);
+          } else if (categoriesData.success && categoriesData.categories) {
+            setCategories(categoriesData.categories.map((cat: any) => cat.displayName || cat.name || cat.slug));
+          }
+        } else if (categoriesData.success && categoriesData.categories) {
+          // Fallback to categories API if shops search options fail
+          setCategories(categoriesData.categories.map((cat: any) => cat.displayName || cat.name || cat.slug));
         }
       } catch (error) {
-        console.error('Error fetching categories:', error);
+        console.error('Error fetching search options:', error);
+        // Fallback: fetch categories only
+        try {
+          const res = await fetch('/api/categories');
+          const data = await res.json();
+          if (data.success && data.categories) {
+            setCategories(data.categories.map((cat: any) => cat.displayName || cat.name || cat.slug));
+          }
+        } catch (catError) {
+          console.error('Error fetching categories:', catError);
+        }
       }
     };
-    fetchCategories();
+    fetchSearchOptions();
   }, []);
 
   // Close dropdown on outside click
@@ -122,31 +152,47 @@ export default function Navbar() {
                   {/* Pincode */}
                   <div>
                     <label htmlFor="search-pincode" className="block text-sm font-medium text-gray-700 mb-2">
-                      Pincode
+                      Pincode {pincodes.length > 0 && <span className="text-xs text-gray-500">({pincodes.length} available)</span>}
                     </label>
                     <input
                       type="text"
                       id="search-pincode"
+                      list="pincode-list"
                       value={pincode}
                       onChange={(e) => setPincode(e.target.value)}
                       placeholder="Enter pincode (e.g., 800001)"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    {pincodes.length > 0 && (
+                      <datalist id="pincode-list">
+                        {pincodes.slice(0, 50).map((pin) => (
+                          <option key={pin} value={pin} />
+                        ))}
+                      </datalist>
+                    )}
                   </div>
 
                   {/* Area */}
                   <div>
                     <label htmlFor="search-area" className="block text-sm font-medium text-gray-700 mb-2">
-                      Area
+                      Area {areas.length > 0 && <span className="text-xs text-gray-500">({areas.length} available)</span>}
                     </label>
                     <input
                       type="text"
                       id="search-area"
+                      list="area-list"
                       value={area}
                       onChange={(e) => setArea(e.target.value)}
                       placeholder="Enter area (e.g., Bailey Road)"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    {areas.length > 0 && (
+                      <datalist id="area-list">
+                        {areas.slice(0, 50).map((areaOption) => (
+                          <option key={areaOption} value={areaOption} />
+                        ))}
+                      </datalist>
+                    )}
                   </div>
 
                   {/* Category */}
@@ -207,24 +253,44 @@ export default function Navbar() {
               <div className="absolute top-full left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg p-4">
                 <form onSubmit={handleSearch} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Pincode</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Pincode {pincodes.length > 0 && <span className="text-xs text-gray-500">({pincodes.length} available)</span>}
+                    </label>
                     <input
                       type="text"
+                      list="pincode-list-mobile"
                       value={pincode}
                       onChange={(e) => setPincode(e.target.value)}
                       placeholder="Enter pincode"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                     />
+                    {pincodes.length > 0 && (
+                      <datalist id="pincode-list-mobile">
+                        {pincodes.slice(0, 50).map((pin) => (
+                          <option key={pin} value={pin} />
+                        ))}
+                      </datalist>
+                    )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Area</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Area {areas.length > 0 && <span className="text-xs text-gray-500">({areas.length} available)</span>}
+                    </label>
                     <input
                       type="text"
+                      list="area-list-mobile"
                       value={area}
                       onChange={(e) => setArea(e.target.value)}
                       placeholder="Enter area"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                     />
+                    {areas.length > 0 && (
+                      <datalist id="area-list-mobile">
+                        {areas.slice(0, 50).map((areaOption) => (
+                          <option key={areaOption} value={areaOption} />
+                        ))}
+                      </datalist>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>

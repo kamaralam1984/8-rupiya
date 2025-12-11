@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import AgentRouteGuard from '@/app/components/AgentRouteGuard';
 import toast from 'react-hot-toast';
 
-type PlanType = 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_BAR' | 'BANNER' | 'HERO';
+type PlanType = 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_SIDE' | 'BOTTOM_RAIL' | 'BANNER' | 'HERO';
 
 interface Shop {
   _id: string;

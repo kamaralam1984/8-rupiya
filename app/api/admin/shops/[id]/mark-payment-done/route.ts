@@ -321,8 +321,11 @@ export const POST = requireAdmin(async (
         case 'LEFT_BAR':
           revenueUpdate.$inc.leftBarPlanRevenue = finalAmount;
           break;
-        case 'RIGHT_BAR':
+        case 'RIGHT_SIDE':
           revenueUpdate.$inc.rightBarPlanRevenue = finalAmount;
+          break;
+        case 'BOTTOM_RAIL':
+          revenueUpdate.$inc.bottomRailPlanRevenue = finalAmount;
           break;
         case 'BANNER':
           revenueUpdate.$inc.bannerPlanRevenue = finalAmount;

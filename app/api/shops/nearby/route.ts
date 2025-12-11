@@ -30,7 +30,7 @@ interface ShopWithDistance {
   sponsored?: boolean;
   distance: number; // Distance in kilometers
   visitorCount?: number; // Number of visitors
-  planType?: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_BAR' | 'BANNER' | 'HERO'; // Pricing plan
+  planType?: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_SIDE' | 'BOTTOM_RAIL' | 'BANNER' | 'HERO'; // Pricing plan
   priorityRank?: number; // Priority ranking for sorting
   isLeftBar?: boolean;
   isRightBar?: boolean;
@@ -148,23 +148,37 @@ export async function GET(request: NextRequest) {
           queryFilter.longitude = { $exists: true, $nin: [null, 0] };
         }
         
+        // IMPORTANT: Only show PAID shops on homepage (PENDING shops require admin approval)
+        // Filter by payment status - only PAID shops should be displayed
+        const paymentFilter = {
+          $or: [
+            { paymentStatus: 'PAID' },
+            { paymentStatus: { $exists: false } }, // Old shops without paymentStatus field
+          ],
+        };
+        
+        // Combine payment filter with existing query
+        const finalQuery = Object.keys(queryFilter).length > 0
+          ? { $and: [queryFilter, paymentFilter] }
+          : paymentFilter;
+        
         // Fetch from all shop sources: old Shop model, new AdminShop model, and AgentShop model
         // Apply filters to all queries - show all plan types
         // If no filters, fetch all shops (limit to reasonable number)
-        const limitCount = Object.keys(queryFilter).length > 0 ? undefined : 100; // Limit to 100 if no filters
+        const limitCount = Object.keys(finalQuery).length > 0 ? undefined : 100; // Limit to 100 if no filters
         const [oldShops, adminShops, agentShops] = await Promise.all([
-          (Object.keys(queryFilter).length > 0 
-            ? Shop.find(queryFilter).lean() 
-            : Shop.find({}).limit(limitCount!).lean()
+          (Object.keys(finalQuery).length > 0 
+            ? Shop.find(finalQuery).lean() 
+            : Shop.find(paymentFilter).limit(limitCount!).lean()
           ).catch(() => []), // Old shop model
-          (Object.keys(queryFilter).length > 0 
-            ? AdminShop.find(queryFilter).lean() 
-            : AdminShop.find({}).limit(limitCount!).lean()
+          (Object.keys(finalQuery).length > 0 
+            ? AdminShop.find(finalQuery).lean() 
+            : AdminShop.find(paymentFilter).limit(limitCount!).lean()
           ).catch(() => []), // New admin shop model (shopsfromimage)
-          (Object.keys(queryFilter).length > 0 
-            ? AgentShop.find(queryFilter).lean() 
-            : AgentShop.find({}).limit(limitCount!).lean()
-          ).catch(() => []), // Agent shops
+          (Object.keys(finalQuery).length > 0 
+            ? AgentShop.find(finalQuery).lean() 
+            : AgentShop.find(paymentFilter).limit(limitCount!).lean()
+          ).catch(() => []), // Agent shops - only PAID shops
         ]);
         
         // Transform old shops
@@ -329,7 +343,7 @@ export async function GET(request: NextRequest) {
           planType: planType, // Add plan type
           priorityRank: priorityRank, // Add priority rank
           isLeftBar: shop.isLeftBar || planType === 'LEFT_BAR' || false,
-          isRightBar: shop.isRightBar || planType === 'RIGHT_BAR' || false,
+          isRightBar: shop.isRightBar || planType === 'RIGHT_SIDE' || false,
         };
       })
       .filter((shop) => {

@@ -5,17 +5,18 @@ Yeh document business directory website ke liye har plan mein kaun kaun se featu
 
 ---
 
-## 📋 Plan Overview
+## 📋 Plan Overview (Updated Pricing)
 
 | Plan Name | Price (Yearly) | Target Audience | Main Benefit |
 |-----------|---------------|-----------------|--------------|
 | **BASIC** | ₹100/year | Small businesses, startups | Basic online presence |
 | **PREMIUM** | ₹2,999/year | Growing businesses | Enhanced visibility & features |
 | **FEATURED** | ₹199+/month (min ₹199) | Established businesses | Maximum visibility |
-| **LEFT_BAR** | ₹299/month | Local businesses | Sidebar advertisement |
-| **RIGHT_BAR** | ₹299/month | Local businesses | Sidebar advertisement |
+| **LEFT_BAR** | ₹100/month | Local businesses | Left sidebar advertisement (3 slots) |
+| **RIGHT_SIDE** | ₹300/month | Local businesses | Right side full-height advertisement |
+| **BOTTOM_RAIL** | ₹200/month | Local businesses | Bottom featured shops grid (12 slots) |
 | **BANNER** | ₹399/month | Promotional businesses | Banner placement |
-| **HERO** | ₹499/month | Premium businesses | Top priority display |
+| **HERO** | ₹500/month | Premium businesses | Hero section top priority display |
 
 ---
 

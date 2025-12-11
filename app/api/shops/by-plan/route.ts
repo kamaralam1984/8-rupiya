@@ -22,10 +22,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch shops with specified plan type
+    // IMPORTANT: Only show PAID shops (PENDING shops require admin approval)
+    // Filter by payment status - only PAID shops should be displayed
+    const paymentFilter = {
+      $or: [
+        { paymentStatus: 'PAID' },
+        { paymentStatus: { $exists: false } }, // Old shops without paymentStatus field
+      ],
+    };
+    
+    // Combine plan type and payment filters using $and
+    const query = {
+      $and: [
+        { planType: planType.toUpperCase() },
+        paymentFilter,
+      ],
+    };
+    
+    // Fetch shops with specified plan type and PAID status only
     const [adminShops, agentShops] = await Promise.all([
-      AdminShop.find({ planType: planType.toUpperCase() }).limit(limit).lean(),
-      AgentShop.find({ planType: planType.toUpperCase() }).limit(limit).lean(),
+      AdminShop.find(query).limit(limit).lean(),
+      AgentShop.find(query).limit(limit).lean(),
     ]);
 
     // Combine and transform shops

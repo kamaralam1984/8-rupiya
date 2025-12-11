@@ -105,6 +105,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
       featuredPlanRevenue: 0,
       leftBarPlanRevenue: 0,
       rightBarPlanRevenue: 0,
+      bottomRailPlanRevenue: 0,
       bannerPlanRevenue: 0,
       heroPlanRevenue: 0,
       advertisementRevenue: 0,
@@ -116,6 +117,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
       featuredPlanCount: 0,
       leftBarPlanCount: 0,
       rightBarPlanCount: 0,
+      bottomRailPlanCount: 0,
       bannerPlanCount: 0,
       heroPlanCount: 0,
     };
@@ -146,7 +148,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
       try {
         const planType = (shop.planType as string) || 'BASIC';
         // Use yearly prices (all plans are yearly now)
-        const planAmount = Number(shop.planAmount) || (planType === 'BASIC' ? 100 : planType === 'PREMIUM' ? 2999 : planType === 'FEATURED' ? 2388 : planType === 'LEFT_BAR' ? 3588 : planType === 'RIGHT_BAR' ? 3588 : planType === 'BANNER' ? 4788 : planType === 'HERO' ? 5988 : 100);
+        const planAmount = Number(shop.planAmount) || (planType === 'BASIC' ? 100 : planType === 'PREMIUM' ? 2999 : planType === 'FEATURED' ? 2388 : planType === 'LEFT_BAR' ? 100 : planType === 'RIGHT_SIDE' ? 300 : planType === 'BOTTOM_RAIL' ? 200 : planType === 'BANNER' ? 4788 : planType === 'HERO' ? 500 : 100);
         
         // Check if shop has payment (AdminShop uses lastPaymentDate to determine payment status)
         const lastPaymentDate = (shop as any).lastPaymentDate;
@@ -225,10 +227,15 @@ export const GET = requireAdmin(async (request: NextRequest) => {
         if (isPaid && !isExpired && includeShopForRevenue) {
           totals.leftBarPlanRevenue += planAmount;
         }
-      } else if (planType === 'RIGHT_BAR') {
+      } else if (planType === 'RIGHT_SIDE') {
         totals.rightBarPlanCount++;
         if (isPaid && !isExpired && includeShopForRevenue) {
           totals.rightBarPlanRevenue += planAmount;
+        }
+      } else if (planType === 'BOTTOM_RAIL') {
+        totals.bottomRailPlanCount++;
+        if (isPaid && !isExpired && includeShopForRevenue) {
+          totals.bottomRailPlanRevenue += planAmount;
         }
       } else if (planType === 'BANNER') {
         totals.bannerPlanCount++;
@@ -253,7 +260,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
       try {
         const planType = (shop.planType as string) || 'BASIC';
         // Use yearly prices (all plans are yearly now)
-        const planAmount = Number(shop.planAmount) || (planType === 'BASIC' ? 100 : planType === 'PREMIUM' ? 2999 : planType === 'FEATURED' ? 2388 : planType === 'LEFT_BAR' ? 3588 : planType === 'RIGHT_BAR' ? 3588 : planType === 'BANNER' ? 4788 : planType === 'HERO' ? 5988 : 100);
+        const planAmount = Number(shop.planAmount) || (planType === 'BASIC' ? 100 : planType === 'PREMIUM' ? 2999 : planType === 'FEATURED' ? 2388 : planType === 'LEFT_BAR' ? 100 : planType === 'RIGHT_SIDE' ? 300 : planType === 'BOTTOM_RAIL' ? 200 : planType === 'BANNER' ? 4788 : planType === 'HERO' ? 500 : 100);
         
         // Check if shop has payment (AgentShop uses paymentStatus)
         const paymentStatus = (shop as any).paymentStatus || 'PENDING';
@@ -314,10 +321,10 @@ export const GET = requireAdmin(async (request: NextRequest) => {
     
     // Calculate total revenue and net revenue (ensure all values are numbers)
     totals.totalRevenue = (totals.basicPlanRevenue || 0) + (totals.premiumPlanRevenue || 0) + (totals.featuredPlanRevenue || 0) +
-                         (totals.leftBarPlanRevenue || 0) + (totals.rightBarPlanRevenue || 0) + (totals.bannerPlanRevenue || 0) + (totals.heroPlanRevenue || 0);
+                         (totals.leftBarPlanRevenue || 0) + (totals.rightBarPlanRevenue || 0) + (totals.bottomRailPlanRevenue || 0) + (totals.bannerPlanRevenue || 0) + (totals.heroPlanRevenue || 0);
     totals.netRevenue = (totals.totalRevenue || 0) - (totals.totalAgentCommission || 0);
     
-    // Get revenue records for historical tracking (optional)
+    // Get revenue records for historical tracking
     let revenues: any[] = [];
     try {
       revenues = await Revenue.find(query)
@@ -355,6 +362,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
       featuredPlanShops: number;
       leftBarPlanShops: number;
       rightBarPlanShops: number;
+      bottomRailPlanShops: number;
       bannerPlanShops: number;
       heroPlanShops: number;
       totalRevenue: number;
@@ -388,7 +396,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
 
         const planType = (shop.planType as string) || 'BASIC';
         // Use yearly prices (all plans are yearly now)
-        const planAmount = Number(shop.planAmount) || (planType === 'BASIC' ? 100 : planType === 'PREMIUM' ? 2999 : planType === 'FEATURED' ? 2388 : planType === 'LEFT_BAR' ? 3588 : planType === 'RIGHT_BAR' ? 3588 : planType === 'BANNER' ? 4788 : planType === 'HERO' ? 5988 : 100);
+        const planAmount = Number(shop.planAmount) || (planType === 'BASIC' ? 100 : planType === 'PREMIUM' ? 2999 : planType === 'FEATURED' ? 2388 : planType === 'LEFT_BAR' ? 100 : planType === 'RIGHT_SIDE' ? 300 : planType === 'BOTTOM_RAIL' ? 200 : planType === 'BANNER' ? 4788 : planType === 'HERO' ? 500 : 100);
         const lastPaymentDate = (shop as any).lastPaymentDate;
         let paymentExpiryDate: Date | null = null;
         try {
@@ -411,6 +419,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
             featuredPlanShops: 0,
             leftBarPlanShops: 0,
             rightBarPlanShops: 0,
+            bottomRailPlanShops: 0,
             bannerPlanShops: 0,
             heroPlanShops: 0,
             totalRevenue: 0,
@@ -449,8 +458,13 @@ export const GET = requireAdmin(async (request: NextRequest) => {
           if (isPaid && !isExpired) {
             districtData.totalRevenue += planAmount;
           }
-        } else if (planType === 'RIGHT_BAR') {
+        } else if (planType === 'RIGHT_SIDE') {
           districtData.rightBarPlanShops++;
+          if (isPaid && !isExpired) {
+            districtData.totalRevenue += planAmount;
+          }
+        } else if (planType === 'BOTTOM_RAIL') {
+          districtData.bottomRailPlanShops++;
           if (isPaid && !isExpired) {
             districtData.totalRevenue += planAmount;
           }
@@ -497,7 +511,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
 
         const planType = (shop.planType as string) || 'BASIC';
         // Use yearly prices (all plans are yearly now)
-        const planAmount = Number(shop.planAmount) || (planType === 'BASIC' ? 100 : planType === 'PREMIUM' ? 2999 : planType === 'FEATURED' ? 2388 : planType === 'LEFT_BAR' ? 3588 : planType === 'RIGHT_BAR' ? 3588 : planType === 'BANNER' ? 4788 : planType === 'HERO' ? 5988 : 100);
+        const planAmount = Number(shop.planAmount) || (planType === 'BASIC' ? 100 : planType === 'PREMIUM' ? 2999 : planType === 'FEATURED' ? 2388 : planType === 'LEFT_BAR' ? 100 : planType === 'RIGHT_SIDE' ? 300 : planType === 'BOTTOM_RAIL' ? 200 : planType === 'BANNER' ? 4788 : planType === 'HERO' ? 500 : 100);
         const paymentStatus = (shop as any).paymentStatus || 'PENDING';
         let paymentExpiryDate: Date | null = null;
         try {
@@ -519,6 +533,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
             featuredPlanShops: 0,
             leftBarPlanShops: 0,
             rightBarPlanShops: 0,
+            bottomRailPlanShops: 0,
             bannerPlanShops: 0,
             heroPlanShops: 0,
             totalRevenue: 0,
@@ -556,8 +571,13 @@ export const GET = requireAdmin(async (request: NextRequest) => {
           if (isPaid && !isExpired) {
             districtData.totalRevenue += planAmount;
           }
-        } else if (planType === 'RIGHT_BAR') {
+        } else if (planType === 'RIGHT_SIDE') {
           districtData.rightBarPlanShops++;
+          if (isPaid && !isExpired) {
+            districtData.totalRevenue += planAmount;
+          }
+        } else if (planType === 'BOTTOM_RAIL') {
+          districtData.bottomRailPlanShops++;
           if (isPaid && !isExpired) {
             districtData.totalRevenue += planAmount;
           }
@@ -594,6 +614,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
         featuredPlanShops: district.featuredPlanShops,
         leftBarPlanShops: district.leftBarPlanShops,
         rightBarPlanShops: district.rightBarPlanShops,
+        bottomRailPlanShops: district.bottomRailPlanShops,
         bannerPlanShops: district.bannerPlanShops,
         heroPlanShops: district.heroPlanShops,
         totalRevenue: district.totalRevenue,
@@ -610,6 +631,177 @@ export const GET = requireAdmin(async (request: NextRequest) => {
         d.name.toUpperCase() === district.toUpperCase() ||
         d.area?.toUpperCase() === district.toUpperCase()
       );
+    }
+
+    // Save calculated revenue to database (by district and date)
+    // Save overall revenue (all districts combined) for the selected period
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Determine date based on period
+      let revenueDate = today;
+      if (period === 'today') {
+        revenueDate = today;
+      } else if (period === 'week') {
+        revenueDate = new Date(today);
+        revenueDate.setDate(today.getDate() - 7);
+      } else if (period === 'month') {
+        revenueDate = new Date(today);
+        revenueDate.setMonth(today.getMonth() - 1);
+      } else if (period === 'year') {
+        revenueDate = new Date(today);
+        revenueDate.setFullYear(today.getFullYear() - 1);
+      } else {
+        // For 'all', use today's date
+        revenueDate = today;
+      }
+      
+      // Save overall revenue (district = 'ALL' for overall totals)
+      const overallRevenue = await Revenue.findOneAndUpdate(
+        {
+          district: 'ALL',
+          date: revenueDate,
+        },
+        {
+          district: 'ALL',
+          date: revenueDate,
+          basicPlanRevenue: totals.basicPlanRevenue || 0,
+          premiumPlanRevenue: totals.premiumPlanRevenue || 0,
+          featuredPlanRevenue: totals.featuredPlanRevenue || 0,
+          leftBarPlanRevenue: totals.leftBarPlanRevenue || 0,
+          rightBarPlanRevenue: totals.rightBarPlanRevenue || 0,
+          bottomRailPlanRevenue: totals.bottomRailPlanRevenue || 0,
+          bannerPlanRevenue: totals.bannerPlanRevenue || 0,
+          heroPlanRevenue: totals.heroPlanRevenue || 0,
+          advertisementRevenue: totals.advertisementRevenue || 0,
+          basicPlanCount: totals.basicPlanCount || 0,
+          premiumPlanCount: totals.premiumPlanCount || 0,
+          featuredPlanCount: totals.featuredPlanCount || 0,
+          leftBarPlanCount: totals.leftBarPlanCount || 0,
+          rightBarPlanCount: totals.rightBarPlanCount || 0,
+          bannerPlanCount: totals.bannerPlanCount || 0,
+          heroPlanCount: totals.heroPlanCount || 0,
+          advertisementCount: 0,
+          totalAgentCommission: totals.totalAgentCommission || 0,
+          totalRevenue: totals.totalRevenue || 0,
+          netRevenue: totals.netRevenue || 0,
+        },
+        {
+          upsert: true,
+          new: true,
+        }
+      );
+      
+      console.log('✅ Saved overall revenue to database:', overallRevenue._id);
+      
+      // Also save district-wise revenue
+      for (const districtData of districts) {
+        try {
+          // Calculate district revenue from actual shop data
+          let districtBasicRevenue = 0;
+          let districtPremiumRevenue = 0;
+          let districtFeaturedRevenue = 0;
+          let districtLeftBarRevenue = 0;
+          let districtRightBarRevenue = 0;
+          let districtBottomRailRevenue = 0;
+          let districtBannerRevenue = 0;
+          let districtHeroRevenue = 0;
+          let districtAgentCommission = 0;
+          
+          // Calculate revenue from shops in this district
+          const districtShops = allShopsForDistricts.filter((s: any) => {
+            const shopDistrict = ((s as any).district as string)?.trim().toUpperCase() || 
+                                 ((s as any).city as string)?.trim().toUpperCase() || '';
+            return shopDistrict === districtData.name;
+          });
+          
+          for (const shop of districtShops) {
+            const planType = (shop.planType as string) || 'BASIC';
+            const planAmount = Number(shop.planAmount) || (planType === 'BASIC' ? 100 : planType === 'PREMIUM' ? 2999 : planType === 'FEATURED' ? 2388 : planType === 'LEFT_BAR' ? 100 : planType === 'RIGHT_SIDE' ? 300 : planType === 'BOTTOM_RAIL' ? 200 : planType === 'BANNER' ? 4788 : planType === 'HERO' ? 500 : 100);
+            const lastPaymentDate = (shop as any).lastPaymentDate;
+            const paymentExpiryDate = (shop as any).paymentExpiryDate ? new Date((shop as any).paymentExpiryDate) : null;
+            const isPaid = !!lastPaymentDate;
+            const isExpired = paymentExpiryDate ? paymentExpiryDate < new Date() : false;
+            
+            if (isPaid && !isExpired) {
+              if (planType === 'BASIC') districtBasicRevenue += planAmount;
+              else if (planType === 'PREMIUM') districtPremiumRevenue += planAmount;
+              else if (planType === 'FEATURED') districtFeaturedRevenue += planAmount;
+              else if (planType === 'LEFT_BAR') districtLeftBarRevenue += planAmount;
+              else if (planType === 'RIGHT_SIDE') districtRightBarRevenue += planAmount;
+              else if (planType === 'BOTTOM_RAIL') districtBottomRailRevenue += planAmount;
+              else if (planType === 'BANNER') districtBannerRevenue += planAmount;
+              else if (planType === 'HERO') districtHeroRevenue += planAmount;
+            }
+          }
+          
+          // Calculate agent commission for this district
+          const districtAgentShops = allAgentShopsForDistricts.filter((s: any) => {
+            const shopDistrict = ((s as any).district as string)?.trim().toUpperCase() || 
+                                 ((s as any).city as string)?.trim().toUpperCase() || '';
+            return shopDistrict === districtData.name;
+          });
+          
+          for (const shop of districtAgentShops) {
+            const paymentStatus = (shop as any).paymentStatus || 'PENDING';
+            const paymentExpiryDate = (shop as any).paymentExpiryDate ? new Date((shop as any).paymentExpiryDate) : null;
+            const isPaid = paymentStatus === 'PAID';
+            const isExpired = paymentExpiryDate ? paymentExpiryDate < new Date() : false;
+            
+            if (isPaid && !isExpired) {
+              const commission = Number(shop.agentCommission) || 0;
+              districtAgentCommission += commission;
+            }
+          }
+          
+          const districtTotalRevenue = districtBasicRevenue + districtPremiumRevenue + districtFeaturedRevenue +
+                                     districtLeftBarRevenue + districtRightBarRevenue + districtBottomRailRevenue + districtBannerRevenue + districtHeroRevenue;
+          const districtNetRevenue = districtTotalRevenue - districtAgentCommission;
+          
+          const districtRevenue = await Revenue.findOneAndUpdate(
+            {
+              district: districtData.name,
+              date: revenueDate,
+            },
+            {
+              district: districtData.name,
+              date: revenueDate,
+              basicPlanRevenue: districtBasicRevenue,
+              premiumPlanRevenue: districtPremiumRevenue,
+              featuredPlanRevenue: districtFeaturedRevenue,
+              leftBarPlanRevenue: districtLeftBarRevenue,
+              rightBarPlanRevenue: districtRightBarRevenue,
+              bottomRailPlanRevenue: districtBottomRailRevenue,
+              bannerPlanRevenue: districtBannerRevenue,
+              heroPlanRevenue: districtHeroRevenue,
+              advertisementRevenue: 0,
+              basicPlanCount: districtData.basicPlanShops || 0,
+              premiumPlanCount: districtData.premiumPlanShops || 0,
+              featuredPlanCount: districtData.featuredPlanShops || 0,
+              leftBarPlanCount: districtData.leftBarPlanShops || 0,
+              rightBarPlanCount: districtData.rightBarPlanShops || 0,
+              bottomRailPlanCount: districtData.bottomRailPlanShops || 0,
+              bannerPlanCount: districtData.bannerPlanShops || 0,
+              heroPlanCount: districtData.heroPlanShops || 0,
+              advertisementCount: 0,
+              totalAgentCommission: districtAgentCommission,
+              totalRevenue: districtTotalRevenue,
+              netRevenue: districtNetRevenue,
+            },
+            {
+              upsert: true,
+              new: true,
+            }
+          );
+          console.log(`✅ Saved revenue for district ${districtData.name}:`, districtRevenue._id);
+        } catch (districtError: any) {
+          console.error(`Error saving revenue for district ${districtData.name}:`, districtError);
+        }
+      }
+    } catch (saveError: any) {
+      console.error('Error saving revenue to database:', saveError);
+      // Continue even if save fails - we still return calculated data
     }
 
     return NextResponse.json(
@@ -694,6 +886,7 @@ export const POST = requireAdmin(async (request: NextRequest) => {
     let featuredPlanRevenue = 0;
     let leftBarPlanRevenue = 0;
     let rightBarPlanRevenue = 0;
+    let bottomRailPlanRevenue = 0;
     let bannerPlanRevenue = 0;
     let heroPlanRevenue = 0;
     let basicPlanCount = 0;
@@ -701,6 +894,7 @@ export const POST = requireAdmin(async (request: NextRequest) => {
     let featuredPlanCount = 0;
     let leftBarPlanCount = 0;
     let rightBarPlanCount = 0;
+    let bottomRailPlanCount = 0;
     let bannerPlanCount = 0;
     let heroPlanCount = 0;
     let totalAgentCommission = 0;
@@ -725,9 +919,12 @@ export const POST = requireAdmin(async (request: NextRequest) => {
         } else if (planType === 'LEFT_BAR') {
           leftBarPlanRevenue += planAmount;
           leftBarPlanCount++;
-        } else if (planType === 'RIGHT_BAR') {
+        } else if (planType === 'RIGHT_SIDE') {
           rightBarPlanRevenue += planAmount;
           rightBarPlanCount++;
+        } else if (planType === 'BOTTOM_RAIL') {
+          bottomRailPlanRevenue += planAmount;
+          bottomRailPlanCount++;
         } else if (planType === 'BANNER') {
           bannerPlanRevenue += planAmount;
           bannerPlanCount++;
@@ -759,9 +956,12 @@ export const POST = requireAdmin(async (request: NextRequest) => {
         } else if (planType === 'LEFT_BAR') {
           leftBarPlanRevenue += planAmount;
           leftBarPlanCount++;
-        } else if (planType === 'RIGHT_BAR') {
+        } else if (planType === 'RIGHT_SIDE') {
           rightBarPlanRevenue += planAmount;
           rightBarPlanCount++;
+        } else if (planType === 'BOTTOM_RAIL') {
+          bottomRailPlanRevenue += planAmount;
+          bottomRailPlanCount++;
         } else if (planType === 'BANNER') {
           bannerPlanRevenue += planAmount;
           bannerPlanCount++;
@@ -774,7 +974,7 @@ export const POST = requireAdmin(async (request: NextRequest) => {
     }
 
     const totalRevenue = basicPlanRevenue + premiumPlanRevenue + featuredPlanRevenue + 
-                         leftBarPlanRevenue + rightBarPlanRevenue + bannerPlanRevenue + heroPlanRevenue;
+                         leftBarPlanRevenue + rightBarPlanRevenue + bottomRailPlanRevenue + bannerPlanRevenue + heroPlanRevenue;
     const netRevenue = totalRevenue - totalAgentCommission;
 
     // Update or create revenue record
@@ -791,6 +991,7 @@ export const POST = requireAdmin(async (request: NextRequest) => {
         featuredPlanRevenue,
         leftBarPlanRevenue,
         rightBarPlanRevenue,
+        bottomRailPlanRevenue,
         bannerPlanRevenue,
         heroPlanRevenue,
         advertisementRevenue: 0, // Can be updated separately

@@ -369,9 +369,13 @@ export const DELETE = requireAdmin(async (
                 revenueUpdate.$inc.leftBarPlanRevenue = -revenueDeducted;
                 revenueUpdate.$inc.leftBarPlanCount = -1;
                 break;
-              case 'RIGHT_BAR':
+              case 'RIGHT_SIDE':
                 revenueUpdate.$inc.rightBarPlanRevenue = -revenueDeducted;
                 revenueUpdate.$inc.rightBarPlanCount = -1;
+                break;
+              case 'BOTTOM_RAIL':
+                revenueUpdate.$inc.bottomRailPlanRevenue = -revenueDeducted;
+                revenueUpdate.$inc.bottomRailPlanCount = -1;
                 break;
               case 'BANNER':
                 revenueUpdate.$inc.bannerPlanRevenue = -revenueDeducted;

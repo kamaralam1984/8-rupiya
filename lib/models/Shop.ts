@@ -29,7 +29,7 @@ export interface IShop extends Document {
   lastPaymentDate: Date; // Date when payment was last made
   visitorCount: number; // Number of visitors/views
   // Pricing Plan System
-  planType: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_BAR' | 'BANNER' | 'HERO';
+  planType: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_SIDE' | 'BOTTOM_RAIL' | 'BANNER' | 'HERO';
   planAmount: number; // Actual amount paid
   planStartDate: Date; // When plan was activated
   planEndDate: Date; // When plan expires
@@ -79,7 +79,7 @@ const ShopSchema = new Schema<IShop>(
     mobile: {
       type: String,
       trim: true,
-      match: [/^\+?[1-9]\d{1,14}$/, 'Please provide a valid phone number'],
+      match: [/^(\+?\d{1,3}[-.\s]?)?(\d{10})$/, 'Please provide a valid 10-digit mobile number'],
     },
     area: {
       type: String,
@@ -182,7 +182,7 @@ const ShopSchema = new Schema<IShop>(
     },
     planType: {
       type: String,
-      enum: ['BASIC', 'PREMIUM', 'FEATURED', 'LEFT_BAR', 'RIGHT_BAR', 'BANNER', 'HERO'],
+      enum: ['BASIC', 'PREMIUM', 'FEATURED', 'LEFT_BAR', 'RIGHT_SIDE', 'BOTTOM_RAIL', 'BANNER', 'HERO'],
       default: 'BASIC',
       required: true,
     },

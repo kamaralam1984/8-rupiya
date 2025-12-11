@@ -21,7 +21,7 @@ const patnaLocationsPath = path.join(process.cwd(), 'app', 'patna_full_locations
 const patnaLocations = JSON.parse(fs.readFileSync(patnaLocationsPath, 'utf-8'));
 
 // Plan types
-const PLAN_TYPES: PlanType[] = ['BASIC', 'PREMIUM', 'FEATURED', 'LEFT_BAR', 'RIGHT_BAR', 'BANNER', 'HERO'];
+const PLAN_TYPES: PlanType[] = ['BASIC', 'PREMIUM', 'FEATURED', 'LEFT_BAR', 'RIGHT_SIDE', 'BOTTOM_RAIL', 'BANNER', 'HERO'];
 
 // Shop categories (common ones)
 const CATEGORIES = [

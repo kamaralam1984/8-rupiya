@@ -114,6 +114,11 @@ export async function POST(request: NextRequest) {
     let body;
     try {
       body = await request.json();
+      console.log('📥 Received shop creation request from agent:', payload.agentId);
+      console.log('📦 Request body keys:', Object.keys(body));
+      console.log('📦 Plan type:', body.planType);
+      console.log('📦 Photo URL:', body.photoUrl ? '✅ Present' : '❌ Missing');
+      console.log('📦 Location:', body.latitude, body.longitude);
     } catch (jsonError: any) {
       console.error('JSON parse error:', jsonError);
       return NextResponse.json(
@@ -143,18 +148,30 @@ export async function POST(request: NextRequest) {
 
     // Validation
     if (!shopName || !ownerName || !mobile || !category || !pincode || !address || !photoUrl) {
+      console.error('❌ Missing required fields:', {
+        shopName: !!shopName,
+        ownerName: !!ownerName,
+        mobile: !!mobile,
+        category: !!category,
+        pincode: !!pincode,
+        address: !!address,
+        photoUrl: !!photoUrl,
+      });
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields', details: 'Please fill all required fields' },
         { status: 400 }
       );
     }
 
     if (latitude === undefined || longitude === undefined) {
+      console.error('❌ Missing location:', { latitude, longitude });
       return NextResponse.json(
-        { error: 'Latitude and longitude are required' },
+        { error: 'Latitude and longitude are required', details: 'Location is required' },
         { status: 400 }
       );
     }
+    
+    console.log('✅ Basic validation passed');
 
     // Generate receipt number if not provided and payment is PAID
     let finalReceiptNo = receiptNo;
@@ -171,7 +188,7 @@ export async function POST(request: NextRequest) {
     if (!PRICING_PLANS[finalPlanType]) {
       console.error('Invalid plan type:', finalPlanType);
       return NextResponse.json(
-        { error: `Invalid plan type: ${finalPlanType}. Valid types: BASIC, PREMIUM, FEATURED, LEFT_BAR, RIGHT_BAR, BANNER, HERO` },
+        { error: `Invalid plan type: ${finalPlanType}. Valid types: BASIC, PREMIUM, FEATURED, LEFT_BAR, RIGHT_SIDE, BOTTOM_RAIL, BANNER, HERO` },
         { status: 400 }
       );
     }
@@ -227,11 +244,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Creating shop with plan: ${finalPlanType}, Features:`, planFeatures);
+    console.log(`✅ Creating shop with plan: ${finalPlanType}, Amount: ₹${finalAmount}, Commission: ₹${agentCommission}`);
+    console.log('✅ Plan Features:', planFeatures);
 
     // Create shop in AgentShop collection
     let shop;
     try {
+      console.log('📝 Creating AgentShop document...');
       // First create with temp URL, then update with actual URL based on shop ID
       const tempShop = await AgentShop.create({
         shopName: shopName.trim(),
@@ -244,7 +263,7 @@ export async function POST(request: NextRequest) {
         shopUrl: 'temp', // Temporary value, will be updated
         latitude: Number(latitude),
         longitude: Number(longitude),
-        paymentStatus: paymentStatus || 'PENDING',
+        paymentStatus: 'PENDING', // Always PENDING - requires admin approval
         paymentMode: paymentMode || 'NONE',
         receiptNo: finalReceiptNo || '',
         amount: finalAmount,
@@ -254,8 +273,8 @@ export async function POST(request: NextRequest) {
         paymentScreenshot: paymentScreenshot || undefined,
         sendSmsReceipt: sendSmsReceipt || false,
         agentId: new mongoose.Types.ObjectId(payload.agentId),
-        lastPaymentDate: paymentStatus === 'PAID' ? paymentDate : undefined,
-        paymentExpiryDate: paymentStatus === 'PAID' ? expiryDate : undefined,
+        lastPaymentDate: undefined, // No payment date until admin approves
+        paymentExpiryDate: undefined, // Will be set when admin approves
         // Plan-based features automatically set ho jayenge
         visitorCount: 0,
       });
@@ -266,6 +285,7 @@ export async function POST(request: NextRequest) {
       await tempShop.save();
       
       shop = tempShop;
+      console.log(`✅ AgentShop created successfully: ${shop._id}`);
     } catch (agentShopError: any) {
       console.error('AgentShop creation error:', agentShopError);
       console.error('AgentShop error details:', {
@@ -301,6 +321,7 @@ export async function POST(request: NextRequest) {
     // Also create shop in Admin Shop database (for website display)
     // Sabhi details ke sath shop ko main shops database me save karo
     try {
+      console.log('📝 Creating AdminShop document...');
       // Get agent info for admin shop creation
       const agent = await Agent.findById(payload.agentId);
       
@@ -340,18 +361,19 @@ export async function POST(request: NextRequest) {
         agentName: agent?.name || undefined,
         agentCode: agent?.agentCode || undefined,
         // Payment details - sabhi payment fields add karo
-        paymentStatus: paymentStatus || 'PENDING',
-        paymentExpiryDate: paymentStatus === 'PAID' ? expiryDate : (() => {
+        // IMPORTANT: Always PENDING - requires admin approval
+        paymentStatus: 'PENDING',
+        paymentExpiryDate: (() => {
           const defaultExpiry = new Date();
           defaultExpiry.setDate(defaultExpiry.getDate() + 365);
           return defaultExpiry;
         })(),
-        lastPaymentDate: paymentStatus === 'PAID' ? paymentDate : new Date(),
+        lastPaymentDate: undefined, // No payment date until admin approves
         // Plan details - sabhi plan fields add karo
         planType: finalPlanType,
         planAmount: finalAmount,
-        planStartDate: paymentStatus === 'PAID' ? paymentDate : new Date(),
-        planEndDate: paymentStatus === 'PAID' ? expiryDate : (() => {
+        planStartDate: new Date(), // Will be updated when admin approves
+        planEndDate: (() => {
           const defaultEnd = new Date();
           defaultEnd.setDate(defaultEnd.getDate() + 365);
           return defaultEnd;
@@ -365,8 +387,8 @@ export async function POST(request: NextRequest) {
         isHero: planFeatures.canBeHero,
         visitorCount: 0,
         // Premium/Featured features - plan ke hisab se set karo
-        additionalPhotos: (planFeatures.maxPhotos === 10 && additionalPhotos && Array.isArray(additionalPhotos) && additionalPhotos.length > 0) 
-          ? additionalPhotos.slice(0, 9) // Max 9 additional photos (total 10 with main photo)
+        additionalPhotos: (planFeatures.maxPhotos > 1 && additionalPhotos && Array.isArray(additionalPhotos) && additionalPhotos.length > 0) 
+          ? additionalPhotos.slice(0, planFeatures.maxPhotos - 1) // Max (maxPhotos - 1) additional photos
           : [],
         shopLogo: planFeatures.hasLogo ? undefined : undefined, // Logo upload later
         offers: planFeatures.hasOffers ? [] : [], // Offers section ke liye empty array
@@ -377,8 +399,9 @@ export async function POST(request: NextRequest) {
       // Create shop in main shops database
       const createdAdminShop = await AdminShop.create(adminShopData);
       
-      console.log(`Shop ${shop._id} successfully created in main shops database with ID: ${createdAdminShop._id}`);
-      console.log(`All shop details saved: shopName=${shopName}, category=${categoryName}, planType=${finalPlanType}, paymentStatus=${paymentStatus}`);
+      console.log(`✅ AdminShop created successfully: ${createdAdminShop._id}`);
+      console.log(`✅ Shop ${shop._id} successfully created in both databases`);
+      console.log(`✅ All shop details saved: shopName=${shopName}, category=${categoryName}, planType=${finalPlanType}, paymentStatus=${paymentStatus}`);
     } catch (adminShopError: any) {
       console.error('Error creating shop in admin database:', adminShopError);
       console.error('Admin shop error details:', {
@@ -416,6 +439,8 @@ export async function POST(request: NextRequest) {
       // Don't fail the shop creation if agent update fails
     }
 
+    console.log(`🎉 Shop creation complete! Returning success response for shop: ${shop._id}`);
+    
     return NextResponse.json(
       {
         success: true,

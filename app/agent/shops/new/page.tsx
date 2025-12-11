@@ -26,7 +26,7 @@ interface FormData {
   paymentMode: 'CASH' | 'UPI' | 'NONE';
   receiptNo: string;
   amount: number;
-  planType: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_BAR' | 'BANNER' | 'HERO';
+  planType: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_SIDE' | 'BOTTOM_RAIL' | 'BANNER' | 'HERO';
   paymentScreenshot?: string;
   sendSmsReceipt: boolean;
 }
@@ -259,23 +259,24 @@ export default function AddNewShopPage() {
     }
   };
 
-  // Additional Photos Upload (for plans with maxPhotos = 10)
+  // Additional Photos Upload (for plans with maxPhotos > 1)
   const handleAdditionalImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     const currentPlan = PRICING_PLANS[formData.planType];
     
-    // Only allow for plans with maxPhotos = 10
-    if (currentPlan.maxPhotos !== 10) {
-      setError('Additional photos are only available for Premium, Featured, Left Bar, Right Bar, Banner, and Hero plans.');
+    // Only allow for plans with maxPhotos > 1
+    if (currentPlan.maxPhotos <= 1) {
+      setError('Additional photos are only available for plans with multiple photo uploads.');
       return;
     }
 
-    // Check total photos limit (1 main + 9 additional = 10 total)
-    const remainingSlots = 9 - formData.additionalPhotos.length;
+    // Check total photos limit (1 main + remaining additional)
+    const maxAdditionalPhotos = currentPlan.maxPhotos - 1;
+    const remainingSlots = maxAdditionalPhotos - formData.additionalPhotos.length;
     if (files.length > remainingSlots) {
-      setError(`You can only add ${remainingSlots} more photo(s). Maximum 10 photos allowed (1 main + 9 additional).`);
+      setError(`You can only add ${remainingSlots} more photo(s). Maximum ${currentPlan.maxPhotos} photos allowed (1 main + ${maxAdditionalPhotos} additional).`);
       return;
     }
 
@@ -443,6 +444,15 @@ export default function AddNewShopPage() {
 
     try {
       const token = localStorage.getItem('agent_token');
+      
+      // Log what we're sending
+      console.log('📤 Sending shop data:', {
+        ...formData,
+        photoUrl: formData.photoUrl ? '✅ Present' : '❌ Missing',
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+      });
+      
       const response = await fetch('/api/agent/shops', {
         method: 'POST',
         headers: {
@@ -452,10 +462,18 @@ export default function AddNewShopPage() {
         body: JSON.stringify(formData),
       });
 
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+
       // Check if response is ok
       if (!response.ok) {
         const contentType = response.headers.get('content-type');
         let errorMessage = `Server error (HTTP ${response.status})`;
+        
+        // Clone the response to read it twice
+        const responseClone = response.clone();
+        const responseText = await responseClone.text();
+        console.error('📥 Raw response body:', responseText);
         
         try {
           if (contentType && contentType.includes('application/json')) {
@@ -596,12 +614,13 @@ export default function AddNewShopPage() {
                   required
                 >
                   <option value="BASIC">Basic Plan - ₹100/year (1 Photo)</option>
-                  <option value="PREMIUM">Premium Plan - ₹2999/year (Unlimited Photos + Offers + WhatsApp)</option>
-                  <option value="FEATURED">Featured Plan - ₹2388/year (Homepage Banner + Top Slider)</option>
-                  <option value="LEFT_BAR">Left Bar Plan - ₹3588/year (Left Sidebar)</option>
-                  <option value="RIGHT_BAR">Right Bar Plan - ₹3588/year (Right Sidebar)</option>
-                  <option value="BANNER">Banner Plan - ₹4788/year (Banner Placement)</option>
-                  <option value="HERO">Hero Plan - ₹5988/year (Hero Section)</option>
+                  <option value="LEFT_BAR">Left Bar Plan - ₹100/year (1 slot, 1 Photo)</option>
+                  <option value="BOTTOM_RAIL">Bottom Rail Plan - ₹200/year (1 big size slot, 1 Photo)</option>
+                  <option value="RIGHT_SIDE">Right Side Plan - ₹300/year (3x size slot, 1 Photo + SEO)</option>
+                  <option value="HERO">Hero Plan - ₹500/year (Hero Section, 3 Photos + SEO)</option>
+                  <option value="FEATURED">Featured Plan - ₹2388/year (8 Photos + 4 Offers + 1 Page Hosting)</option>
+                  <option value="PREMIUM">Premium Plan - ₹2999/year (12 Photos + 8 Offers + 2 Page Hosting)</option>
+                  <option value="BANNER">Banner Plan - ₹4788/year (20 Photos + 10 Offers + 3 Page Hosting)</option>
                 </select>
                 
                 {/* Plan Features Preview */}
@@ -611,7 +630,10 @@ export default function AddNewShopPage() {
                   </p>
                   <ul className="text-xs text-blue-800 space-y-1">
                     <li>✓ Price: ₹{formData.amount}/year</li>
-                    <li>✓ Photos: {PRICING_PLANS[formData.planType].maxPhotos === 1 ? '1 photo' : `${PRICING_PLANS[formData.planType].maxPhotos} photos (optional: 1 to ${PRICING_PLANS[formData.planType].maxPhotos})`}</li>
+                    <li>✓ Photos: {PRICING_PLANS[formData.planType].maxPhotos} photo{PRICING_PLANS[formData.planType].maxPhotos > 1 ? 's' : ''}</li>
+                    {PRICING_PLANS[formData.planType].maxOffers > 0 && <li>✓ Offers Card: {PRICING_PLANS[formData.planType].maxOffers}</li>}
+                    {PRICING_PLANS[formData.planType].hasHosting && <li>✓ Page Hosting: {PRICING_PLANS[formData.planType].hostingPages} page{PRICING_PLANS[formData.planType].hostingPages > 1 ? 's' : ''}</li>}
+                    {PRICING_PLANS[formData.planType].hasSEO && <li>✓ SEO Configuration</li>}
                     {PRICING_PLANS[formData.planType].hasOffers && <li>✓ Offers/Discount Section</li>}
                     {PRICING_PLANS[formData.planType].hasWhatsApp && <li>✓ WhatsApp Button</li>}
                     {PRICING_PLANS[formData.planType].hasLogo && <li>✓ Shop Logo</li>}
@@ -774,11 +796,11 @@ export default function AddNewShopPage() {
                   <strong>Current Plan:</strong> {PRICING_PLANS[formData.planType].name} - 
                   {PRICING_PLANS[formData.planType].maxPhotos === 1 
                     ? ' 1 photo allowed' 
-                    : ` Maximum ${PRICING_PLANS[formData.planType].maxPhotos} photos allowed (optional: 1 to ${PRICING_PLANS[formData.planType].maxPhotos})`}
+                    : ` Maximum ${PRICING_PLANS[formData.planType].maxPhotos} photos allowed`}
                 </p>
-                {PRICING_PLANS[formData.planType].maxPhotos === 10 && (
+                {PRICING_PLANS[formData.planType].maxPhotos > 1 && (
                   <p className="text-xs text-blue-600 mt-1">
-                    ✓ You can upload 1 main photo + up to 9 additional photos (total 10)
+                    ✓ You can upload 1 main photo + up to {PRICING_PLANS[formData.planType].maxPhotos - 1} additional photos (total {PRICING_PLANS[formData.planType].maxPhotos})
                   </p>
                 )}
               </div>
@@ -803,9 +825,9 @@ export default function AddNewShopPage() {
                     >
                       Remove Photo
                     </button>
-                    {PRICING_PLANS[formData.planType].maxPhotos === 10 && (
+                    {PRICING_PLANS[formData.planType].maxPhotos > 1 && (
                       <p className="text-sm text-green-600">
-                        ✓ Main photo uploaded. You can add up to 9 more photos below.
+                        ✓ Main photo uploaded. You can add up to {PRICING_PLANS[formData.planType].maxPhotos - 1} more photos below.
                       </p>
                     )}
                   </div>
@@ -870,13 +892,13 @@ export default function AddNewShopPage() {
                 )}
               </div>
 
-              {/* Additional Photos Section (for plans with maxPhotos = 10) */}
-              {PRICING_PLANS[formData.planType].maxPhotos === 10 && formData.photoUrl && (
+              {/* Additional Photos Section (for plans with maxPhotos > 1) */}
+              {PRICING_PLANS[formData.planType].maxPhotos > 1 && formData.photoUrl && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900">Additional Photos (Optional)</h3>
                     <span className="text-sm text-gray-600">
-                      {formData.additionalPhotos.length}/9 additional photos
+                      {formData.additionalPhotos.length}/{PRICING_PLANS[formData.planType].maxPhotos - 1} additional photos
                     </span>
                   </div>
                   
@@ -905,7 +927,7 @@ export default function AddNewShopPage() {
                   )}
 
                   {/* Add More Photos Button */}
-                  {formData.additionalPhotos.length < 9 && (
+                  {formData.additionalPhotos.length < (PRICING_PLANS[formData.planType].maxPhotos - 1) && (
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                       <label className="cursor-pointer">
                         <div className="space-y-2">
@@ -915,7 +937,7 @@ export default function AddNewShopPage() {
                           <div>
                             <p className="text-gray-700 font-semibold text-sm">Add More Photos</p>
                             <p className="text-gray-500 text-xs mt-1">
-                              You can add {9 - formData.additionalPhotos.length} more photo(s)
+                              You can add {(PRICING_PLANS[formData.planType].maxPhotos - 1) - formData.additionalPhotos.length} more photo(s)
                             </p>
                           </div>
                         </div>
