@@ -66,7 +66,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
       <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 px-2">
         Nearby Shops (30)
       </h2>
-      {/* Desktop: 3 Rows of 10 images each (total 30 shops, 25% bigger) */}
+      {/* Desktop: 3 Rows of 10 images each (total 30 shops, same size) */}
       <div className="hidden md:block relative" aria-live="polite">
         <div>
           {/* Row 1: 10 images */}
@@ -80,7 +80,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                   target={banner.website ? '_blank' : undefined}
                   rel={banner.website ? 'noopener noreferrer' : undefined}
                   onClick={() => onBannerClick(banner.bannerId, 'bottom', index, banner.website || banner.link)}
-                  className="relative w-full inline-flex items-center justify-center h-19 md:h-21 px-2 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-lg transition-all duration-200 overflow-hidden animate-bottom-strip-glow"
+                  className="relative w-full inline-flex items-center justify-center h-20 px-2 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-lg transition-all duration-200 overflow-hidden animate-bottom-strip-glow"
                   aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${index + 1}`}
                   style={{
                     animationDelay: `${index * 0.5}s`,
@@ -96,50 +96,23 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                       loading="lazy"
                     />
                   )}
-                  {/* Distance, time, and visitor badge overlay */}
-                  {(banner.distance !== undefined || banner.visitorCount !== undefined) && (
-                    <div className="absolute top-1 right-1 z-10">
-                      <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg flex flex-col items-center gap-0.5">
-                        {banner.distance !== undefined && (
-                          <div className="flex items-center gap-0.5">
-                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            <span>{banner.distance.toFixed(1)}km</span>
-                          </div>
-                        )}
-                        {banner.distance !== undefined && (
-                          <div className="flex items-center gap-0.5">
-                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>{Math.round(banner.distance * 1.5)}min</span>
-                          </div>
-                        )}
-                        {banner.visitorCount !== undefined && (
-                          <div className="flex items-center gap-0.5">
-                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            <span>{banner.visitorCount || 0}</span>
-                          </div>
-                        )}
-                      </div>
+                  {/* Distance, Time, Visitor - Simple text format */}
+                  <div className="absolute bottom-1 left-1 right-1 z-10">
+                    <div className="text-blue-700 text-[8px] font-bold text-center bg-white/80 px-1 py-0.5 rounded">
+                      {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
                     </div>
-                  )}
+                  </div>
                 </a>
               </div>
             ) : (
-              <div key={`bottom-placeholder-${index}`} className="flex-1 max-w-[90px]">
+              <div key={`bottom-placeholder-${index}`} className="flex-1 max-w-[112px]">
                 {renderPlaceholder(index)}
               </div>
             );
           })}
         </div>
           {/* Row 2: 10 images */}
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="flex flex-wrap justify-center gap-2 mb-2">
           {[...Array(10)].map((_, index) => {
             const banner = row2[index];
             const actualIndex = index + 10;
@@ -150,7 +123,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                   target={banner.website ? '_blank' : undefined}
                   rel={banner.website ? 'noopener noreferrer' : undefined}
                   onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
-                  className="relative w-full inline-flex items-center justify-center h-15 md:h-17 px-2 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-lg transition-all duration-200 overflow-hidden animate-bottom-strip-glow"
+                  className="relative w-full inline-flex items-center justify-center h-20 px-2 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-lg transition-all duration-200 overflow-hidden animate-bottom-strip-glow"
                   aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
                   style={{
                     animationDelay: `${actualIndex * 0.5}s`,
@@ -166,43 +139,16 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                       loading="lazy"
                     />
                   )}
-                  {/* Distance, time, and visitor badge overlay */}
-                  {(banner.distance !== undefined || banner.visitorCount !== undefined) && (
-                    <div className="absolute top-1 right-1 z-10">
-                      <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg flex flex-col items-center gap-0.5">
-                        {banner.distance !== undefined && (
-                          <div className="flex items-center gap-0.5">
-                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            <span>{banner.distance.toFixed(1)}km</span>
-                          </div>
-                        )}
-                        {banner.distance !== undefined && (
-                          <div className="flex items-center gap-0.5">
-                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>{Math.round(banner.distance * 1.5)}min</span>
-                          </div>
-                        )}
-                        {banner.visitorCount !== undefined && (
-                          <div className="flex items-center gap-0.5">
-                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            <span>{banner.visitorCount || 0}</span>
-                          </div>
-                        )}
-                      </div>
+                  {/* Distance, Time, Visitor - Simple text format */}
+                  <div className="absolute bottom-1 left-1 right-1 z-10">
+                    <div className="text-blue-700 text-[8px] font-bold text-center bg-white/80 px-1 py-0.5 rounded">
+                      {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
                     </div>
-                  )}
+                  </div>
                 </a>
               </div>
             ) : (
-              <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[90px]">
+              <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[112px]">
                 {renderPlaceholder(actualIndex)}
               </div>
             );
@@ -220,7 +166,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                   target={banner.website ? '_blank' : undefined}
                   rel={banner.website ? 'noopener noreferrer' : undefined}
                   onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
-                  className="relative w-full inline-flex items-center justify-center h-15 md:h-17 px-2 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-lg transition-all duration-200 overflow-hidden animate-bottom-strip-glow"
+                  className="relative w-full inline-flex items-center justify-center h-20 px-2 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-lg transition-all duration-200 overflow-hidden animate-bottom-strip-glow"
                   aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
                   style={{
                     animationDelay: `${actualIndex * 0.5}s`,
@@ -236,39 +182,12 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
                       loading="lazy"
                     />
                   )}
-                  {/* Distance, time, and visitor badge overlay */}
-                  {(banner.distance !== undefined || banner.visitorCount !== undefined) && (
-                    <div className="absolute top-1 right-1 z-10">
-                      <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg flex flex-col items-center gap-0.5">
-                        {banner.distance !== undefined && (
-                          <div className="flex items-center gap-0.5">
-                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            <span>{banner.distance.toFixed(1)}km</span>
-                          </div>
-                        )}
-                        {banner.distance !== undefined && (
-                          <div className="flex items-center gap-0.5">
-                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span>{Math.round(banner.distance * 1.5)}min</span>
-                          </div>
-                        )}
-                        {banner.visitorCount !== undefined && (
-                          <div className="flex items-center gap-0.5">
-                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            <span>{banner.visitorCount || 0}</span>
-                          </div>
-                        )}
-                      </div>
+                  {/* Distance, Time, Visitor - Simple text format */}
+                  <div className="absolute bottom-1 left-1 right-1 z-10">
+                    <div className="text-blue-700 text-[8px] font-bold text-center bg-white/80 px-1 py-0.5 rounded">
+                      {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
                     </div>
-                  )}
+                  </div>
                 </a>
               </div>
             ) : (
@@ -281,7 +200,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
         </div>
       </div>
 
-      {/* Mobile: 6 Rows of 5 images each (smaller sizes) */}
+      {/* Mobile: 6 Rows of 5 images each (same size) */}
       <div className="md:hidden relative" aria-live="polite">
         <div>
           {/* Row 1: 5 images */}
@@ -289,33 +208,44 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
             {[...Array(5)].map((_, index) => {
               const banner = mobileRow1[index];
               return banner ? (
-                <div key={`bottom-mobile-row1-${index}-${banner.bannerId || index}`} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
+                <div key={`bottom-mobile-row1-${index}-${banner.bannerId || index}`} className="relative group flex-1 max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]">
                   <a
                     href={banner.website || banner.link || `/shop/${banner.bannerId}`}
                     onClick={() => onBannerClick(banner.bannerId, 'bottom', index, banner.website || banner.link)}
-                    className="relative w-full inline-flex flex-col items-center justify-center h-10 sm:h-11 px-1 py-0.5 rounded-md border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150"
+                    className="relative w-full inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden animate-bottom-strip-glow"
                     aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${index + 1}`}
+                    style={{
+                      animationDelay: `${index * 0.5}s`,
+                    }}
                   >
-                    <h4 className="text-[6px] font-bold text-gray-900 line-clamp-2 text-center">
-                      {banner.advertiser || banner.alt}
-                    </h4>
-                    {banner.distance !== undefined && (
-                      <p className="text-[5px] text-blue-600 font-semibold mt-0.5">
-                        {banner.distance.toFixed(1)}km
-                      </p>
+                    {banner.imageUrl && (
+                      <Image
+                        src={banner.imageUrl}
+                        alt={banner.advertiser || banner.alt}
+                        width={41}
+                        height={33}
+                        className="object-cover max-h-full max-w-full"
+                        loading="lazy"
+                      />
                     )}
+                    {/* Distance, Time, Visitor - Simple text format */}
+                    <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
+                      <div className="text-blue-700 text-[6px] font-bold text-center bg-white/80 px-0.5 py-0 rounded">
+                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
+                      </div>
+                    </div>
                   </a>
                 </div>
               ) : (
-                <div key={`bottom-placeholder-${index}`} className="flex-1 max-w-[49px] sm:max-w-[56px]">
+                <div key={`bottom-placeholder-${index}`} className="flex-1 max-w-[61px] sm:max-w-[70px]">
                   <div
                     onClick={() => window.location.href = '/advertise'}
-                    className="inline-flex items-center justify-center h-8 sm:h-9 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[38px] sm:min-w-[45px]"
+                    className="inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
                     role="button"
                     tabIndex={0}
                     aria-label={`Advertise here - Bottom position ${index + 1}`}
                   >
-                    <span className="text-[6px] sm:text-[7px] font-medium text-gray-500">Ad</span>
+                    <span className="text-[7px] sm:text-[8px] font-medium text-gray-500">Ad</span>
                   </div>
                 </div>
               );
@@ -327,60 +257,44 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
               const banner = mobileRow2[index];
               const actualIndex = index + 5;
               return banner ? (
-                <div key={`bottom-mobile-row2-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
-                  <button
-                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
-                    className="relative w-full inline-flex items-center justify-center h-10 sm:h-11 px-1 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
-                    aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${actualIndex + 1}`}
-                    data-banner-id={banner.bannerId}
-                    data-section="bottom"
-                    data-position={actualIndex}
+                <div key={`bottom-mobile-row2-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]">
+                  <a
+                    href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
+                    className="relative w-full inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden animate-bottom-strip-glow"
+                    aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
+                    style={{
+                      animationDelay: `${actualIndex * 0.5}s`,
+                    }}
                   >
-                    {banner.imageUrl ? (
+                    {banner.imageUrl && (
                       <Image
                         src={banner.imageUrl}
                         alt={banner.alt}
-                        width={33}
-                        height={26}
-                        className={`${banner.isBusiness ? 'object-cover' : 'object-contain'} max-h-full max-w-full`}
+                        width={41}
+                        height={33}
+                        className="object-cover max-h-full max-w-full"
                         loading="lazy"
                       />
-                    ) : (
-                      <span className="text-[8px] font-semibold text-gray-700 line-clamp-2 text-center">
-                        {banner.advertiser || banner.alt}
-                      </span>
                     )}
-                    {banner.isBusiness && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                    )}
-                  </button>
-                  {/* Distance, time, and visitor badge for businesses */}
-                  {banner.isBusiness && (banner.distance !== undefined || banner.visitorCount !== undefined) && (
-                    <div className="absolute top-0.5 right-0.5 z-10">
-                      <div className="bg-blue-600 text-white px-0.5 py-0 rounded text-[6px] font-bold shadow-lg flex flex-col items-center gap-0">
-                        {banner.distance !== undefined && (
-                          <>
-                            <span>{banner.distance.toFixed(1)}</span>
-                            <span className="text-[5px]">{Math.round(banner.distance * 1.5)}m</span>
-                          </>
-                        )}
-                        {banner.visitorCount !== undefined && (
-                          <span className="text-[5px]">👁️{banner.visitorCount || 0}</span>
-                        )}
+                    {/* Distance, Time, Visitor - Simple text format */}
+                    <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
+                      <div className="text-blue-700 text-[6px] font-bold text-center bg-white/80 px-0.5 py-0 rounded">
+                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
                       </div>
                     </div>
-                  )}
+                  </a>
                 </div>
               ) : (
-                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[49px] sm:max-w-[56px]">
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[61px] sm:max-w-[70px]">
                   <div
                     onClick={() => window.location.href = '/advertise'}
-                    className="inline-flex items-center justify-center h-8 sm:h-9 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[38px] sm:min-w-[45px]"
+                    className="inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
                     role="button"
                     tabIndex={0}
                     aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
                   >
-                    <span className="text-[6px] sm:text-[7px] font-medium text-gray-500">Ad</span>
+                    <span className="text-[7px] sm:text-[8px] font-medium text-gray-500">Ad</span>
                   </div>
                 </div>
               );
@@ -392,188 +306,137 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
               const banner = mobileRow3[index];
               const actualIndex = index + 10;
               return banner ? (
-                <div key={`bottom-mobile-row3-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
-                  <button
-                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
-                    className="relative w-full inline-flex items-center justify-center h-10 sm:h-11 px-1 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
-                    aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${actualIndex + 1}`}
-                    data-banner-id={banner.bannerId}
-                    data-section="bottom"
-                    data-position={actualIndex}
+                <div key={`bottom-mobile-row3-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]">
+                  <a
+                    href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
+                    className="relative w-full inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden animate-bottom-strip-glow"
+                    aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
+                    style={{
+                      animationDelay: `${actualIndex * 0.5}s`,
+                    }}
                   >
-                    {banner.imageUrl ? (
+                    {banner.imageUrl && (
                       <Image
                         src={banner.imageUrl}
                         alt={banner.alt}
-                        width={33}
-                        height={26}
-                        className={`${banner.isBusiness ? 'object-cover' : 'object-contain'} max-h-full max-w-full`}
+                        width={41}
+                        height={33}
+                        className="object-cover max-h-full max-w-full"
                         loading="lazy"
                       />
-                    ) : (
-                      <span className="text-[8px] font-semibold text-gray-700 line-clamp-2 text-center">
-                        {banner.advertiser || banner.alt}
-                      </span>
                     )}
-                    {banner.isBusiness && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                    )}
-                  </button>
-                  {/* Distance, time, and visitor badge for businesses */}
-                  {banner.isBusiness && (banner.distance !== undefined || banner.visitorCount !== undefined) && (
-                    <div className="absolute top-0.5 right-0.5 z-10">
-                      <div className="bg-blue-600 text-white px-0.5 py-0 rounded text-[6px] font-bold shadow-lg flex flex-col items-center gap-0">
-                        {banner.distance !== undefined && (
-                          <>
-                            <span>{banner.distance.toFixed(1)}</span>
-                            <span className="text-[5px]">{Math.round(banner.distance * 1.5)}m</span>
-                          </>
-                        )}
-                        {banner.visitorCount !== undefined && (
-                          <span className="text-[5px]">👁️{banner.visitorCount || 0}</span>
-                        )}
+                    {/* Distance, Time, Visitor - Simple text format */}
+                    <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
+                      <div className="text-blue-700 text-[6px] font-bold text-center bg-white/80 px-0.5 py-0 rounded">
+                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
                       </div>
                     </div>
-                  )}
+                  </a>
                 </div>
               ) : (
-                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[49px] sm:max-w-[56px]">
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[61px] sm:max-w-[70px]">
                   <div
                     onClick={() => window.location.href = '/advertise'}
-                    className="inline-flex items-center justify-center h-8 sm:h-9 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[38px] sm:min-w-[45px]"
+                    className="inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
                     role="button"
                     tabIndex={0}
                     aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
                   >
-                    <span className="text-[6px] sm:text-[7px] font-medium text-gray-500">Ad</span>
+                    <span className="text-[7px] sm:text-[8px] font-medium text-gray-500">Ad</span>
                   </div>
                 </div>
               );
             })}
           </div>
           {/* Row 4: 5 images */}
-          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5">
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
             {[...Array(5)].map((_, index) => {
               const banner = mobileRow4[index];
               const actualIndex = index + 15;
               return banner ? (
-                <div key={`bottom-mobile-row4-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[49px] sm:max-w-[56px] min-w-[38px] sm:min-w-[45px]">
-                  <button
-                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
-                    className="relative w-full inline-flex items-center justify-center h-10 sm:h-11 px-1 rounded-md border border-gray-200 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden"
-                    aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${actualIndex + 1}`}
-                    data-banner-id={banner.bannerId}
-                    data-section="bottom"
-                    data-position={actualIndex}
+                <div key={`bottom-mobile-row4-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]">
+                  <a
+                    href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
+                    className="relative w-full inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden animate-bottom-strip-glow"
+                    aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
+                    style={{
+                      animationDelay: `${actualIndex * 0.5}s`,
+                    }}
                   >
-                    {banner.imageUrl ? (
+                    {banner.imageUrl && (
                       <Image
                         src={banner.imageUrl}
                         alt={banner.alt}
-                        width={33}
-                        height={26}
-                        className={`${banner.isBusiness ? 'object-cover' : 'object-contain'} max-h-full max-w-full`}
+                        width={41}
+                        height={33}
+                        className="object-cover max-h-full max-w-full"
                         loading="lazy"
                       />
-                    ) : (
-                      <span className="text-[8px] font-semibold text-gray-700 line-clamp-2 text-center">
-                        {banner.advertiser || banner.alt}
-                      </span>
                     )}
-                    {banner.isBusiness && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                    )}
-                  </button>
-                  {/* Distance, time, and visitor badge for businesses */}
-                  {banner.isBusiness && (banner.distance !== undefined || banner.visitorCount !== undefined) && (
-                    <div className="absolute top-0.5 right-0.5 z-10">
-                      <div className="bg-blue-600 text-white px-0.5 py-0 rounded text-[6px] font-bold shadow-lg flex flex-col items-center gap-0">
-                        {banner.distance !== undefined && (
-                          <>
-                            <span>{banner.distance.toFixed(1)}</span>
-                            <span className="text-[5px]">{Math.round(banner.distance * 1.5)}m</span>
-                          </>
-                        )}
-                        {banner.visitorCount !== undefined && (
-                          <span className="text-[5px]">👁️{banner.visitorCount || 0}</span>
-                        )}
+                    {/* Distance, Time, Visitor - Simple text format */}
+                    <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
+                      <div className="text-blue-700 text-[6px] font-bold text-center bg-white/80 px-0.5 py-0 rounded">
+                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
                       </div>
                     </div>
-                  )}
+                  </a>
                 </div>
               ) : (
-                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[49px] sm:max-w-[56px]">
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[61px] sm:max-w-[70px]">
                   <div
                     onClick={() => window.location.href = '/advertise'}
-                    className="inline-flex items-center justify-center h-8 sm:h-9 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[38px] sm:min-w-[45px]"
+                    className="inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
                     role="button"
                     tabIndex={0}
                     aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
                   >
-                    <span className="text-[6px] sm:text-[7px] font-medium text-gray-500">Ad</span>
+                    <span className="text-[7px] sm:text-[8px] font-medium text-gray-500">Ad</span>
                   </div>
                 </div>
               );
             })}
           </div>
           {/* Row 5: 5 images */}
-          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5">
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
             {[...Array(5)].map((_, index) => {
               const banner = mobileRow5[index];
               const actualIndex = index + 20;
               return banner ? (
                 <div key={`bottom-mobile-row5-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]">
-                  <button
-                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
-                    className="relative w-full inline-flex items-center justify-center h-13 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden animate-bottom-strip-glow"
-                    aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${actualIndex + 1}`}
-                    data-banner-id={banner.bannerId}
-                    data-section="bottom"
-                    data-position={actualIndex}
+                  <a
+                    href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
+                    className="relative w-full inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden animate-bottom-strip-glow"
+                    aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
                     style={{
                       animationDelay: `${actualIndex * 0.5}s`,
                     }}
                   >
-                    {banner.imageUrl ? (
+                    {banner.imageUrl && (
                       <Image
                         src={banner.imageUrl}
                         alt={banner.alt}
                         width={41}
                         height={33}
-                        className={`${banner.isBusiness ? 'object-cover' : 'object-contain'} max-h-full max-w-full`}
+                        className="object-cover max-h-full max-w-full"
                         loading="lazy"
                       />
-                    ) : (
-                      <span className="text-[10px] font-semibold text-gray-700 line-clamp-2 text-center">
-                        {banner.advertiser || banner.alt}
-                      </span>
                     )}
-                    {banner.isBusiness && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                    )}
-                  </button>
-                  {/* Distance, time, and visitor badge for businesses */}
-                  {banner.isBusiness && (banner.distance !== undefined || banner.visitorCount !== undefined) && (
-                    <div className="absolute top-0.5 right-0.5 z-10">
-                      <div className="bg-blue-600 text-white px-0.5 py-0 rounded text-[7px] font-bold shadow-lg flex flex-col items-center gap-0">
-                        {banner.distance !== undefined && (
-                          <>
-                            <span>{banner.distance.toFixed(1)}</span>
-                            <span className="text-[6px]">{Math.round(banner.distance * 1.5)}m</span>
-                          </>
-                        )}
-                        {banner.visitorCount !== undefined && (
-                          <span className="text-[6px]">👁️{banner.visitorCount || 0}</span>
-                        )}
+                    {/* Distance, Time, Visitor - Simple text format */}
+                    <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
+                      <div className="text-blue-700 text-[6px] font-bold text-center bg-white/80 px-0.5 py-0 rounded">
+                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
                       </div>
                     </div>
-                  )}
+                  </a>
                 </div>
               ) : (
                 <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[61px] sm:max-w-[70px]">
                   <div
                     onClick={() => window.location.href = '/advertise'}
-                    className="inline-flex items-center justify-center h-11 sm:h-12 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
+                    className="inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
                     role="button"
                     tabIndex={0}
                     aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
@@ -591,57 +454,38 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
               const actualIndex = index + 25;
               return banner ? (
                 <div key={`bottom-mobile-row6-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]">
-                  <button
-                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.link)}
-                    className="relative w-full inline-flex items-center justify-center h-13 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-blue-500 overflow-hidden animate-bottom-strip-glow"
-                    aria-label={`Banner: ${banner.advertiser || 'Advertisement'} - Bottom slot ${actualIndex + 1}`}
-                    data-banner-id={banner.bannerId}
-                    data-section="bottom"
-                    data-position={actualIndex}
+                  <a
+                    href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
+                    className="relative w-full inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden animate-bottom-strip-glow"
+                    aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
                     style={{
                       animationDelay: `${actualIndex * 0.5}s`,
                     }}
                   >
-                    {banner.imageUrl ? (
+                    {banner.imageUrl && (
                       <Image
                         src={banner.imageUrl}
                         alt={banner.alt}
                         width={41}
                         height={33}
-                        className={`${banner.isBusiness ? 'object-cover' : 'object-contain'} max-h-full max-w-full`}
+                        className="object-cover max-h-full max-w-full"
                         loading="lazy"
                       />
-                    ) : (
-                      <span className="text-[10px] font-semibold text-gray-700 line-clamp-2 text-center">
-                        {banner.advertiser || banner.alt}
-                      </span>
                     )}
-                    {banner.isBusiness && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                    )}
-                  </button>
-                  {/* Distance, time, and visitor badge for businesses */}
-                  {banner.isBusiness && (banner.distance !== undefined || banner.visitorCount !== undefined) && (
-                    <div className="absolute top-0.5 right-0.5 z-10">
-                      <div className="bg-blue-600 text-white px-0.5 py-0 rounded text-[7px] font-bold shadow-lg flex flex-col items-center gap-0">
-                        {banner.distance !== undefined && (
-                          <>
-                            <span>{banner.distance.toFixed(1)}</span>
-                            <span className="text-[6px]">{Math.round(banner.distance * 1.5)}m</span>
-                          </>
-                        )}
-                        {banner.visitorCount !== undefined && (
-                          <span className="text-[6px]">👁️{banner.visitorCount || 0}</span>
-                        )}
+                    {/* Distance, Time, Visitor - Simple text format */}
+                    <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
+                      <div className="text-blue-700 text-[6px] font-bold text-center bg-white/80 px-0.5 py-0 rounded">
+                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
                       </div>
                     </div>
-                  )}
+                  </a>
                 </div>
               ) : (
                 <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[61px] sm:max-w-[70px]">
                   <div
                     onClick={() => window.location.href = '/advertise'}
-                    className="inline-flex items-center justify-center h-11 sm:h-12 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
+                    className="inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
                     role="button"
                     tabIndex={0}
                     aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}

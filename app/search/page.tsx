@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
-import DigitalIndiaBanner from '../components/DigitalIndiaBanner';
 import SearchBar from '../components/search/SearchBar';
 import ShopCard from '../components/search/ShopCard';
 import LeftRail from '../components/search/LeftRail';
@@ -145,7 +144,6 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DigitalIndiaBanner />
       <Navbar />
       
       <main className="max-w-7xl mx-auto px-4 py-6">

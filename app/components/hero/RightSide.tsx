@@ -127,78 +127,13 @@ export default function RightSide({ banners, onBannerClick, height = 'h-[480px]'
             </div>
           </a>
           
-          {/* Distance Badge - Mobile */}
+          {/* Distance, Time, Visitor - Simple text format */}
           {(distance !== null || banner.distance || banner.visitorCount !== undefined) && (
-            <>
-              <div className="absolute top-2 right-2 sm:hidden z-10">
-                <div className="bg-blue-600 text-white px-2 py-1 rounded-md shadow-lg flex flex-col items-center gap-1">
-                  <div className="flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span className="text-xs font-bold leading-tight">
-                      {((distance ?? banner.distance) || 0).toFixed(1)}km
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="text-[10px] font-semibold leading-tight">
-                      {Math.round(((distance ?? banner.distance) || 0) * 1.5)}min
-                    </span>
-                  </div>
-                  {banner.visitorCount !== undefined && (
-                    <div className="flex items-center gap-0.5">
-                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      <span className="text-[10px] font-semibold leading-tight">
-                        {banner.visitorCount || 0}
-                      </span>
-                    </div>
-                  )}
-                </div>
+            <div className="absolute bottom-2 left-2 right-2 z-10">
+              <div className="text-blue-700 text-xs sm:text-sm font-bold text-center bg-white/90 px-2 py-1 rounded">
+                {((distance ?? banner.distance) || 0).toFixed(1).padStart(4, '0')}km / {Math.round(((distance ?? banner.distance) || 0) * 1.5).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
               </div>
-              
-              {/* Desktop: Hover overlay */}
-              <div className="hidden sm:block absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex flex-col items-center justify-end pb-4 pointer-events-none">
-                <div className="bg-white/95 backdrop-blur-sm px-4 py-3 rounded-lg shadow-lg border border-white/20">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <span className="text-sm font-bold text-gray-900">
-                        {((distance ?? banner.distance) || 0).toFixed(1)} km
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-sm font-bold text-gray-900">
-                        {Math.round(((distance ?? banner.distance) || 0) * 1.5)} min
-                      </span>
-                    </div>
-                    {banner.visitorCount !== undefined && (
-                      <div className="flex items-center gap-2">
-                        <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        <span className="text-sm font-bold text-gray-900">
-                          {banner.visitorCount || 0} visitors
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </>
+            </div>
           )}
         </div>
       ) : (

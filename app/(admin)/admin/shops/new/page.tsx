@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -59,6 +59,31 @@ export default function NewShopPage() {
     address: '',
   });
   const [creating, setCreating] = useState(false);
+  
+  // Categories from API (same as Agent Panel)
+  const [categories, setCategories] = useState<Array<{ _id: string; name: string; slug: string }>>([]);
+  
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch('/api/categories', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (data.success && data.categories) {
+          setCategories(data.categories);
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      }
+    };
+    if (token) {
+      fetchCategories();
+    }
+  }, [token]);
 
   /**
    * Handle file selection
@@ -299,14 +324,30 @@ export default function NewShopPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Category <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Restaurant, Retail, Service"
-                />
+                >
+                  <option value="">Select Category</option>
+                  {categories.length > 0 ? (
+                    categories.map((cat) => (
+                      <option key={cat._id} value={cat.name}>
+                        {cat.name}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="Grocery">Grocery</option>
+                      <option value="Clothes">Clothes</option>
+                      <option value="Electronics">Electronics</option>
+                      <option value="Restaurant">Restaurant</option>
+                      <option value="Medical">Medical</option>
+                      <option value="Other">Other</option>
+                    </>
+                  )}
+                </select>
               </div>
 
               {/* Latitude */}

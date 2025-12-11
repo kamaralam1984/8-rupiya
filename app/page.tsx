@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar";
-import DigitalIndiaBanner from "./components/DigitalIndiaBanner";
+import DigitalShopDirectory from "./components/DigitalShopDirectory";
 import HeroSection from "./components/HeroSection";
 import CategoryGrid from "./components/CategoryGrid";
 import OffersStrip from "./components/OffersStrip";
@@ -127,8 +127,8 @@ export default function Home() {
   if (!mounted || loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <DigitalIndiaBanner />
-        <Navbar />
+        <Navbar hideSearch={true} />
+        <DigitalShopDirectory />
         <main className="max-w-[98%] mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-4 sm:pb-6">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
@@ -153,8 +153,7 @@ export default function Home() {
       className="min-h-screen"
       style={{ backgroundColor: bgColor }}
     >
-      <DigitalIndiaBanner />
-      <Navbar />
+      <Navbar hideSearch={true} />
 
       <main 
         className="mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-4 sm:pb-6"

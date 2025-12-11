@@ -12,6 +12,7 @@ import BottomRail from './hero/BottomRail';
 import BottomStrip from './hero/BottomStrip';
 import MobileRails from './hero/MobileRails';
 import BestDealsSlider from './hero/BestDealsSlider';
+import DigitalShopDirectory from './DigitalShopDirectory';
 
 interface HeroSectionProps {
   category?: string;
@@ -386,14 +387,16 @@ export default function HeroSection({ category }: HeroSectionProps) {
             };
           });
         
-        console.log(`🏪 Left rail shops (LEFT_BAR plan): ${leftBarShops.length} shops`, leftBarShops.map(s => s.advertiser));
+        console.log(`🏪 Left rail shops (LEFT_BAR plan): ${leftBarShops.length} shops`);
+        leftBarShops.forEach((s, idx) => console.log(`  ${idx + 1}. ${s.advertiser} (ID: ${s.bannerId})`));
 
         // Step 4: Right Side - Get shops with planType 'RIGHT_SIDE' only
         const rightBarShops = uniqueShopsArray
           .filter((shop) => {
             return shop.planType === 'RIGHT_SIDE' && 
                    shop && shop.id && (shop.name || shop.shopName) &&
-                   shop.latitude && shop.longitude;
+                   shop.latitude && shop.longitude &&
+                   !usedShopIds.has(shop.id); // Exclude already used shops
           })
           .sort((a, b) => {
             // Sort by priority rank first (higher = first), then by distance (nearest first)
@@ -426,16 +429,21 @@ export default function HeroSection({ category }: HeroSectionProps) {
             };
           });
         
-        console.log(`🏪 Right side shops (RIGHT_SIDE plan): ${rightBarShops.length} shops`, rightBarShops.map(s => s.advertiser));
+        console.log(`🏪 Right side shops (RIGHT_SIDE plan): ${rightBarShops.length} shops`);
+        rightBarShops.forEach((s, idx) => console.log(`  ${idx + 1}. ${s.advertiser} (ID: ${s.bannerId})`));
         
         // Step 5: Bottom Strip - Get shops with planType 'BASIC' and 'HERO' (Hero shops also appear here)
         // Hero shops appear in both Hero section AND Bottom Strip
+        // But exclude LEFT_BAR and RIGHT_SIDE shops from bottom (they only appear in their respective rails)
         const bottomShops = uniqueShopsArray
           .filter((shop) => {
-            // Include BASIC plan shops and HERO plan shops (HERO shops appear in both hero section and bottom strip)
+            // Include BASIC plan shops and HERO plan shops
             const isBasicPlan = shop.planType === 'BASIC' || !shop.planType || shop.planType === '';
             const isHeroPlan = shop.planType === 'HERO';
+            // Exclude LEFT_BAR and RIGHT_SIDE from bottom strip
+            const isLeftOrRight = shop.planType === 'LEFT_BAR' || shop.planType === 'RIGHT_SIDE';
             return (isBasicPlan || isHeroPlan) && 
+                   !isLeftOrRight &&
                    shop && shop.id && (shop.name || shop.shopName);
           })
           .sort((a, b) => {
@@ -492,19 +500,63 @@ export default function HeroSection({ category }: HeroSectionProps) {
             };
           });
         
-        console.log(`🏪 Bottom strip shops: ${bottomShops.length} shops`, bottomShops.map(s => s.advertiser));
+        console.log(`🏪 Bottom strip shops (BASIC & HERO, excluding LEFT_BAR & RIGHT_SIDE): ${bottomShops.length} shops`);
         
         // Verify no duplicates across all sections
         const allDisplayedIds = new Set<string>();
-        if (heroShop) allDisplayedIds.add(heroShop.id);
-        leftBarShops.forEach(s => allDisplayedIds.add(s.bannerId));
-        rightBarShops.forEach(s => allDisplayedIds.add(s.bannerId));
-        bottomShops.forEach(s => allDisplayedIds.add(s.bannerId));
+        const duplicateCheck = new Map<string, string[]>();
         
-        console.log(`✅ Total unique shops displayed: ${allDisplayedIds.size} (Hero: ${heroShop ? 1 : 0}, Left: ${leftBarShops.length}, Right: ${rightBarShops.length}, Bottom: ${bottomShops.length})`);
+        if (heroShop) {
+          allDisplayedIds.add(heroShop.id);
+          duplicateCheck.set(heroShop.id, ['Hero']);
+        }
         
-        if (allDisplayedIds.size !== (leftBarShops.length + rightBarShops.length + bottomShops.length + (heroShop ? 1 : 0))) {
-          console.warn('⚠️ WARNING: Duplicate shops detected!');
+        leftBarShops.forEach((s, idx) => {
+          if (allDisplayedIds.has(s.bannerId)) {
+            const sections = duplicateCheck.get(s.bannerId) || [];
+            sections.push(`Left-${idx + 1}`);
+            duplicateCheck.set(s.bannerId, sections);
+          } else {
+            allDisplayedIds.add(s.bannerId);
+            duplicateCheck.set(s.bannerId, [`Left-${idx + 1}`]);
+          }
+        });
+        
+        rightBarShops.forEach((s, idx) => {
+          if (allDisplayedIds.has(s.bannerId)) {
+            const sections = duplicateCheck.get(s.bannerId) || [];
+            sections.push(`Right-${idx + 1}`);
+            duplicateCheck.set(s.bannerId, sections);
+          } else {
+            allDisplayedIds.add(s.bannerId);
+            duplicateCheck.set(s.bannerId, [`Right-${idx + 1}`]);
+          }
+        });
+        
+        bottomShops.forEach((s, idx) => {
+          if (allDisplayedIds.has(s.bannerId)) {
+            const sections = duplicateCheck.get(s.bannerId) || [];
+            sections.push(`Bottom-${idx + 1}`);
+            duplicateCheck.set(s.bannerId, sections);
+          } else {
+            allDisplayedIds.add(s.bannerId);
+            duplicateCheck.set(s.bannerId, [`Bottom-${idx + 1}`]);
+          }
+        });
+        
+        const totalShops = leftBarShops.length + rightBarShops.length + bottomShops.length + (heroShop ? 1 : 0);
+        console.log(`✅ Total shops displayed: ${totalShops}, Unique IDs: ${allDisplayedIds.size}`);
+        console.log(`   Hero: ${heroShop ? 1 : 0}, Left: ${leftBarShops.length}, Right: ${rightBarShops.length}, Bottom: ${bottomShops.length}`);
+        
+        if (allDisplayedIds.size !== totalShops) {
+          console.warn(`⚠️ WARNING: Duplicate shops detected! (${totalShops - allDisplayedIds.size} duplicates)`);
+          Array.from(duplicateCheck.entries())
+            .filter(([_, sections]) => sections.length > 1)
+            .forEach(([id, sections]) => {
+              console.warn(`   - Shop ID ${id} appears in: ${sections.join(', ')}`);
+            });
+        } else {
+          console.log('✓ No duplicate shops found across all sections');
         }
 
         // Combine banner data with nearby shops
@@ -638,9 +690,17 @@ export default function HeroSection({ category }: HeroSectionProps) {
     >
       {/* Parent Container - White Card */}
       <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-2 sm:p-2 md:p-3">
-        {/* BEST DEALS SLIDER - Full Width at Top */}
-        <div className="mb-4">
-          <BestDealsSlider category={category} />
+        {/* SLIDER + SEARCH PITARA - Side by Side (50%-50%) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-4">
+          {/* Left: Slider (50%) */}
+          <div className="w-full">
+            <BestDealsSlider category={category} />
+          </div>
+          
+          {/* Right: Search Pitara (50%) */}
+          <div className="w-full">
+            <DigitalShopDirectory />
+          </div>
         </div>
 
         {/* Desktop: 3-Column Grid Layout */}

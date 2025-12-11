@@ -361,7 +361,7 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
 
   if (loading) {
     return (
-      <div className="relative w-full bg-white rounded-xl overflow-hidden shadow-lg border border-gray-200 h-24 sm:h-32 md:h-36 flex items-center justify-center">
+      <div className="relative w-full bg-white rounded-xl overflow-hidden shadow-lg border border-gray-200 h-12 sm:h-16 md:h-18 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
       </div>
     );
@@ -374,7 +374,7 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
   return (
     <div
       ref={sliderRef}
-      className="relative w-full bg-white rounded-xl overflow-hidden shadow-lg border border-gray-200 group"
+      className="relative w-full h-full bg-white rounded-xl overflow-hidden shadow-lg border border-gray-200 group"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onMouseMove={(e) => {

@@ -281,42 +281,11 @@ export default function HeroBanner({ hero, onBannerClick, height = 'h-[480px]', 
         </div>
       )}
       
-      {/* Distance, Time, and Visitor Count Badge */}
+      {/* Distance, Time, Visitor - Simple text format */}
       {(heroBanner.distance !== undefined || heroBanner.isBusiness || heroBanner.visitorCount !== undefined) && (
-        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20">
-          <div className="bg-white/95 backdrop-blur-md px-3 py-2 rounded-lg shadow-lg border border-white/50 flex flex-col gap-1.5">
-            {heroBanner.distance !== undefined && (
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span className="text-sm font-bold text-gray-900">
-                  {heroBanner.distance ? `${heroBanner.distance.toFixed(1)} km` : 'Nearby'}
-                </span>
-              </div>
-            )}
-            {heroBanner.distance && (
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm font-bold text-gray-900">
-                  {Math.round(heroBanner.distance * 1.5)} min
-                </span>
-              </div>
-            )}
-            {heroBanner.visitorCount !== undefined && (
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                <span className="text-sm font-bold text-gray-900">
-                  {heroBanner.visitorCount || 0} visitors
-                </span>
-              </div>
-            )}
+        <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 z-20">
+          <div className="text-blue-700 text-sm sm:text-base font-bold text-center bg-white/90 px-3 py-2 rounded-lg shadow-lg">
+            {(heroBanner.distance || 0).toFixed(1).padStart(4, '0')}km / {Math.round((heroBanner.distance || 0) * 1.5).toString().padStart(2, '0')}min / {(heroBanner.visitorCount || 0).toString().padStart(2, '0')}visitor
           </div>
         </div>
       )}

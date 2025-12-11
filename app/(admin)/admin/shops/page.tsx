@@ -32,7 +32,7 @@ interface Shop {
   paymentExpiryDate?: string;
   lastPaymentDate?: string;
   // Plan fields
-  planType?: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_BAR' | 'BANNER' | 'HERO';
+  planType?: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_SIDE' | 'BOTTOM_RAIL' | 'BANNER' | 'HERO';
   planAmount?: number;
   // Common fields
   category: string;
@@ -328,7 +328,7 @@ export default function ShopsPage() {
 
   const handleMarkPaymentDone = async (shopId: string, mobile?: string, shopPlanType?: string, shopPlanAmount?: number, shopDistrict?: string) => {
     // Use shop's existing plan if available, otherwise prompt
-    const finalPlan = (shopPlanType || 'BASIC') as 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_BAR' | 'BANNER' | 'HERO';
+    const finalPlan = (shopPlanType || 'BASIC') as 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_SIDE' | 'BOTTOM_RAIL' | 'BANNER' | 'HERO';
     const amount = shopPlanAmount || (finalPlan === 'BASIC' ? 100 : finalPlan === 'PREMIUM' ? 299 : 1000);
     const district = shopDistrict || undefined;
     
@@ -874,12 +874,13 @@ export default function ShopsPage() {
                                 autoFocus
                               >
                                 <option value="BASIC">Basic ₹100</option>
+                                <option value="LEFT_BAR">Left Bar ₹100</option>
+                                <option value="BOTTOM_RAIL">Bottom Rail ₹200</option>
+                                <option value="RIGHT_SIDE">Right Side ₹300</option>
+                                <option value="HERO">Hero ₹500</option>
+                                <option value="FEATURED">Featured ₹2388</option>
                                 <option value="PREMIUM">Premium ₹2999</option>
-                                <option value="FEATURED">Featured ₹199+</option>
-                                <option value="LEFT_BAR">Left Bar ₹299</option>
-                                <option value="RIGHT_BAR">Right Bar ₹299</option>
-                                <option value="BANNER">Banner ₹399</option>
-                                <option value="HERO">Hero ₹499</option>
+                                <option value="BANNER">Banner ₹4788</option>
                               </select>
                               <button
                                 onClick={() => handleSavePlan(shop._id)}
@@ -903,12 +904,15 @@ export default function ShopsPage() {
                                 const planType = shop.planType || 'BASIC';
                                 const planColors: Record<string, { bg: string; text: string; label: string }> = {
                                   'BASIC': { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Basic ₹100' },
+                                  'LEFT_BAR': { bg: 'bg-orange-100', text: 'text-orange-800', label: 'Left Bar ₹100' },
+                                  'BOTTOM_RAIL': { bg: 'bg-teal-100', text: 'text-teal-800', label: 'Bottom Rail ₹200' },
+                                  'RIGHT_SIDE': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Right Side ₹300' },
+                                  'HERO': { bg: 'bg-indigo-100', text: 'text-indigo-800', label: 'Hero ₹500' },
+                                  'FEATURED': { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Featured ₹2388' },
                                   'PREMIUM': { bg: 'bg-green-100', text: 'text-green-800', label: 'Premium ₹2999' },
-                                  'FEATURED': { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Featured ₹199+' },
-                                  'LEFT_BAR': { bg: 'bg-orange-100', text: 'text-orange-800', label: 'Left Bar ₹299' },
-                                  'RIGHT_BAR': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Right Bar ₹299' },
-                                  'BANNER': { bg: 'bg-pink-100', text: 'text-pink-800', label: 'Banner ₹399' },
-                                  'HERO': { bg: 'bg-indigo-100', text: 'text-indigo-800', label: 'Hero ₹499' },
+                                  'BANNER': { bg: 'bg-pink-100', text: 'text-pink-800', label: 'Banner ₹4788' },
+                                  // Legacy support (old plan names)
+                                  'RIGHT_BAR': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Right Bar (Old)' },
                                 };
                                 const colors = planColors[planType] || planColors['BASIC'];
                                 return (
@@ -1095,6 +1099,7 @@ export default function ShopsPage() {
             <h2 className="text-2xl font-bold mb-4">Edit Shop</h2>
             <EditShopForm
               shop={editingShop}
+              categories={categories}
               onClose={() => setEditingShop(null)}
               onSave={async (updatedShop) => {
                 try {
@@ -1135,7 +1140,7 @@ export default function ShopsPage() {
 }
 
 // Edit Shop Form Component
-function EditShopForm({ shop, onClose, onSave }: { shop: Shop; onClose: () => void; onSave: (shop: Partial<Shop>) => void }) {
+function EditShopForm({ shop, categories, onClose, onSave }: { shop: Shop; categories: Array<{ _id: string; name: string; slug: string }>; onClose: () => void; onSave: (shop: Partial<Shop>) => void }) {
   const [formData, setFormData] = useState({
     shopName: shop.shopName || shop.name || '',
     ownerName: shop.ownerName || '',
@@ -1190,12 +1195,22 @@ function EditShopForm({ shop, onClose, onSave }: { shop: Shop; onClose: () => vo
             required
           >
             <option value="">Select Category</option>
-            <option value="Grocery">Grocery</option>
-            <option value="Clothes">Clothes</option>
-            <option value="Electronics">Electronics</option>
-            <option value="Restaurant">Restaurant</option>
-            <option value="Medical">Medical</option>
-            <option value="Other">Other</option>
+            {categories.length > 0 ? (
+              categories.map((cat) => (
+                <option key={cat._id} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="Grocery">Grocery</option>
+                <option value="Clothes">Clothes</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Restaurant">Restaurant</option>
+                <option value="Medical">Medical</option>
+                <option value="Other">Other</option>
+              </>
+            )}
           </select>
         </div>
         <div>
