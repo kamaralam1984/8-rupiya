@@ -3,85 +3,97 @@ import connectDB from '@/lib/mongodb';
 import AdminShop from '@/lib/models/Shop';
 import AgentShop from '@/lib/models/AgentShop';
 import OldShop from '@/models/Shop';
+import Pincode from '@/lib/models/Pincode'; // Pincode model - only source for pincodes now
+
+// Cache-Control headers - cache for 5 minutes
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+};
 
 /**
  * GET /api/shops/search-options
- * Get unique pincodes, areas, and categories from all shops
- * This connects homepage search to admin panel shops data
+ * Get unique pincodes, areas, and categories
+ * Pincodes and areas are now ONLY from agent-entered data (Pincode model)
+ * Categories are still from shops
  */
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
-    // Fetch all shops from all collections - PRIORITIZE AgentShops
-    const [agentShops, adminShops, oldShops] = await Promise.all([
-      AgentShop.find({}).select('pincode area category city').lean().catch(() => []),
-      AdminShop.find({}).select('pincode area category city').lean().catch(() => []),
-      OldShop ? OldShop.find({}).select('pincode area category address').lean().catch(() => []) : Promise.resolve([]),
+    // Fetch only PAID shops for categories
+    const paymentFilter = {
+      $or: [
+        { paymentStatus: 'PAID' },
+        { paymentStatus: { $exists: false } },
+      ],
+    };
+
+    // Get pincodes and areas ONLY from Pincode model (agent-entered data)
+    const [pincodeData, pincodeCount, agentCategories, agentCities,
+           adminCategories, adminCities,
+           oldCategories] = await Promise.all([
+      // Get all pincode+area combinations from Pincode model
+      Pincode.find({}).select('pincode area').lean().catch(() => []),
+      // Count to check if Pincode collection is empty
+      Pincode.countDocuments().catch(() => 0),
+      // Categories still come from shops
+      AgentShop.distinct('category', paymentFilter).catch(() => []),
+      AgentShop.distinct('city', paymentFilter).catch(() => []),
+      AdminShop.distinct('category', paymentFilter).catch(() => []),
+      AdminShop.distinct('city', paymentFilter).catch(() => []),
+      OldShop ? OldShop.distinct('category', paymentFilter).catch(() => []) : Promise.resolve([]),
     ]);
 
-    // Combine all shops - AgentShops FIRST (priority)
-    const allShops = [
-      ...agentShops.map((shop: any) => ({
-        pincode: shop.pincode,
-        area: shop.area,
-        category: shop.category,
-        city: shop.city,
-        source: 'agent', // Mark as agent shop
-      })),
-      ...adminShops.map((shop: any) => ({
-        pincode: shop.pincode,
-        area: shop.area,
-        category: shop.category,
-        city: shop.city,
-        source: 'admin',
-      })),
-      ...oldShops.map((shop: any) => ({
-        pincode: shop.pincode,
-        area: shop.area,
-        category: shop.category,
-        city: shop.city || (shop.address ? shop.address.split(',')[0] : undefined),
-        source: 'old',
-      })),
-    ];
+    // Extract unique pincodes and areas from Pincode model
+    let allPincodes = [...new Set(pincodeData.map((p: any) => p.pincode).filter(Boolean))].sort();
+    let allAreas = [...new Set(pincodeData.map((p: any) => p.area).filter(Boolean))].sort();
 
-    // Extract unique values
-    const pincodes = new Set<string>();
-    const areas = new Set<string>();
-    const categories = new Set<string>();
+    // TEMPORARY FALLBACK: If Pincode collection is empty, fallback to shops
+    // This helps during migration period. Remove this after migration is complete.
+    if (pincodeCount === 0) {
+      console.log('⚠️ Pincode collection is empty, falling back to shops for pincodes');
+      const [fallbackAgentPincodes, fallbackAdminPincodes, fallbackOldPincodes] = await Promise.all([
+        AgentShop.distinct('pincode', { ...paymentFilter, pincode: { $exists: true, $ne: '' } }).catch(() => []),
+        AdminShop.distinct('pincode', { ...paymentFilter, pincode: { $exists: true, $ne: '' } }).catch(() => []),
+        OldShop ? OldShop.distinct('pincode', { ...paymentFilter, pincode: { $exists: true, $ne: '' } }).catch(() => []) : Promise.resolve([]),
+      ]);
+      
+      allPincodes = [...new Set([...fallbackAgentPincodes, ...fallbackAdminPincodes, ...fallbackOldPincodes].filter(Boolean))].sort();
+      
+      // For areas, use distinct from shops
+      const [fallbackAgentAreas, fallbackAdminAreas] = await Promise.all([
+        AgentShop.distinct('area', { ...paymentFilter, area: { $exists: true, $ne: '' } }).catch(() => []),
+        AdminShop.distinct('area', { ...paymentFilter, area: { $exists: true, $ne: '' } }).catch(() => []),
+      ]);
+      
+      const fallbackAreas = [...new Set([...fallbackAgentAreas, ...fallbackAdminAreas].filter(Boolean))];
+      allAreas = [...new Set([...allAreas, ...fallbackAreas])].sort();
+    }
+    
+    // Combine categories from all shop sources
+    const allCategories = [...new Set([...agentCategories, ...adminCategories, ...oldCategories].filter(Boolean))];
+    const allCities = [...new Set([...agentCities, ...adminCities].filter(Boolean))];
 
-    allShops.forEach((shop: any) => {
-      // Pincodes
-      if (shop.pincode && typeof shop.pincode === 'string' && shop.pincode.trim()) {
-        pincodes.add(shop.pincode.trim());
-      }
+    // Get counts for total shops
+    const [agentCount, adminCount, oldCount] = await Promise.all([
+      AgentShop.countDocuments(paymentFilter).catch(() => 0),
+      AdminShop.countDocuments(paymentFilter).catch(() => 0),
+      OldShop ? OldShop.countDocuments(paymentFilter).catch(() => 0) : Promise.resolve(0),
+    ]);
 
-      // Areas
-      if (shop.area && typeof shop.area === 'string' && shop.area.trim()) {
-        areas.add(shop.area.trim());
-      }
-      // Also extract area from city if available
-      if (shop.city && typeof shop.city === 'string' && shop.city.trim()) {
-        areas.add(shop.city.trim());
-      }
+    const totalShops = agentCount + adminCount + oldCount;
 
-      // Categories
-      if (shop.category && typeof shop.category === 'string' && shop.category.trim()) {
-        categories.add(shop.category.trim());
-      }
-    });
-
-    // Convert to sorted arrays
-    const sortedPincodes = Array.from(pincodes).sort();
-    const sortedAreas = Array.from(areas).sort();
-    const sortedCategories = Array.from(categories).sort();
+    // Combine areas with cities (areas from Pincode model, cities from shops)
+    const combinedAreas = [...new Set([...allAreas, ...allCities].filter(Boolean))];
 
     return NextResponse.json({
       success: true,
-      pincodes: sortedPincodes,
-      areas: sortedAreas,
-      categories: sortedCategories,
-      totalShops: allShops.length,
+      pincodes: allPincodes, // Already sorted
+      areas: combinedAreas.sort(),
+      categories: allCategories.sort(),
+      totalShops,
+    }, {
+      headers: CACHE_HEADERS,
     });
   } catch (error: any) {
     console.error('Error fetching search options:', error);

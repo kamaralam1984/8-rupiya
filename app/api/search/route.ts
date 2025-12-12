@@ -4,6 +4,11 @@ import AdminShop from '@/lib/models/Shop';
 import AgentShop from '@/lib/models/AgentShop';
 import OldShop from '@/models/Shop';
 
+// Cache-Control headers - cache for 1 minute (search results change frequently)
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+};
+
 interface Shop {
   id: string;
   name: string;
@@ -200,51 +205,95 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // If no search params, ensure we still fetch shops (empty query = all shops)
-    // Also ensure paymentStatus is PAID or not set (show active shops)
-    if (Object.keys(query).length === 0) {
-      // No filters - show all active shops
-      query.$or = [
+    // Payment status filter: Show PAID shops, or shops without paymentStatus field
+    // For AgentShop: Also include PENDING shops (they're waiting for admin approval but should be searchable)
+    // For AdminShop and OldShop: Only PAID or no paymentStatus
+    const agentPaymentFilter = {
+      $or: [
+        { paymentStatus: 'PAID' },
+        { paymentStatus: 'PENDING' }, // Include pending agent shops
+        { paymentStatus: { $exists: false } },
+      ],
+    };
+    
+    const adminPaymentFilter = {
+      $or: [
         { paymentStatus: 'PAID' },
         { paymentStatus: { $exists: false } },
-      ];
+      ],
+    };
+
+    // Build separate queries for agent shops and admin/old shops
+    // Agent shops: Include PENDING status (waiting for admin approval but searchable)
+    // Admin/Old shops: Only PAID or no paymentStatus
+    
+    let agentQuery: any = {};
+    let adminQuery: any = {};
+
+    if (Object.keys(query).length === 0) {
+      // No search filters - only apply payment filters
+      agentQuery = agentPaymentFilter;
+      adminQuery = adminPaymentFilter;
     } else {
-      // Add payment status filter to existing query
-      const paymentFilter = {
-        $or: [
-          { paymentStatus: 'PAID' },
-          { paymentStatus: { $exists: false } },
+      // Combine search filters with payment filters using $and
+      // Simple approach: wrap everything in $and
+      agentQuery = {
+        $and: [
+          query,
+          agentPaymentFilter,
         ],
       };
-      if (query.$and) {
-        query.$and.push(paymentFilter);
-      } else if (query.$or) {
-        query.$and = [{ $or: query.$or }, paymentFilter];
-        delete query.$or;
-      } else {
-        Object.assign(query, paymentFilter);
-      }
+      
+      adminQuery = {
+        $and: [
+          query,
+          adminPaymentFilter,
+        ],
+      };
     }
 
+    // Log queries for debugging
+    console.log('🔍 Search query for pincode:', pincode);
+    console.log('🔍 Agent query:', JSON.stringify(agentQuery, null, 2));
+    console.log('🔍 Admin query:', JSON.stringify(adminQuery, null, 2));
+
+    // Get pagination params
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200);
+    const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
+    const skip = (page - 1) * limit;
+
     // Fetch shops from all sources - PRIORITIZE AgentShops
+    // Use field selection to reduce payload size
+    const agentFields = 'shopName category area city pincode photoUrl latitude longitude shopUrl mobile visitorCount priorityRank planType offers';
+    const adminFields = 'shopName name category area city pincode photoUrl iconUrl imageUrl latitude longitude shopUrl fullAddress address mobile visitorCount priorityRank planType offers';
+    const oldFields = 'name category area city pincode imageUrl iconUrl latitude longitude address phone email website rating reviews';
+    
     const [agentShops, adminShops, oldShops] = await Promise.all([
-      AgentShop.find(query).limit(200).lean().catch((err) => {
-        console.error('Error fetching AgentShops:', err);
+      AgentShop.find(agentQuery).select(agentFields).limit(limit * 2).lean().catch((err) => {
+        console.error('❌ Error fetching agent shops:', err);
         return [];
       }),
-      AdminShop.find(query).limit(200).lean().catch((err) => {
-        console.error('Error fetching AdminShops:', err);
+      AdminShop.find(adminQuery).select(adminFields).limit(limit * 2).lean().catch((err) => {
+        console.error('❌ Error fetching admin shops:', err);
         return [];
       }),
-      OldShop ? OldShop.find(query).limit(200).lean().catch((err) => {
-        console.error('Error fetching OldShops:', err);
+      OldShop ? OldShop.find(adminQuery).select(oldFields).limit(limit * 2).lean().catch((err) => {
+        console.error('❌ Error fetching old shops:', err);
         return [];
       }) : Promise.resolve([]),
     ]);
 
-    // Log counts for debugging
-    console.log(`🔍 Search Results: AgentShops=${agentShops.length}, AdminShops=${adminShops.length}, OldShops=${oldShops.length}`);
-    console.log(`🔍 Query used:`, JSON.stringify(query, null, 2));
+    console.log(`📊 Found ${agentShops.length} agent shops, ${adminShops.length} admin shops, ${oldShops.length} old shops`);
+    if (pincode && agentShops.length > 0) {
+      console.log(`✅ Agent shops with pincode ${pincode}:`, agentShops.map((s: any) => ({ 
+        name: s.shopName, 
+        pincode: s.pincode, 
+        area: s.area,
+        paymentStatus: s.paymentStatus 
+      })));
+    }
+
+    // Removed verbose debug logs - only log errors
 
     // Transform shops - AgentShops FIRST (priority)
     const allShops: Shop[] = [
@@ -415,6 +464,11 @@ export async function GET(request: NextRequest) {
       rightRail,
       bottomStrip,
       totalFound: uniqueShops.length,
+      page,
+      limit,
+      hasMore: uniqueShops.length > (skip + limit),
+    }, {
+      headers: CACHE_HEADERS,
     });
   } catch (error: any) {
     console.error('Error in /api/search:', error);

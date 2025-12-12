@@ -85,8 +85,7 @@ export default function NearbyBusinesses({ limit = 6 }: NearbyBusinessesProps) {
           setBusinesses(mappedBusinesses.slice(0, limit));
         }
       } catch (e) {
-        console.error('Failed to load nearby businesses:', e);
-        // Fallback to featured if nearby fails
+        // Silent error - fallback to featured
         try {
           const res = await fetch('/api/businesses/featured');
           const data = await safeJsonParse<{ businesses?: BusinessSummary[] }>(res);
@@ -97,7 +96,7 @@ export default function NearbyBusinesses({ limit = 6 }: NearbyBusinessesProps) {
           }));
           setBusinesses(mappedBusinesses.slice(0, limit));
         } catch (err) {
-          console.error('Failed to load featured businesses', err);
+          // Silent fallback error
           setBusinesses([]);
         }
       } finally {
@@ -130,23 +129,23 @@ export default function NearbyBusinesses({ limit = 6 }: NearbyBusinessesProps) {
   }
 
   return (
-    <section className="py-6 sm:py-8 px-2 sm:px-3 lg:px-4 bg-linear-to-b from-white to-gray-50 border-t border-gray-200">
+    <section className="py-10 sm:py-12 px-2 sm:px-3 lg:px-4 bg-gradient-to-b from-gray-50 to-white">
       <div className="max-w-[98%] mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-2 sm:gap-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-3 sm:gap-0">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent tracking-tight">
               {distance === 0 || distance >= 1000 ? 'Nearby Shops (0-1000 km)' : `Shops within ${distance} km`}
             </h2>
-            <p className="text-xs sm:text-sm text-gray-600 mt-0.5">
+            <p className="text-sm sm:text-base text-gray-600 mt-2 font-medium">
               {distance === 0 || distance >= 1000
                 ? `Shops from 0-1000 km near ${location.displayName || 'your location'}`
                 : `Shops within ${distance} km of ${location.displayName || 'your location'}`
               }
             </p>
           </div>
-          <a href="/search?type=nearby" className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors self-start sm:self-auto group">
+          <a href="/search?type=nearby" className="inline-flex items-center gap-2 px-4 py-2 text-sm sm:text-base font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg self-start sm:self-auto group">
             <span>View all</span>
-            <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
           </a>
         </div>
 
@@ -162,10 +161,10 @@ export default function NearbyBusinesses({ limit = 6 }: NearbyBusinessesProps) {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto pb-4 -mx-2 sm:-mx-3 lg:-mx-4 px-2 sm:px-3 lg:px-4">
-            <div className="flex gap-4 sm:gap-5 min-w-max">
+          <div className="overflow-x-auto pb-4 -mx-2 sm:-mx-3 lg:-mx-4 px-2 sm:px-3 lg:px-4 scrollbar-hide">
+            <div className="flex gap-3 sm:gap-4 min-w-max">
               {businesses.map((biz) => (
-                <div key={biz.id} className="flex-shrink-0 w-72 sm:w-80">
+                <div key={biz.id} className="flex-shrink-0 w-[280px] sm:w-[300px]">
                   <ShopCard
                     id={biz.id}
                     name={biz.name}

@@ -644,13 +644,13 @@ export default function HeroSection({ category }: HeroSectionProps) {
       <section className="max-w-[98%] mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-6">
         <div className="bg-white rounded-2xl shadow-md p-2 md:p-3">
           <div className="grid grid-cols-1 lg:grid-cols-[20%_60%_20%] gap-3">
-            <div className="h-[480px] space-y-2">
+            <div className="h-[500px] space-y-2">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="h-full bg-gray-200 rounded-lg animate-pulse" />
               ))}
             </div>
-            <div className="h-[480px] bg-gray-200 rounded-xl animate-pulse" />
-            <div className="h-[480px] space-y-2">
+            <div className="h-[500px] bg-gray-200 rounded-xl animate-pulse" />
+            <div className="h-[500px] space-y-2">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="h-full bg-gray-200 rounded-lg animate-pulse" />
               ))}
@@ -689,16 +689,16 @@ export default function HeroSection({ category }: HeroSectionProps) {
       aria-label="Hero banner section"
     >
       {/* Parent Container - White Card */}
-      <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-2 sm:p-2 md:p-3">
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-2 sm:p-3 md:p-4">
         {/* SLIDER + SEARCH PITARA - Side by Side (50%-50%) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-2 items-stretch">
           {/* Left: Slider (50%) */}
-          <div className="w-full">
+          <div className="w-full flex items-stretch h-full">
             <BestDealsSlider category={category} />
           </div>
           
           {/* Right: Search Pitara (50%) */}
-          <div className="w-full">
+          <div className="w-full flex items-stretch h-full">
             <DigitalShopDirectory />
           </div>
         </div>
@@ -709,21 +709,21 @@ export default function HeroSection({ category }: HeroSectionProps) {
           <LeftRail 
             banners={data.left} 
             onBannerClick={handleBannerClick} 
-            height="h-[391px]"
+            height="h-[500px]"
             userLat={location.latitude}
             userLng={location.longitude}
           />
 
           {/* CENTER COLUMN (60%) - Hero */}
           <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[391px]" />
+            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[500px]" />
           </div>
 
           {/* RIGHT COLUMN (20%) */}
           <RightSide 
             banners={data.right} 
             onBannerClick={handleBannerClick} 
-            height="h-[391px]"
+            height="h-[500px]"
             userLat={location.latitude}
             userLng={location.longitude}
           />
@@ -735,21 +735,21 @@ export default function HeroSection({ category }: HeroSectionProps) {
           <LeftRail 
             banners={data.left} 
             onBannerClick={handleBannerClick} 
-            height="h-[293px]"
+            height="h-[400px]"
             userLat={location.latitude}
             userLng={location.longitude}
           />
 
           {/* CENTER COLUMN */}
           <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[293px]" />
+            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[400px]" />
           </div>
 
           {/* RIGHT COLUMN */}
           <RightSide 
             banners={data.right} 
             onBannerClick={handleBannerClick} 
-            height="h-[293px]"
+            height="h-[400px]"
             userLat={location.latitude}
             userLng={location.longitude}
           />
@@ -761,21 +761,21 @@ export default function HeroSection({ category }: HeroSectionProps) {
           <LeftRail 
             banners={data.left} 
             onBannerClick={handleBannerClick} 
-            height="h-[176px] sm:h-[240px]"
+            height="h-[280px] sm:h-[320px]"
             userLat={location.latitude}
             userLng={location.longitude}
           />
 
           {/* CENTER COLUMN - Hero */}
           <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[176px] sm:h-[240px]" />
+            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[280px] sm:h-[320px]" />
           </div>
 
           {/* RIGHT COLUMN */}
           <RightSide 
             banners={data.right} 
             onBannerClick={handleBannerClick} 
-            height="h-[176px] sm:h-[240px]"
+            height="h-[280px] sm:h-[320px]"
             userLat={location.latitude}
             userLng={location.longitude}
           />

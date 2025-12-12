@@ -39,12 +39,25 @@ function LoginForm() {
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.success) {
+        console.log('Login successful, token received:', data.token ? 'Yes' : 'No');
+        console.log('User data received:', data.user ? 'Yes' : 'No');
+        
+        if (!data.token || !data.user) {
+          console.error('Missing token or user data in response:', data);
+          toast.dismiss(loadingToast);
+          toast.error('Login response incomplete. Please try again.');
+          return;
+        }
+        
         toast.dismiss(loadingToast);
         toast.success('Login successful! Welcome back!');
         
         // Update auth context
         login(data.token, data.user);
+        
+        // Small delay to ensure token is saved
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Redirect to the redirect URL or home after a short delay
         setTimeout(() => {
@@ -53,6 +66,7 @@ function LoginForm() {
       } else {
         toast.dismiss(loadingToast);
         toast.error(data.error || 'Login failed');
+        console.error('Login failed:', data);
       }
     } catch (err: any) {
       toast.dismiss(loadingToast);

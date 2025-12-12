@@ -3,6 +3,11 @@ import connectDB from '@/lib/mongodb';
 import AdminShop from '@/lib/models/Shop';
 import AgentShop from '@/lib/models/AgentShop';
 
+// Cache-Control headers - cache for 2 minutes
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=240',
+};
+
 /**
  * GET /api/shops/by-plan?planType=LEFT_BAR&limit=10
  * Get shops by plan type (public endpoint, no auth required)
@@ -40,9 +45,11 @@ export async function GET(request: NextRequest) {
     };
     
     // Fetch shops with specified plan type and PAID status only
+    // Use field selection to reduce payload size
+    const fields = 'shopName name category photoUrl iconUrl imageUrl latitude longitude city fullAddress address area mobile planType priorityRank visitorCount shopUrl';
     const [adminShops, agentShops] = await Promise.all([
-      AdminShop.find(query).limit(limit).lean(),
-      AgentShop.find(query).limit(limit).lean(),
+      AdminShop.find(query).select(fields).limit(limit).sort({ priorityRank: -1, createdAt: -1 }).lean(),
+      AgentShop.find(query).select('shopName category photoUrl latitude longitude address area mobile planType visitorCount shopUrl').limit(limit).sort({ createdAt: -1 }).lean(),
     ]);
 
     // Combine and transform shops
@@ -71,6 +78,8 @@ export async function GET(request: NextRequest) {
       shops,
       count: shops.length,
       planType: planType.toUpperCase(),
+    }, {
+      headers: CACHE_HEADERS,
     });
   } catch (error: any) {
     console.error('Error fetching shops by plan type:', error);

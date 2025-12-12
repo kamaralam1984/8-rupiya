@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar";
-import DigitalShopDirectory from "./components/DigitalShopDirectory";
 import HeroSection from "./components/HeroSection";
 import CategoryGrid from "./components/CategoryGrid";
 import OffersStrip from "./components/OffersStrip";
@@ -128,7 +127,6 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar hideSearch={true} />
-        <DigitalShopDirectory />
         <main className="max-w-[98%] mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-4 sm:pb-6">
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center">

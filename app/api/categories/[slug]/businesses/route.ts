@@ -7,6 +7,11 @@ import Shop from '@/models/Shop'; // Old shop model
 import { calculateDistance } from '@/app/utils/distance';
 import { PRICING_PLANS } from '@/app/utils/pricing';
 
+// Cache-Control headers
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=240',
+};
+
 /**
  * GET /api/categories/[slug]/businesses
  * 
@@ -37,6 +42,9 @@ export async function GET(
     const type = searchParams.get('type') || 'nearby';
     const userLat = searchParams.get('userLat');
     const userLng = searchParams.get('userLng');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200);
+    const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
+    const skip = (page - 1) * limit;
 
     // Find category by slug
     const category = await Category.findOne({ 
@@ -51,20 +59,39 @@ export async function GET(
       );
     }
 
+    // Payment filter - only PAID shops
+    const paymentFilter = {
+      $or: [
+        { paymentStatus: 'PAID' },
+        { paymentStatus: { $exists: false } },
+      ],
+    };
+
     // Build query to find shops with this category
     // Match by category name (case-insensitive) or categoryRef
     const categoryQuery: any = {
+      $and: [
+        {
       $or: [
         { category: { $regex: new RegExp(`^${category.name}$`, 'i') } },
         { categoryRef: category._id },
       ],
+        },
+        paymentFilter,
+      ],
     };
 
-    // Fetch shops from all collections
+    // Field selection for optimized queries
+    const oldFields = 'name category imageUrl iconUrl latitude longitude city state address area phone email website rating reviews description offerPercent priceLevel tags featured sponsored visitorCount';
+    const adminFields = 'shopName name category photoUrl iconUrl imageUrl latitude longitude city fullAddress address area mobile planType priorityRank visitorCount isHomePageBanner categoryRef';
+    const agentFields = 'shopName category photoUrl latitude longitude address area mobile planType visitorCount';
+
+    // Fetch shops from all collections with pagination
+    const maxLimit = limit * 3; // Fetch more to account for sorting/merging
     const [oldShops, adminShops, agentShops] = await Promise.all([
-      Shop.find(categoryQuery).lean().catch(() => []),
-      AdminShop.find(categoryQuery).populate('categoryRef', 'name slug').lean().catch(() => []),
-      AgentShop.find(categoryQuery).lean().catch(() => []),
+      Shop.find(categoryQuery).select(oldFields).limit(maxLimit).lean().catch(() => []),
+      AdminShop.find(categoryQuery).select(adminFields).populate('categoryRef', 'name slug').limit(maxLimit).lean().catch(() => []),
+      AgentShop.find(categoryQuery).select(agentFields).limit(maxLimit).lean().catch(() => []),
     ]);
 
     // Transform shops to BusinessSummary format
@@ -162,19 +189,32 @@ export async function GET(
       });
     }
 
+    // Apply pagination
+    const totalCount = sortedShops.length;
+    const paginatedShops = sortedShops.slice(skip, skip + limit);
+    const totalPages = Math.ceil(totalCount / limit);
+
     return NextResponse.json({
       success: true,
-      businesses: sortedShops,
+      businesses: paginatedShops,
       category: {
         name: category.name,
         slug: category.slug,
         description: category.description,
       },
-      count: sortedShops.length,
+      count: paginatedShops.length,
+      totalCount,
+      page,
+      totalPages,
+      hasMore: page < totalPages,
+    }, {
+      headers: CACHE_HEADERS,
     });
   } catch (error: any) {
-    console.error('Error fetching businesses by category:', error);
-    console.error('Error stack:', error.stack);
+    // Only log critical errors - reduce verbosity
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching businesses by category:', error.message);
+    }
     
     // Return a proper error response
     return NextResponse.json(
