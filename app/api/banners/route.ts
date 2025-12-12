@@ -13,7 +13,7 @@ const mockBanners: BannerType[] = [
     title: 'Discover Amazing Local Businesses',
     cta: 'Explore Now',
     ctaText: 'Visit Shop',
-    linkUrl: '/search',
+    linkUrl: '/',
     alt: 'Discover local businesses with 8rupeess',
     advertiser: '8rupeess',
     sponsored: true,
@@ -314,6 +314,8 @@ const mockBanners: BannerType[] = [
 
 // Revalidate every 5 minutes
 export const revalidate = 300;
+// Force dynamic rendering since we use searchParams
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {

@@ -17,17 +17,34 @@ interface DashboardStats {
   agentPanelTextColor?: 'red' | 'green' | 'blue' | 'black';
 }
 
+interface Shop {
+  _id: string;
+  shopName: string;
+  category: string;
+  mobile: string;
+  pincode: string;
+  area: string;
+  planType: string;
+  paymentStatus: string;
+  expiryDate?: string;
+  photoUrl?: string;
+}
+
 export default function AgentDashboard() {
   const { agent, logout } = useAgentAuth();
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingShops, setLoadingShops] = useState(true);
 
   useEffect(() => {
     fetchDashboardStats();
+    fetchShops();
     // Auto-refresh dashboard stats every 30 seconds
     const interval = setInterval(() => {
       fetchDashboardStats();
+      fetchShops();
     }, 30000); // Refresh every 30 seconds
 
     return () => clearInterval(interval);
@@ -50,6 +67,27 @@ export default function AgentDashboard() {
       console.error('Failed to load dashboard stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchShops = async () => {
+    try {
+      const token = localStorage.getItem('agent_token');
+      const response = await fetch('/api/agent/shops', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // Show only recent 10 shops on dashboard
+        setShops(data.shops.slice(0, 10));
+      }
+    } catch (error) {
+      console.error('Failed to load shops:', error);
+    } finally {
+      setLoadingShops(false);
     }
   };
 
@@ -232,6 +270,106 @@ export default function AgentDashboard() {
                   </div>
                   <h3 className="font-semibold text-gray-900">Settings</h3>
                 </Link>
+              </div>
+
+              {/* Recent Shops List */}
+              <div className="mt-8">
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-gray-900">Recent Shops</h3>
+                    <Link
+                      href="/agent/shops"
+                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                    >
+                      View All →
+                    </Link>
+                  </div>
+
+                  {loadingShops ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                      <p className="text-gray-500 text-sm">Loading shops...</p>
+                    </div>
+                  ) : shops.length === 0 ? (
+                    <div className="text-center py-12">
+                      <p className="text-gray-500 mb-4">No shops added yet</p>
+                      <Link
+                        href="/agent/shops/new"
+                        className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Add Your First Shop
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Shop Name</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Category</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Pincode</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Plan</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
+                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {shops.map((shop) => (
+                            <tr key={shop._id} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-3">
+                                  {shop.photoUrl && (
+                                    <img
+                                      src={shop.photoUrl}
+                                      alt={shop.shopName}
+                                      className="w-10 h-10 rounded-lg object-cover"
+                                    />
+                                  )}
+                                  <div>
+                                    <p className="font-medium text-gray-900">{shop.shopName}</p>
+                                    <p className="text-xs text-gray-500">{shop.area}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-sm text-gray-600">{shop.category}</td>
+                              <td className="py-3 px-4 text-sm text-gray-600">{shop.pincode}</td>
+                              <td className="py-3 px-4">
+                                <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                  shop.planType === 'HERO' ? 'bg-purple-100 text-purple-700' :
+                                  shop.planType === 'LEFT_BAR' ? 'bg-blue-100 text-blue-700' :
+                                  shop.planType === 'RIGHT_SIDE' ? 'bg-green-100 text-green-700' :
+                                  shop.planType === 'BOTTOM_RAIL' ? 'bg-yellow-100 text-yellow-700' :
+                                  shop.planType === 'PREMIUM' ? 'bg-indigo-100 text-indigo-700' :
+                                  shop.planType === 'FEATURED' ? 'bg-pink-100 text-pink-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {shop.planType}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                  shop.paymentStatus === 'PAID' ? 'bg-green-100 text-green-700' :
+                                  shop.paymentStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                  {shop.paymentStatus}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <Link
+                                  href={`/agent/shops/${shop._id}`}
+                                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                                >
+                                  View Details
+                                </Link>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           )}

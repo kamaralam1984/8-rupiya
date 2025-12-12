@@ -44,6 +44,7 @@ export interface IShop extends Document {
   isLeftBar: boolean; // Left Bar Plan shops
   isRightBar: boolean; // Right Bar Plan shops
   isHero: boolean; // Hero Plan shops
+  isVisible?: boolean; // Control shop visibility (true = show, false = hide)
   createdAt: Date;
 }
 
@@ -248,6 +249,10 @@ const ShopSchema = new Schema<IShop>(
     isHero: {
       type: Boolean,
       default: false, // Only for Hero Plan
+    },
+    isVisible: {
+      type: Boolean,
+      default: true, // By default, shops are visible
     },
     createdAt: {
       type: Date,

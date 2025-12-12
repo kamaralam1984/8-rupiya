@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const planType = searchParams.get('planType');
     const limit = parseInt(searchParams.get('limit') || '10');
+    const pincode = searchParams.get('pincode');
+    const category = searchParams.get('category');
 
     if (!planType) {
       return NextResponse.json(
@@ -31,12 +33,25 @@ export async function GET(request: NextRequest) {
       ],
     };
     
-    // Combine plan type and payment filters using $and
+    // Build filters array
+    const filters: any[] = [
+      { planType: planType.toUpperCase() },
+      paymentFilter,
+    ];
+    
+    // Add pincode filter if provided
+    if (pincode) {
+      filters.push({ pincode: pincode });
+    }
+    
+    // Add category filter if provided
+    if (category) {
+      filters.push({ category: category });
+    }
+    
+    // Combine all filters using $and
     const query = {
-      $and: [
-        { planType: planType.toUpperCase() },
-        paymentFilter,
-      ],
+      $and: filters,
     };
     
     // Fetch shops with specified plan type and PAID status only

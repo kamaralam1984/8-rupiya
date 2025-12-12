@@ -64,7 +64,7 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
   return (
     <div className="w-full mt-6">
       <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 px-2">
-        Nearby Shops (30)
+        Nearby Shops ({currentBanners.length})
       </h2>
       {/* Desktop: 3 Rows of 10 images each (total 30 shops, same size) */}
       <div className="hidden md:block relative" aria-live="polite">

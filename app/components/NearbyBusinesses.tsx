@@ -144,10 +144,6 @@ export default function NearbyBusinesses({ limit = 6 }: NearbyBusinessesProps) {
               }
             </p>
           </div>
-          <a href="/search?type=nearby" className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors self-start sm:self-auto group">
-            <span>View all</span>
-            <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </a>
         </div>
 
         {businesses.length === 0 && !isLoading ? (

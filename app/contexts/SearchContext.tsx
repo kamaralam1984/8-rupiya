@@ -7,6 +7,7 @@ interface SearchParams {
   area?: string;
   category?: string;
   shopName?: string;
+  planType?: string;
 }
 
 interface SearchContextType {
@@ -26,7 +27,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   };
 
   const isSearchActive = Boolean(
-    searchParams.pincode || searchParams.area || searchParams.category || searchParams.shopName
+    searchParams.pincode || searchParams.area || searchParams.category || searchParams.shopName || searchParams.planType
   );
 
   return (

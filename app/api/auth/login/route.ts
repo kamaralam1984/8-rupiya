@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import Agent from '@/lib/models/Agent';
 import { generateToken } from '@/lib/jwt';
+import { generateAgentToken } from '@/lib/utils/agentAuth';
 
 /**
  * Login endpoint - Direct login with email and password
  * Returns JWT token on successful authentication
+ * Supports role-based login: user, admin, editor, operator, agent
  */
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { email, password } = body;
+    const { email, password, role = 'user' } = body;
 
     // Validation
     if (!email || !password) {
@@ -26,13 +29,84 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Find user and include password field
-    const user = await User.findOne({ email: normalizedEmail }).select('+password');
+    // Handle agent login separately
+    if (role === 'agent') {
+      // Find agent by email or phone
+      const agent = await Agent.findOne({
+        $or: [
+          { email: normalizedEmail },
+          { phone: email.trim() },
+        ],
+      }).select('+passwordHash');
+
+      if (!agent) {
+        return NextResponse.json(
+          { error: 'Invalid email or password' },
+          { status: 401 }
+        );
+      }
+
+      // Verify password
+      const isPasswordValid = await agent.comparePassword(password);
+      if (!isPasswordValid) {
+        return NextResponse.json(
+          { error: 'Invalid email or password' },
+          { status: 401 }
+        );
+      }
+
+      // Generate agent token
+      const token = generateAgentToken({
+        agentId: agent._id.toString(),
+        agentCode: agent.agentCode,
+        email: agent.email,
+      });
+
+      // Return agent data
+      return NextResponse.json(
+        {
+          success: true,
+          message: 'Login successful',
+          user: {
+            id: agent._id.toString(),
+            name: agent.name,
+            email: agent.email,
+            phone: agent.phone,
+            role: 'agent',
+            agentCode: agent.agentCode,
+            agentPanelText: agent.agentPanelText,
+            agentPanelTextColor: agent.agentPanelTextColor,
+            totalShops: agent.totalShops,
+            totalEarnings: agent.totalEarnings,
+          },
+          token,
+          isAgent: true,
+        },
+        { status: 200 }
+      );
+    }
+
+    // Handle user/admin/editor/operator login
+    // Find user and include password field, filter by role if specified
+    const userQuery: any = { email: normalizedEmail };
+    if (role !== 'user') {
+      userQuery.role = role;
+    }
+
+    const user = await User.findOne(userQuery).select('+password');
 
     if (!user) {
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
+      );
+    }
+
+    // Verify role matches (if role was specified and not 'user')
+    if (role !== 'user' && user.role !== role) {
+      return NextResponse.json(
+        { error: `Invalid credentials for ${role} role` },
+        { status: 403 }
       );
     }
 
@@ -86,6 +160,7 @@ export async function POST(request: NextRequest) {
           createdAt: user.createdAt,
         },
         token,
+        isAgent: false,
       },
       { status: 200 }
     );

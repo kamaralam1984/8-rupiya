@@ -239,6 +239,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
       planAmount: shop.planAmount || 100,
       paymentExpiryDate: shop.paymentExpiryDate ? new Date(shop.paymentExpiryDate).toISOString() : undefined,
       lastPaymentDate: shop.lastPaymentDate ? new Date(shop.lastPaymentDate).toISOString() : undefined,
+      isVisible: true, // Old shops default to visible
       createdAt: shop.createdAt ? new Date(shop.createdAt).toISOString() : new Date().toISOString(),
     }));
 
@@ -268,10 +269,11 @@ export const GET = requireAdmin(async (request: NextRequest) => {
         planType: shop.planType || 'BASIC', // Ensure planType is always present
         planAmount: shop.planAmount || 100, // Ensure planAmount is always present
         createdByAdmin: shop.createdByAdmin?.toString() || shop.createdByAdmin,
-        paymentExpiryDate: shop.paymentExpiryDate ? new Date(shop.paymentExpiryDate).toISOString() : undefined,
-        lastPaymentDate: shop.lastPaymentDate ? new Date(shop.lastPaymentDate).toISOString() : undefined,
-        visitorCount: shop.visitorCount || 0,
-        createdAt: shop.createdAt ? new Date(shop.createdAt).toISOString() : new Date().toISOString(),
+      paymentExpiryDate: shop.paymentExpiryDate ? new Date(shop.paymentExpiryDate).toISOString() : undefined,
+      lastPaymentDate: shop.lastPaymentDate ? new Date(shop.lastPaymentDate).toISOString() : undefined,
+      visitorCount: shop.visitorCount || 0,
+      isVisible: shop.isVisible !== undefined ? shop.isVisible : true, // Default to true if not set
+      createdAt: shop.createdAt ? new Date(shop.createdAt).toISOString() : new Date().toISOString(),
       };
       return transformed;
     });

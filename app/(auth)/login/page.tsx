@@ -5,25 +5,31 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/app/contexts/AuthContext';
+import { useAgentAuth } from '@/app/contexts/AgentAuthContext';
 import Navbar from '@/app/components/Navbar';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, isAuthenticated } = useAuth();
+  const { login: agentLogin, isAuthenticated: isAgentAuthenticated } = useAgentAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<'user' | 'admin' | 'editor' | 'operator' | 'agent'>('user');
 
   // Get redirect URL from query params
   const redirectUrl = searchParams.get('redirect') || '/';
 
   // If already logged in, redirect immediately
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && selectedRole !== 'agent') {
       router.push(redirectUrl);
     }
-  }, [isAuthenticated, redirectUrl, router]);
+    if (isAgentAuthenticated && selectedRole === 'agent') {
+      router.push('/agent/dashboard');
+    }
+  }, [isAuthenticated, isAgentAuthenticated, selectedRole, redirectUrl, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +40,7 @@ function LoginForm() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, role: selectedRole }),
       });
 
       const data = await response.json();
@@ -43,13 +49,41 @@ function LoginForm() {
         toast.dismiss(loadingToast);
         toast.success('Login successful! Welcome back!');
         
-        // Update auth context
-        login(data.token, data.user);
-        
-        // Redirect to the redirect URL or home after a short delay
-        setTimeout(() => {
-          router.push(redirectUrl);
-        }, 1000);
+        // Handle agent login
+        if (data.isAgent) {
+          // Use agent auth context for agents
+          const agentData = {
+            id: data.user.id,
+            name: data.user.name,
+            phone: data.user.phone || '',
+            email: data.user.email,
+            agentCode: data.user.agentCode,
+            agentPanelText: data.user.agentPanelText,
+            agentPanelTextColor: data.user.agentPanelTextColor,
+            totalShops: data.user.totalShops,
+            totalEarnings: data.user.totalEarnings,
+          };
+          agentLogin(data.token, agentData);
+          
+          // Redirect to agent dashboard
+          setTimeout(() => {
+            router.push('/agent/dashboard');
+          }, 1000);
+        } else {
+          // Update auth context for regular users (user, admin, editor, operator)
+          login(data.token, data.user);
+          
+          // Redirect based on role
+          let redirectPath = redirectUrl;
+          if (selectedRole === 'admin' || selectedRole === 'editor' || selectedRole === 'operator') {
+            redirectPath = '/admin';
+          }
+          
+          // Redirect to the redirect URL or role-based path after a short delay
+          setTimeout(() => {
+            router.push(redirectPath);
+          }, 1000);
+        }
       } else {
         toast.dismiss(loadingToast);
         toast.error(data.error || 'Login failed');
@@ -78,6 +112,25 @@ function LoginForm() {
 
             {/* Form */}
             <div className="px-6 py-8">
+              {/* Role Dropdown */}
+              <div className="mb-6 pb-4 border-b border-gray-200">
+                <label htmlFor="role-select" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Login As:
+                </label>
+                <select
+                  id="role-select"
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value as 'user' | 'admin' | 'editor' | 'operator' | 'agent')}
+                  className="w-full px-4 py-3 bg-white border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none text-gray-900 font-medium cursor-pointer hover:border-amber-400 transition-all"
+                >
+                  <option value="user">User (Visitor)</option>
+                  <option value="admin">Admin</option>
+                  <option value="editor">Editor</option>
+                  <option value="operator">Operator</option>
+                  <option value="agent">Agent</option>
+                </select>
+              </div>
+
               <form onSubmit={handleLogin} className="space-y-5">
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
@@ -109,7 +162,7 @@ function LoginForm() {
                   />
                 </div>
 
-                  <button
+                <button
                   type="submit"
                   disabled={loading}
                   className="w-full bg-custom-gradient hover:opacity-90 text-white font-semibold py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
@@ -126,12 +179,14 @@ function LoginForm() {
                   >
                     Forgot Password?
                   </Link>
-                  <p className="text-sm text-gray-600">
-                    Don't have an account?{' '}
-                    <Link href="/signup" className="text-amber-600 hover:text-amber-700 font-semibold">
-                      Sign Up
-                    </Link>
-                  </p>
+                  {selectedRole === 'user' && (
+                    <p className="text-sm text-gray-600">
+                      Don't have an account?{' '}
+                      <Link href="/signup" className="text-amber-600 hover:text-amber-700 font-semibold">
+                        Sign Up
+                      </Link>
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -160,4 +215,3 @@ export default function LoginPage() {
     </Suspense>
   );
 }
-

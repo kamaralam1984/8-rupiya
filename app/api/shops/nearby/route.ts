@@ -17,6 +17,7 @@ interface ShopWithDistance {
   state?: string;
   address: string;
   area?: string; // Area/locality name
+  pincode?: string; // Pincode from database
   phone?: string;
   email?: string;
   website?: string;
@@ -47,6 +48,8 @@ interface ShopWithDistance {
  * 
  * Returns shops sorted by distance, filtered by radius
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -57,8 +60,9 @@ export async function GET(request: NextRequest) {
     const city = searchParams.get('city');
     const area = searchParams.get('area');
     const pincode = searchParams.get('pincode');
+    const category = searchParams.get('category');
 
-    // If city, area, or pincode is provided, we can search without coordinates
+    // If city, area, pincode, or category is provided, we can search without coordinates
     // But if coordinates are provided, use them for distance calculation
     const hasLocationFilters = city || area || pincode;
     const hasCoordinates = userLat && userLng;
@@ -141,6 +145,22 @@ export async function GET(request: NextRequest) {
           }
         }
         
+        // Add category filter (exact match)
+        if (category) {
+          // Category should be exact match, add to $and if $or exists, otherwise add directly
+          if (queryFilter.$or) {
+            // If $or exists, we need to use $and to combine with category
+            const existingFilter = { ...queryFilter };
+            queryFilter.$and = [
+              existingFilter,
+              { category: category }
+            ];
+            delete queryFilter.$or;
+          } else {
+            queryFilter.category = category;
+          }
+        }
+        
         // Also filter by coordinates if provided (for shops with valid coordinates)
         if (hasCoordinates) {
           // We'll filter by distance later, but ensure shops have coordinates
@@ -150,6 +170,7 @@ export async function GET(request: NextRequest) {
         
         // IMPORTANT: Only show PAID shops on homepage (PENDING shops require admin approval)
         // Filter by payment status - only PAID shops should be displayed
+        // Also filter by visibility - only show shops where isVisible !== false
         const paymentFilter = {
           $or: [
             { paymentStatus: 'PAID' },
@@ -157,27 +178,48 @@ export async function GET(request: NextRequest) {
           ],
         };
         
-        // Combine payment filter with existing query
-        const finalQuery = Object.keys(queryFilter).length > 0
-          ? { $and: [queryFilter, paymentFilter] }
-          : paymentFilter;
+        // Visibility filter - only show visible shops (isVisible !== false)
+        const visibilityFilter = {
+          $or: [
+            { isVisible: true },
+            { isVisible: { $exists: false } }, // Shops without isVisible field (default to visible)
+          ],
+        };
+        
+        // Combine all filters
+        const allFilters = [paymentFilter, visibilityFilter];
+        if (Object.keys(queryFilter).length > 0) {
+          allFilters.push(queryFilter);
+        }
+        
+        const finalQuery = allFilters.length > 1
+          ? { $and: allFilters }
+          : allFilters[0];
         
         // Fetch from all shop sources: old Shop model, new AdminShop model, and AgentShop model
         // Apply filters to all queries - show all plan types
-        // If no filters, fetch all shops (limit to reasonable number)
-        const limitCount = Object.keys(finalQuery).length > 0 ? undefined : 100; // Limit to 100 if no filters
+        // On page load (no filters), fetch ALL shops from Shop.ts (AdminShop model)
+        // Check if limit parameter is provided in URL
+        const limitParam = searchParams.get('limit');
+        const limitCount = limitParam ? parseInt(limitParam) : (Object.keys(finalQuery).length > 0 ? undefined : undefined); // No limit if no filters (fetch all shops)
+        
+        // Base filter for shops without query filters (payment + visibility)
+        const baseFilter = {
+          $and: [paymentFilter, visibilityFilter]
+        };
+        
         const [oldShops, adminShops, agentShops] = await Promise.all([
           (Object.keys(finalQuery).length > 0 
             ? Shop.find(finalQuery).lean() 
-            : Shop.find(paymentFilter).limit(limitCount!).lean()
+            : (limitCount ? Shop.find(baseFilter).limit(limitCount).lean() : Shop.find(baseFilter).lean())
           ).catch(() => []), // Old shop model
           (Object.keys(finalQuery).length > 0 
             ? AdminShop.find(finalQuery).lean() 
-            : AdminShop.find(paymentFilter).limit(limitCount!).lean()
-          ).catch(() => []), // New admin shop model (shopsfromimage)
+            : (limitCount ? AdminShop.find(baseFilter).limit(limitCount).lean() : AdminShop.find(baseFilter).lean())
+          ).catch(() => []), // New admin shop model (shopsfromimage) - Shop.ts - Fetch ALL on page load
           (Object.keys(finalQuery).length > 0 
             ? AgentShop.find(finalQuery).lean() 
-            : AgentShop.find(paymentFilter).limit(limitCount!).lean()
+            : (limitCount ? AgentShop.find(baseFilter).limit(limitCount).lean() : AgentShop.find(baseFilter).lean())
           ).catch(() => []), // Agent shops - only PAID shops
         ]);
         
@@ -192,6 +234,8 @@ export async function GET(request: NextRequest) {
           city: shop.city || '',
           state: shop.state || '',
           address: shop.address || '',
+          area: shop.area || '',
+          pincode: shop.pincode || '', // Include pincode from database
           phone: shop.phone || '',
           email: shop.email || '',
           website: shop.website || '',
@@ -218,6 +262,7 @@ export async function GET(request: NextRequest) {
           state: '',
           address: shop.fullAddress || shop.address || '',
           area: shop.area || '',
+          pincode: shop.pincode || '', // Include pincode
           phone: shop.mobile || '',
           email: '',
           website: '',
@@ -250,8 +295,9 @@ export async function GET(request: NextRequest) {
           imageUrl: shop.photoUrl,
           rating: 4.5, // Default rating
           reviews: 0,
-          city: '', // Agent shops may not have city
+          city: shop.city || '', // Agent shops may not have city
           area: shop.area || '',
+          pincode: shop.pincode || '', // Include pincode from database
           state: '',
           address: shop.address,
           phone: shop.mobile || '',
@@ -327,6 +373,7 @@ export async function GET(request: NextRequest) {
           state: shop.state,
           address: shop.address,
           area: shop.area || '',
+          pincode: shop.pincode || '', // Include pincode from database
           phone: shop.phone,
           email: shop.email,
           website: shop.website,

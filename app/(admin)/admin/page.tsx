@@ -475,6 +475,57 @@ export default function AdminDashboard() {
             </div>
           </div>
         </Link>
+
+        <Link
+          href="/admin/reports"
+          className="group relative overflow-hidden bg-gradient-to-br from-emerald-50 via-green-50 to-teal-100 rounded-xl shadow-lg p-4 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 hover:-translate-y-1"
+        >
+          {/* Multi-color Border Glow Effect */}
+          <div 
+            className="absolute inset-0 rounded-xl"
+            style={{
+              background: 'linear-gradient(45deg, #ef4444, #3b82f6, #10b981, #f59e0b, #8b5cf6, #ec4899, #06b6d4, #ef4444)',
+              backgroundSize: '400% 400%',
+              animation: 'multicolorGlow 3s ease-in-out infinite',
+              filter: 'blur(10px)',
+              zIndex: 0,
+              margin: '-2px',
+              opacity: 0.6,
+            }}
+          />
+          <div className="absolute inset-[2px] bg-gradient-to-br from-emerald-50 via-green-50 to-teal-100 rounded-xl z-0" />
+          {/* Animated Background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-emerald-400/10 to-emerald-400/0 group-hover:via-emerald-400/20 transition-all duration-500 -translate-x-full group-hover:translate-x-full"></div>
+          
+          {/* Glow Effect */}
+          <div className="absolute -top-5 -right-5 w-16 h-16 bg-emerald-400/20 rounded-full blur-xl group-hover:bg-emerald-400/40 group-hover:scale-150 transition-all duration-500"></div>
+          
+          <div className="relative z-10 bg-transparent">
+            <div className="flex items-start justify-between mb-3">
+              <div className="relative">
+                <div className="absolute inset-0 bg-emerald-400/30 rounded-xl blur-lg group-hover:blur-xl group-hover:bg-emerald-400/50 transition-all duration-300"></div>
+                <div className="relative p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="p-1 bg-white/50 backdrop-blur-sm rounded-lg group-hover:bg-white/80 group-hover:rotate-12 transition-all duration-300">
+                <svg className="w-3 h-3 text-emerald-600 group-hover:text-emerald-700 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+            <h2 className="text-lg font-extrabold text-gray-900 mb-2 group-hover:text-emerald-700 transition-colors">Reports & Analytics</h2>
+            <p className="text-sm text-gray-700 mb-3 leading-relaxed">View revenue reports, agent performance, shop statistics, commission tracking. Export database to Excel/PDF.</p>
+            <div className="flex items-center gap-1 text-emerald-600 font-bold text-sm group-hover:text-emerald-700">
+              <span>View Reports</span>
+              <svg className="w-3 h-3 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </div>
+          </div>
+        </Link>
       </div>
     </div>
   );
