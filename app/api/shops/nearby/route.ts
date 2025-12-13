@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateDistance } from '@/app/utils/distance';
 import connectDB from '@/lib/mongodb';
-import AgentShop from '@/lib/models/AgentShop'; // Agent shops - ONLY source for homepage
+import AgentShop from '@/lib/models/AgentShop'; // ONLY Agent shops
 import { PRICING_PLANS } from '@/app/utils/pricing';
-// Note: Only AgentShop is used for homepage to avoid duplicates
-// Old Shop and AdminShop imports removed as they're no longer needed
+
+// Cache-Control headers for better performance
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+};
 
 interface ShopWithDistance {
   id: string;
@@ -61,6 +64,9 @@ export async function GET(request: NextRequest) {
     const area = searchParams.get('area');
     const pincode = searchParams.get('pincode');
     const category = searchParams.get('category');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200); // Max 200 items
+    const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
+    const skip = (page - 1) * limit;
 
     // If city, area, pincode, or category is provided, we can search without coordinates
     // But if coordinates are provided, use them for distance calculation
@@ -196,9 +202,7 @@ export async function GET(request: NextRequest) {
           ? { $and: allFilters }
           : allFilters[0];
         
-        // Fetch from all shop sources: old Shop model, new AdminShop model, and AgentShop model
-        // Apply filters to all queries - show all plan types
-        // On page load (no filters), fetch ALL shops from Shop.ts (AdminShop model)
+        // Fetch ONLY from AgentShop collection (to prevent duplicates)
         // Check if limit parameter is provided in URL
         const limitParam = searchParams.get('limit');
         const limitCount = limitParam ? parseInt(limitParam) : (Object.keys(finalQuery).length > 0 ? undefined : undefined); // No limit if no filters (fetch all shops)
@@ -208,14 +212,13 @@ export async function GET(request: NextRequest) {
           $and: [paymentFilter, visibilityFilter]
         };
         
-        // ONLY fetch from AgentShop to avoid duplicates on homepage
         const agentShops = await (Object.keys(finalQuery).length > 0 
           ? AgentShop.find(finalQuery).lean() 
           : (limitCount ? AgentShop.find(baseFilter).limit(limitCount).lean() : AgentShop.find(baseFilter).lean())
-        ).catch(() => []); // Agent shops - only PAID shops
+        ).catch(() => []); // ONLY Agent shops
         
-        // Transform agent shops ONLY
-        shops = agentShops.map((shop: any) => ({
+        // Transform agent shops
+        const transformedAgentShops = agentShops.map((shop: any) => ({
           id: shop._id.toString(),
           name: shop.shopName,
           category: shop.category,
@@ -249,7 +252,10 @@ export async function GET(request: NextRequest) {
           isRightBar: shop.planType === 'RIGHT_BAR' || false,
         }));
         
-        console.log(`Loaded ${agentShops.length} agent shops (ONLY AgentShop used for homepage)`);
+        // Use ONLY agent shops
+        shops = transformedAgentShops;
+        
+        console.log(`Loaded ${agentShops.length} agent shops (ONLY AgentShop collection)`);
       } catch (dbError) {
         console.error('MongoDB error:', dbError);
         // Return empty array if MongoDB fails
@@ -339,11 +345,20 @@ export async function GET(request: NextRequest) {
         return 0; // Keep original order if no coordinates
       });
 
+    // Apply pagination
+    const totalCount = shopsWithDistance.length;
+    const paginatedShops = shopsWithDistance.slice(skip, skip + limit);
+    const totalPages = Math.ceil(totalCount / limit);
+
     return NextResponse.json(
       {
         success: true,
-        shops: shopsWithDistance,
-        count: shopsWithDistance.length,
+        shops: paginatedShops,
+        count: paginatedShops.length,
+        totalCount,
+        page,
+        totalPages,
+        hasMore: page < totalPages,
         radiusKm: radiusKmNum,
         userLocation: hasCoordinates ? {
           latitude: userLatNum,
@@ -355,7 +370,10 @@ export async function GET(request: NextRequest) {
           pincode: pincode || null,
         } : null,
       },
-      { status: 200 }
+      { 
+        status: 200,
+        headers: CACHE_HEADERS,
+      }
     );
   } catch (error: any) {
     console.error('Error in /api/shops/nearby:', error);

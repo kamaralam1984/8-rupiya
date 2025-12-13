@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import AgentShop from '@/lib/models/AgentShop';
-// Note: Only AgentShop is used for homepage to avoid duplicates
-// AdminShop and OldShop imports removed as they're no longer needed
+
+// Cache-Control headers - cache for 1 minute (search results change frequently)
+const CACHE_HEADERS = {
+  'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+};
 
 interface Shop {
   id: string;
@@ -31,6 +34,7 @@ interface SearchParams {
   pincode?: string;
   area?: string;
   category?: string;
+  city?: string;
   shopName?: string;
   planType?: string;
   userLat?: number;
@@ -158,14 +162,13 @@ function calculateShopScore(
  */
 export async function GET(request: NextRequest) {
   try {
-    // Connect to MongoDB database
     await connectDB();
-    console.log('✅ Database connected successfully');
 
     const { searchParams } = new URL(request.url);
     const pincode = searchParams.get('pincode') || undefined;
     const area = searchParams.get('area') || undefined;
     const category = searchParams.get('category') || undefined;
+    const city = searchParams.get('city') || undefined;
     const shopName = searchParams.get('shopName') || undefined;
     const planType = searchParams.get('planType') || undefined;
     const userLat = searchParams.get('userLat') ? parseFloat(searchParams.get('userLat')!) : undefined;
@@ -175,6 +178,7 @@ export async function GET(request: NextRequest) {
       pincode,
       area,
       category,
+      city,
       shopName,
       planType,
       userLat,
@@ -186,32 +190,65 @@ export async function GET(request: NextRequest) {
 
     // EXACT Pincode match (when pincode is selected)
     // Normalize pincode: trim whitespace and ensure it's a string
+    // Note: We use exact match for pincode to ensure accurate results
     if (pincode) {
       const normalizedPincode = pincode.toString().trim();
       if (normalizedPincode) {
         query.pincode = normalizedPincode; // Exact match, not regex
-        console.log(`📍 Filtering by pincode: "${normalizedPincode}"`);
+        console.log(`📍 Filtering by pincode (exact match): "${normalizedPincode}"`);
       }
     }
 
-    // Area filter (flexible matching) - matches area, address, or city
-    if (area) {
-      const areaRegex = new RegExp(area.trim(), 'i');
-      query.$or = [
-        { area: areaRegex },
-        { address: areaRegex },
-        { fullAddress: areaRegex },
-        { city: areaRegex },
-      ];
-      console.log(`📍 Filtering by area/city: "${area.trim()}"`);
+    // City filter (exact or flexible matching)
+    if (city) {
+      if (query.$or) {
+        query.$or.push(
+          { city: new RegExp(city, 'i') },
+          { fullAddress: new RegExp(city, 'i') },
+          { address: new RegExp(city, 'i') }
+        );
+      } else {
+        query.$or = [
+          { city: new RegExp(city, 'i') },
+          { fullAddress: new RegExp(city, 'i') },
+          { address: new RegExp(city, 'i') },
+        ];
+      }
     }
 
-    // Category filter (case-insensitive flexible matching)
-    // This ensures shops from selected category are shown
+    // Area filter (flexible matching)
+    if (area) {
+      if (query.$or) {
+        query.$or.push(
+          { area: new RegExp(area, 'i') },
+          { address: new RegExp(area, 'i') },
+          { fullAddress: new RegExp(area, 'i') },
+          { city: new RegExp(area, 'i') }
+        );
+      } else {
+      query.$or = [
+        { area: new RegExp(area, 'i') },
+        { address: new RegExp(area, 'i') },
+        { fullAddress: new RegExp(area, 'i') },
+        { city: new RegExp(area, 'i') },
+      ];
+      }
+    }
+
+    // EXACT Category match (when category is selected)
+    // This ensures only shops from selected category are shown
     if (category) {
-      // Use case-insensitive regex for flexible matching
-      query.category = new RegExp(category.trim(), 'i');
-      console.log(`📍 Filtering by category: "${category.trim()}"`);
+      if (query.$or) {
+        // If $or exists, use $and to combine with category
+        const existingFilter = { ...query };
+        query.$and = [
+          existingFilter,
+          { category: category }
+        ];
+        delete query.$or;
+      } else {
+      query.category = category; // Exact match, not regex
+      }
     }
 
     // Shop Name filter (flexible matching for partial names)
@@ -242,14 +279,12 @@ export async function GET(request: NextRequest) {
     if (pincode) {
       const normalizedPincode = pincode.toString().trim();
       if (normalizedPincode) {
-        // Pincode is stored as String in AgentShop schema, so match as string
         conditions.push({ pincode: normalizedPincode });
       }
     }
     
     if (category) {
-      // Use case-insensitive regex for flexible category matching
-      conditions.push({ category: new RegExp(category.trim(), 'i') });
+      conditions.push({ category: category });
     }
     
     // Plan Type filter (exact match)
@@ -270,7 +305,12 @@ export async function GET(request: NextRequest) {
       Object.assign(finalQuery, conditions[0]);
     }
 
-    // Fetch shops from all sources - PRIORITIZE AgentShops
+    // Get pagination params
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200);
+    const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
+    const skip = (page - 1) * limit;
+
+    // Fetch shops ONLY from AgentShop collection (to prevent duplicates)
     // Use lean() for performance, select only needed fields, add index hints
     const projection = {
       shopName: 1,
@@ -293,97 +333,20 @@ export async function GET(request: NextRequest) {
       paymentStatus: 1,
     };
 
-    // ONLY fetch from AgentShop to avoid duplicates on homepage
-    // This is the MAIN database connection point for Search Shops
-    console.log('🔗 Fetching shops from AgentShop database...');
-    let agentShops = await AgentShop.find(finalQuery)
+    const agentShops = await AgentShop.find(finalQuery)
       .select(projection)
       .limit(200)
       .lean()
       .hint({ planType: 1, pincode: 1 }) // Use index for better performance
       .catch((err) => {
-        console.error('❌ Error fetching AgentShops from database:', err);
+        console.error('Error fetching AgentShops:', err);
         return [];
       });
-    
-    console.log(`✅ Successfully fetched ${agentShops.length} shops from AgentShop database`);
 
     // Log counts for debugging
     console.log(`\n🔍 Search Parameters:`, { shopName, category, pincode, planType, area, userLat, userLng });
     console.log(`📋 MongoDB Query:`, JSON.stringify(finalQuery, null, 2));
-    console.log(`📊 Database Results (Exact Match): Agent=${agentShops.length} (ONLY AgentShop used for homepage)`);
-    
-    // FALLBACK: If no shops found with exact filters, try with less strict filters
-    // This ensures shops are always shown when user searches
-    if (agentShops.length === 0 && (pincode || category || area || shopName)) {
-      console.log(`⚠️ No exact matches found. Trying fallback query with flexible filters...`);
-      
-      // Build fallback query - keep flexible filters (shopName, area) but remove strict ones (pincode, category)
-      const fallbackConditions: any[] = [paymentFilter];
-      
-      // Keep shopName filter (flexible regex matching)
-      if (shopName) {
-        fallbackConditions.push({
-          $or: [
-            { shopName: new RegExp(shopName, 'i') },
-            { name: new RegExp(shopName, 'i') }
-          ]
-        });
-      }
-      
-      // Keep category filter (flexible regex matching)
-      if (category) {
-        fallbackConditions.push({ category: new RegExp(category.trim(), 'i') });
-      }
-      
-      // Keep area filter (flexible regex matching)
-      if (area) {
-        const areaRegex = new RegExp(area.trim(), 'i');
-        fallbackConditions.push({
-          $or: [
-            { area: areaRegex },
-            { address: areaRegex },
-            { fullAddress: areaRegex },
-            { city: areaRegex }
-          ]
-        });
-      }
-      
-      // Build fallback query
-      const fallbackQuery: any = fallbackConditions.length > 1 
-        ? { $and: fallbackConditions }
-        : fallbackConditions[0];
-      
-      // If no flexible filters, just show all paid shops
-      const finalFallbackQuery = (shopName || category || area) ? fallbackQuery : paymentFilter;
-      
-      agentShops = await AgentShop.find(finalFallbackQuery)
-        .select(projection)
-        .limit(200)
-        .lean()
-        .hint({ planType: 1, pincode: 1 })
-        .catch((err) => {
-          console.error('Error fetching AgentShops (fallback):', err);
-          return [];
-        });
-      
-      console.log(`📊 Database Results (Fallback): Agent=${agentShops.length}`);
-      
-      // If still no results, show all paid shops (final fallback)
-      if (agentShops.length === 0) {
-        console.log(`⚠️ No shops found with filters. Showing all paid shops...`);
-        agentShops = await AgentShop.find(paymentFilter)
-          .select(projection)
-          .limit(200)
-          .lean()
-          .hint({ planType: 1, pincode: 1 })
-          .catch((err) => {
-            console.error('Error fetching AgentShops (final fallback):', err);
-            return [];
-          });
-        console.log(`📊 Database Results (Final Fallback - All Paid Shops): Agent=${agentShops.length}`);
-      }
-    }
+    console.log(`📊 Database Results: Agent=${agentShops.length} (ONLY AgentShop collection)`);
     
     // Log plan type distribution
     const planTypeCounts: Record<string, number> = {};
@@ -393,7 +356,7 @@ export async function GET(request: NextRequest) {
     });
     console.log(`📊 Plan Type Distribution:`, planTypeCounts);
 
-    // Transform shops - ONLY AgentShops
+    // Transform shops - ONLY from AgentShop
     const allShops: Shop[] = agentShops.map((shop: any) => ({
       id: shop._id.toString(),
       name: shop.shopName || shop.name,
@@ -411,28 +374,22 @@ export async function GET(request: NextRequest) {
       mobile: shop.mobile,
       visitorCount: shop.visitorCount || 0,
       priorityRank: shop.priorityRank || 0,
-      planType: shop.planType || 'BASIC', // Ensure planType is always set
+      planType: shop.planType,
       offers: shop.offers || [],
-      source: 'agent', // Mark as agent shop
     }));
 
-    // No need to remove duplicates since we're only using AgentShop
+    // No need for deduplication since we're only using one collection
     const uniqueShops = allShops;
-    
-    // Debug: Log transformed shops
-    console.log(`🔄 Transformed shops: ${uniqueShops.length}`);
-    if (uniqueShops.length > 0) {
-      console.log(`📋 Sample shop plans:`, uniqueShops.slice(0, 5).map(s => ({ id: s.id, name: s.name, planType: s.planType })));
-    }
 
-      // Calculate scores for all shops (all are agent shops now)
-      const scoredShops = uniqueShops.map((shop) => {
-        const baseScore = calculateShopScore(shop, searchParamsObj, userLat, userLng);
-        return {
-          ...shop,
-          score: baseScore,
-        };
-      });
+    // Calculate scores for all shops
+    const scoredShops = uniqueShops.map((shop) => {
+      const baseScore = calculateShopScore(shop, searchParamsObj, userLat, userLng);
+      
+      return {
+        ...shop,
+        score: baseScore,
+      };
+    });
 
     // Sort by score (descending) - agent shops will rank higher
     scoredShops.sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -441,11 +398,6 @@ export async function GET(request: NextRequest) {
     const displayedShopIds = new Set<string>();
 
     // **STEP 1: Organize by Plan Type First (Priority System)**
-    
-    // Debug: Log all plan types before filtering
-    const allPlanTypes = scoredShops.map(s => s.planType || 'BASIC');
-    console.log(`📊 All plan types in scored shops:`, [...new Set(allPlanTypes)]);
-    console.log(`📊 Total scored shops: ${scoredShops.length}`);
     
     // HERO Plan Shops - for hero banner section
     const heroShops = scoredShops.filter((s) => s.planType === 'HERO');
@@ -459,12 +411,14 @@ export async function GET(request: NextRequest) {
     // BOTTOM_RAIL Plan Shops - for bottom rail section
     const bottomRailShops = scoredShops.filter((s) => s.planType === 'BOTTOM_RAIL');
     
-    // All other shops (PREMIUM, FEATURED, BASIC, BANNER, or no planType) - for bottom strip
-    // Include ALL shops that are not HERO, LEFT_BAR, RIGHT_SIDE, or BOTTOM_RAIL
-    const bottomStripShops = scoredShops.filter((s) => {
-      const plan = s.planType || 'BASIC'; // Default to BASIC if no planType
-      return !['HERO', 'LEFT_BAR', 'RIGHT_SIDE', 'BOTTOM_RAIL'].includes(plan);
-    });
+    // PREMIUM, FEATURED, BASIC, BANNER - for bottom strip
+    const bottomStripShops = scoredShops.filter((s) => 
+      s.planType === 'PREMIUM' || 
+      s.planType === 'FEATURED' || 
+      s.planType === 'BASIC' || 
+      s.planType === 'BANNER' ||
+      !s.planType // Include shops without plan type
+    );
 
     // Log plan-based organization
     console.log(`📋 Plan Organization: HERO=${heroShops.length}, LEFT_BAR=${leftBarShops.length}, RIGHT_SIDE=${rightSideShops.length}, BOTTOM_RAIL=${bottomRailShops.length}, Other=${bottomStripShops.length}`);
@@ -479,6 +433,7 @@ export async function GET(request: NextRequest) {
     }
 
     // **STEP 3: Left Rail - LEFT_BAR plan shops (sorted by score)**
+    // If no LEFT_BAR shops found and filters are active, show any filtered shops
     const leftRail: Shop[] = [];
     const leftRailCandidates = leftBarShops
       .filter((s) => !displayedShopIds.has(s.id))
@@ -490,8 +445,21 @@ export async function GET(request: NextRequest) {
       displayedShopIds.add(shop.id);
       if (leftRail.length >= 10) break; // Increased limit for paid ads
     }
+    
+    // Fallback: If no LEFT_BAR shops and filters are active, use any filtered shops
+    if (leftRail.length === 0 && (pincode || city || category || shopName)) {
+      const fallbackShops = scoredShops
+        .filter((s) => !displayedShopIds.has(s.id) && s.planType !== 'HERO' && s.planType !== 'RIGHT_SIDE')
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .slice(0, 3);
+      for (const shop of fallbackShops) {
+        leftRail.push(shop);
+        displayedShopIds.add(shop.id);
+      }
+    }
 
     // **STEP 4: Right Rail - RIGHT_SIDE plan shops (sorted by score)**
+    // If no RIGHT_SIDE shops found and filters are active, show any filtered shops
     const rightRail: Shop[] = [];
     const rightRailCandidates = rightSideShops
       .filter((s) => !displayedShopIds.has(s.id))
@@ -503,26 +471,30 @@ export async function GET(request: NextRequest) {
       displayedShopIds.add(shop.id);
       if (rightRail.length >= 10) break; // Increased limit for paid ads
     }
+    
+    // Fallback: If no RIGHT_SIDE shops and filters are active, use any filtered shops
+    if (rightRail.length === 0 && (pincode || city || category || shopName)) {
+      const fallbackShops = scoredShops
+        .filter((s) => !displayedShopIds.has(s.id) && s.planType !== 'HERO' && s.planType !== 'LEFT_BAR')
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .slice(0, 3);
+      for (const shop of fallbackShops) {
+        rightRail.push(shop);
+        displayedShopIds.add(shop.id);
+      }
+    }
 
     // **STEP 5: Bottom Strip - Mix of BOTTOM_RAIL, BASIC, PREMIUM, FEATURED, BANNER, and HERO**
-    // IMPORTANT: Bottom strip should show ALL remaining shops that weren't placed in other sections
-    // This ensures all shops are displayed somewhere
+    // HERO shops appear in both hero section AND bottom strip
     const bottomStrip: Shop[] = [];
     
-    // Get all shops that haven't been displayed yet
-    const remainingShops = scoredShops.filter((s) => !displayedShopIds.has(s.id));
-    
-    // Combine ALL remaining shops for bottom strip (not just specific plan types)
-    // This ensures no shop is left out
+    // Combine BOTTOM_RAIL and other plan shops for bottom strip
     const allBottomStripCandidates = [
-      ...bottomRailShops.filter((s) => !displayedShopIds.has(s.id)),
-      ...bottomStripShops.filter((s) => !displayedShopIds.has(s.id)),
-      ...remainingShops, // Include ALL remaining shops
+      ...bottomRailShops,
+      ...bottomStripShops,
+      ...heroShops, // HERO shops also appear in bottom strip
     ]
-      .filter((s, index, self) => {
-        // Remove duplicates
-        return index === self.findIndex((shop) => shop.id === s.id);
-      })
+      .filter((s) => !displayedShopIds.has(s.id))
       .sort((a, b) => {
         // Sort by plan priority: HERO > BOTTOM_RAIL > PREMIUM > FEATURED > BANNER > BASIC
         const planPriority: Record<string, number> = {
@@ -542,7 +514,6 @@ export async function GET(request: NextRequest) {
         return (b.score || 0) - (a.score || 0);
       });
 
-    // Add ALL remaining shops to bottom strip (up to limit)
     for (const shop of allBottomStripCandidates) {
       if (displayedShopIds.has(shop.id)) continue;
       bottomStrip.push(shop);
@@ -552,43 +523,14 @@ export async function GET(request: NextRequest) {
       }
       if (bottomStrip.length >= 30) break; // Limit for performance
     }
-    
-    // CRITICAL: If there are still shops not displayed, add them to bottom strip
-    // This ensures ALL shops are shown
-    const stillRemaining = scoredShops.filter((s) => !displayedShopIds.has(s.id));
-    if (stillRemaining.length > 0 && bottomStrip.length < 30) {
-      console.log(`⚠️ Adding ${stillRemaining.length} remaining shops to bottom strip`);
-      for (const shop of stillRemaining) {
-        if (bottomStrip.length >= 30) break;
-        bottomStrip.push(shop);
-        if (shop.planType !== 'HERO') {
-          displayedShopIds.add(shop.id);
-        }
-      }
-    }
 
     // Log final results
     console.log(`✅ Search Results Ready: Hero=${mainResults.length}, Left=${leftRail.length}, Right=${rightRail.length}, Bottom=${bottomStrip.length}, Total=${uniqueShops.length}`);
     console.log(`📌 Pincode Filter: ${pincode || 'None'}, Found Shops: ${uniqueShops.length}`);
 
-    // If filters are active but no shops found, log warning
-    if ((pincode || category || area || shopName) && uniqueShops.length === 0) {
-      console.warn(`⚠️ No shops found for search:`, { pincode, category, area, shopName });
-    }
-    
-    // If shops found but not distributed to any section, log warning and force add to bottom strip
-    if (uniqueShops.length > 0 && mainResults.length === 0 && leftRail.length === 0 && rightRail.length === 0 && bottomStrip.length === 0) {
-      console.warn(`⚠️ Shops found (${uniqueShops.length}) but not distributed to any section!`);
-      console.warn(`   Plan types:`, uniqueShops.map(s => s.planType || 'BASIC'));
-      console.warn(`   🔧 FIXING: Adding all shops to bottom strip...`);
-      
-      // Force add all shops to bottom strip if nothing was distributed
-      const allShopsForBottom = scoredShops
-        .sort((a, b) => (b.score || 0) - (a.score || 0))
-        .slice(0, 30);
-      
-      bottomStrip.push(...allShopsForBottom);
-      console.log(`   ✅ Added ${allShopsForBottom.length} shops to bottom strip`);
+    // If pincode filter is active but no shops found, log warning
+    if (pincode && uniqueShops.length === 0) {
+      console.warn(`⚠️ No shops found for pincode: ${pincode}`);
     }
 
     const response = NextResponse.json({
@@ -598,6 +540,9 @@ export async function GET(request: NextRequest) {
       rightRail,
       bottomStrip,
       totalFound: uniqueShops.length,
+      page,
+      limit,
+      hasMore: uniqueShops.length > (skip + limit),
       resultCounts: {
         hero: mainResults.length,
         leftBar: leftRail.length,
@@ -608,6 +553,8 @@ export async function GET(request: NextRequest) {
         pincode: pincode || null,
         category: category || null,
       },
+    }, {
+      headers: CACHE_HEADERS,
     });
 
     // Add caching headers for better performance (60s cache, 2min stale-while-revalidate)
