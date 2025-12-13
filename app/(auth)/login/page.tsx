@@ -59,18 +59,6 @@ function LoginForm() {
         toast.dismiss(loadingToast);
         toast.success('Login successful! Welcome back!');
         
-<<<<<<< HEAD
-        // Update auth context
-        login(data.token, data.user);
-        
-        // Small delay to ensure token is saved
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Redirect to the redirect URL or home after a short delay
-        setTimeout(() => {
-          router.push(redirectUrl);
-        }, 1000);
-=======
         // Handle agent login
         if (data.isAgent) {
           // Use agent auth context for agents
@@ -95,6 +83,9 @@ function LoginForm() {
           // Update auth context for regular users (user, admin, editor, operator)
           login(data.token, data.user);
           
+          // Small delay to ensure token is saved
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           // Redirect based on role
           let redirectPath = redirectUrl;
           if (selectedRole === 'admin' || selectedRole === 'editor' || selectedRole === 'operator') {
@@ -106,7 +97,6 @@ function LoginForm() {
             router.push(redirectPath);
           }, 1000);
         }
->>>>>>> main
       } else {
         toast.dismiss(loadingToast);
         toast.error(data.error || 'Login failed');

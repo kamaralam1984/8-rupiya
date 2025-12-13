@@ -74,8 +74,9 @@ async function migratePincodes() {
       // If area doesn't exist, try to extract from address or use city
       if (!area) {
         // Try to extract area from address (common patterns)
-        const address = String(shop.address || '').trim();
-        const city = String(shop.city || '').trim();
+        // Use type assertion since address and city may not exist on all shop types
+        const address = String((shop as any).address || '').trim();
+        const city = String((shop as any).city || '').trim();
         
         // Common area patterns in addresses
         if (address) {

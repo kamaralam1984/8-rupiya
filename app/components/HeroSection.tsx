@@ -1030,25 +1030,10 @@ export default function HeroSection({ category }: HeroSectionProps) {
       aria-label="Hero banner section"
     >
       {/* Parent Container - White Card */}
-<<<<<<< HEAD
-      <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-2 sm:p-3 md:p-4">
-        {/* SLIDER + SEARCH PITARA - Side by Side (50%-50%) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-2 items-stretch">
-          {/* Left: Slider (50%) */}
-          <div className="w-full flex items-stretch h-full">
-            <BestDealsSlider category={category} />
-          </div>
-          
-          {/* Right: Search Pitara (50%) */}
-          <div className="w-full flex items-stretch h-full">
-            <DigitalShopDirectory />
-          </div>
-=======
       <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-2 sm:p-2 md:p-3">
         {/* SLIDER - Full Width */}
         <div className="mb-4">
           <BestDealsSlider category={category} />
->>>>>>> main
         </div>
 
         {/* Desktop: 3-Column Grid Layout */}

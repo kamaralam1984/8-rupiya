@@ -63,13 +63,10 @@ export async function GET(request: NextRequest) {
     const city = searchParams.get('city');
     const area = searchParams.get('area');
     const pincode = searchParams.get('pincode');
-<<<<<<< HEAD
+    const category = searchParams.get('category');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200); // Max 200 items
     const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
     const skip = (page - 1) * limit;
-=======
-    const category = searchParams.get('category');
->>>>>>> main
 
     // If city, area, pincode, or category is provided, we can search without coordinates
     // But if coordinates are provided, use them for distance calculation
@@ -195,47 +192,11 @@ export async function GET(request: NextRequest) {
           ],
         };
         
-<<<<<<< HEAD
-        // Fetch from all shop sources: old Shop model, new AdminShop model, and AgentShop model
-        // Apply filters to all queries - show all plan types
-        // Use pagination and field selection for better performance
-        const maxLimit = limit * 3; // Fetch more to account for sorting/merging, then paginate
-        const [oldShops, adminShops, agentShops] = await Promise.all([
-          (Object.keys(finalQuery).length > 0 
-            ? Shop.find(finalQuery)
-                .select('name category imageUrl iconUrl latitude longitude city state address area phone email website rating reviews description offerPercent priceLevel tags featured sponsored visitorCount')
-                .lean() 
-            : Shop.find(paymentFilter)
-                .select('name category imageUrl iconUrl latitude longitude city state address area phone email website rating reviews description offerPercent priceLevel tags featured sponsored visitorCount')
-                .limit(maxLimit)
-                .lean()
-          ).catch(() => []), // Old shop model
-          (Object.keys(finalQuery).length > 0 
-            ? AdminShop.find(finalQuery)
-                .select('shopName name category photoUrl iconUrl imageUrl latitude longitude city fullAddress address area mobile planType priorityRank isLeftBar isRightBar visitorCount')
-                .lean() 
-            : AdminShop.find(paymentFilter)
-                .select('shopName name category photoUrl iconUrl imageUrl latitude longitude city fullAddress address area mobile planType priorityRank isLeftBar isRightBar visitorCount')
-                .limit(maxLimit)
-                .lean()
-          ).catch(() => []), // New admin shop model (shopsfromimage)
-          (Object.keys(finalQuery).length > 0 
-            ? AgentShop.find(finalQuery)
-                .select('shopName category photoUrl latitude longitude address area mobile planType visitorCount')
-                .lean() 
-            : AgentShop.find(paymentFilter)
-                .select('shopName category photoUrl latitude longitude address area mobile planType visitorCount')
-                .limit(maxLimit)
-                .lean()
-          ).catch(() => []), // Agent shops - only PAID shops
-        ]);
-=======
         // Combine all filters
         const allFilters = [paymentFilter, visibilityFilter];
         if (Object.keys(queryFilter).length > 0) {
           allFilters.push(queryFilter);
         }
->>>>>>> main
         
         const finalQuery = allFilters.length > 1
           ? { $and: allFilters }
@@ -294,11 +255,7 @@ export async function GET(request: NextRequest) {
         // Use ONLY agent shops
         shops = transformedAgentShops;
         
-<<<<<<< HEAD
-        // Removed verbose log - only log errors
-=======
         console.log(`Loaded ${agentShops.length} agent shops (ONLY AgentShop collection)`);
->>>>>>> main
       } catch (dbError) {
         console.error('MongoDB error:', dbError);
         // Return empty array if MongoDB fails
