@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateDistance } from '@/app/utils/distance';
 import connectDB from '@/lib/mongodb';
-import Shop from '@/models/Shop'; // Old shop model
-import AdminShop from '@/lib/models/Shop'; // New admin shop model (shopsfromimage collection)
-import AgentShop from '@/lib/models/AgentShop'; // Agent shops
+import AgentShop from '@/lib/models/AgentShop'; // ONLY Agent shops
 import { PRICING_PLANS } from '@/app/utils/pricing';
 
 interface ShopWithDistance {
@@ -196,9 +194,7 @@ export async function GET(request: NextRequest) {
           ? { $and: allFilters }
           : allFilters[0];
         
-        // Fetch from all shop sources: old Shop model, new AdminShop model, and AgentShop model
-        // Apply filters to all queries - show all plan types
-        // On page load (no filters), fetch ALL shops from Shop.ts (AdminShop model)
+        // Fetch ONLY from AgentShop collection (to prevent duplicates)
         // Check if limit parameter is provided in URL
         const limitParam = searchParams.get('limit');
         const limitCount = limitParam ? parseInt(limitParam) : (Object.keys(finalQuery).length > 0 ? undefined : undefined); // No limit if no filters (fetch all shops)
@@ -208,84 +204,10 @@ export async function GET(request: NextRequest) {
           $and: [paymentFilter, visibilityFilter]
         };
         
-        const [oldShops, adminShops, agentShops] = await Promise.all([
-          (Object.keys(finalQuery).length > 0 
-            ? Shop.find(finalQuery).lean() 
-            : (limitCount ? Shop.find(baseFilter).limit(limitCount).lean() : Shop.find(baseFilter).lean())
-          ).catch(() => []), // Old shop model
-          (Object.keys(finalQuery).length > 0 
-            ? AdminShop.find(finalQuery).lean() 
-            : (limitCount ? AdminShop.find(baseFilter).limit(limitCount).lean() : AdminShop.find(baseFilter).lean())
-          ).catch(() => []), // New admin shop model (shopsfromimage) - Shop.ts - Fetch ALL on page load
-          (Object.keys(finalQuery).length > 0 
-            ? AgentShop.find(finalQuery).lean() 
-            : (limitCount ? AgentShop.find(baseFilter).limit(limitCount).lean() : AgentShop.find(baseFilter).lean())
-          ).catch(() => []), // Agent shops - only PAID shops
-        ]);
-        
-        // Transform old shops
-        const transformedOldShops = oldShops.map((shop: any) => ({
-          id: shop._id.toString(),
-          name: shop.name,
-          category: shop.category,
-          imageUrl: shop.imageUrl,
-          rating: shop.rating || 4.5, // Default rating if not present
-          reviews: shop.reviews || 0,
-          city: shop.city || '',
-          state: shop.state || '',
-          address: shop.address || '',
-          area: shop.area || '',
-          pincode: shop.pincode || '', // Include pincode from database
-          phone: shop.phone || '',
-          email: shop.email || '',
-          website: shop.website || '',
-          latitude: shop.latitude,
-          longitude: shop.longitude,
-          description: shop.description || '',
-          offerPercent: shop.offerPercent || 0,
-          priceLevel: shop.priceLevel || '',
-          tags: shop.tags || [],
-          featured: shop.featured || false,
-          sponsored: shop.sponsored || false,
-          visitorCount: shop.visitorCount || 0,
-        }));
-        
-        // Transform admin shops (from shopsfromimage collection)
-        const transformedAdminShops = adminShops.map((shop: any) => ({
-          id: shop._id.toString(),
-          name: shop.shopName || shop.name,
-          category: shop.category,
-          imageUrl: shop.photoUrl || shop.iconUrl || shop.imageUrl,
-          rating: 4.5, // Default rating
-          reviews: 0,
-          city: shop.city || '',
-          state: '',
-          address: shop.fullAddress || shop.address || '',
-          area: shop.area || '',
-          pincode: shop.pincode || '', // Include pincode
-          phone: shop.mobile || '',
-          email: '',
-          website: '',
-          latitude: shop.latitude,
-          longitude: shop.longitude,
-          description: '',
-          offerPercent: 0,
-          priceLevel: '',
-          tags: [],
-          featured: shop.planType === 'FEATURED' || shop.isHomePageBanner || false,
-          sponsored: shop.planType === 'PREMIUM' || shop.planType === 'FEATURED' || false,
-          visitorCount: shop.visitorCount || 0,
-          planType: shop.planType || 'BASIC',
-          priorityRank: (() => {
-            const planType = (shop.planType || 'BASIC') as keyof typeof PRICING_PLANS;
-            const planDetails = PRICING_PLANS[planType] || PRICING_PLANS.BASIC;
-            return shop.priorityRank !== undefined && shop.priorityRank !== null 
-              ? shop.priorityRank 
-              : planDetails.priorityRank;
-          })(),
-          isLeftBar: shop.isLeftBar || shop.planType === 'LEFT_BAR' || false,
-          isRightBar: shop.isRightBar || shop.planType === 'RIGHT_BAR' || false,
-        }));
+        const agentShops = await (Object.keys(finalQuery).length > 0 
+          ? AgentShop.find(finalQuery).lean() 
+          : (limitCount ? AgentShop.find(baseFilter).limit(limitCount).lean() : AgentShop.find(baseFilter).lean())
+        ).catch(() => []); // ONLY Agent shops
         
         // Transform agent shops
         const transformedAgentShops = agentShops.map((shop: any) => ({
@@ -322,10 +244,10 @@ export async function GET(request: NextRequest) {
           isRightBar: shop.planType === 'RIGHT_BAR' || false,
         }));
         
-        // Combine all shops
-        shops = [...transformedOldShops, ...transformedAdminShops, ...transformedAgentShops];
+        // Use ONLY agent shops
+        shops = transformedAgentShops;
         
-        console.log(`Loaded ${oldShops.length} old shops, ${adminShops.length} admin shops, ${agentShops.length} agent shops`);
+        console.log(`Loaded ${agentShops.length} agent shops (ONLY AgentShop collection)`);
       } catch (dbError) {
         console.error('MongoDB error:', dbError);
         // Return empty array if MongoDB fails
