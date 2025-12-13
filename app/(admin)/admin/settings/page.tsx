@@ -21,12 +21,6 @@ interface IconSizes {
   topCategories: number;
 }
 
-interface SectionVisibility {
-  leftRail: boolean;
-  rightRail: boolean;
-  bottomRail: boolean;
-  rightSide: boolean;
-}
 
 export default function DisplayLimitsPage() {
   const { token } = useAuth();
@@ -46,12 +40,6 @@ export default function DisplayLimitsPage() {
     featuredBusinesses: 200,
     latestOffers: 200,
     topCategories: 112,
-  });
-  const [sectionVisibility, setSectionVisibility] = useState<SectionVisibility>({
-    leftRail: true,
-    rightRail: true,
-    bottomRail: true,
-    rightSide: true,
   });
 
   useEffect(() => {
@@ -73,9 +61,6 @@ export default function DisplayLimitsPage() {
         if (data.settings.iconSizes) {
           setIconSizes(data.settings.iconSizes);
         }
-        if (data.settings.sectionVisibility) {
-          setSectionVisibility(data.settings.sectionVisibility);
-        }
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -94,7 +79,7 @@ export default function DisplayLimitsPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ displayLimits: limits, iconSizes: iconSizes, sectionVisibility: sectionVisibility }),
+        body: JSON.stringify({ displayLimits: limits, iconSizes: iconSizes }),
       });
 
       const data = await res.json();
@@ -338,77 +323,6 @@ export default function DisplayLimitsPage() {
                   >
                     Reset
                   </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-8 flex justify-end gap-3">
-          <button
-            onClick={fetchSettings}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {saving ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Saving...
-              </>
-            ) : (
-              'Save Changes'
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Section Visibility Configuration */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">👁️ Section Visibility Configuration</h1>
-        <p className="text-gray-600 mb-6">
-          Turn sections ON/OFF. When a section is OFF, other sections will automatically adjust to fill the space.
-        </p>
-
-        <div className="space-y-4">
-          {[
-            { key: 'leftRail' as keyof SectionVisibility, label: 'Left Rail', description: 'Left sidebar section with shops' },
-            { key: 'rightRail' as keyof SectionVisibility, label: 'Right Rail', description: 'Right rail section with shops (vertical list)' },
-            { key: 'bottomRail' as keyof SectionVisibility, label: 'Bottom Rail (Featured Shops)', description: 'Featured Shops grid section' },
-            { key: 'rightSide' as keyof SectionVisibility, label: 'Right Side', description: 'Right side section with shops (single large)' },
-          ].map((config) => (
-            <div key={config.key} className="border-b border-gray-200 pb-4 last:border-b-0">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-semibold text-gray-900 mb-1">
-                    {config.label}
-                  </label>
-                  <p className="text-sm text-gray-600">{config.description}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setSectionVisibility((prev) => ({
-                      ...prev,
-                      [config.key]: !prev[config.key],
-                    }))}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      sectionVisibility[config.key] ? 'bg-blue-600' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        sectionVisibility[config.key] ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                  <span className={`text-sm font-medium ${sectionVisibility[config.key] ? 'text-green-600' : 'text-gray-500'}`}>
-                    {sectionVisibility[config.key] ? 'ON' : 'OFF'}
-                  </span>
                 </div>
               </div>
             </div>

@@ -15,9 +15,25 @@ import BestDealsSlider from './hero/BestDealsSlider';
 
 interface HeroSectionProps {
   category?: string;
+  showHeroBanner?: boolean; // Control HeroBanner visibility separately
+  heroSections?: {
+    leftRail?: boolean;
+    rightRail?: boolean;
+    bottomRail?: boolean;
+    bottomStrip?: boolean;
+  };
 }
 
-export default function HeroSection({ category }: HeroSectionProps) {
+export default function HeroSection({ 
+  category, 
+  showHeroBanner = true,
+  heroSections = {
+    leftRail: true,
+    rightRail: true,
+    bottomRail: true,
+    bottomStrip: true,
+  }
+}: HeroSectionProps) {
   const { location } = useLocation();
   const { searchParams, isSearchActive } = useSearch();
   const [data, setData] = useState<HeroSectionData | null>(null);
@@ -1037,96 +1053,190 @@ export default function HeroSection({ category }: HeroSectionProps) {
         </div>
 
         {/* Desktop: 3-Column Grid Layout */}
-        <div className="hidden lg:grid lg:grid-cols-[20%_60%_20%] gap-3 md:gap-4 mb-4">
-          {/* LEFT COLUMN (20%) */}
-          <LeftRail 
-            banners={data.left} 
-            onBannerClick={handleBannerClick} 
-            height="h-[500px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
+        {showHeroBanner ? (
+          <div className="hidden lg:grid lg:grid-cols-[20%_60%_20%] gap-3 md:gap-4 mb-4">
+            {/* LEFT COLUMN (20%) */}
+            {heroSections.leftRail !== false && (
+              <LeftRail 
+                banners={data.left} 
+                onBannerClick={handleBannerClick} 
+                height="h-[500px]"
+                userLat={location.latitude}
+                userLng={location.longitude}
+              />
+            )}
 
-          {/* CENTER COLUMN (60%) - Hero */}
-          <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[500px]" />
+            {/* CENTER COLUMN (60%) - Hero */}
+            <div className="flex items-center justify-center">
+              <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[500px]" />
+            </div>
+
+            {/* RIGHT COLUMN (20%) */}
+            {heroSections.rightRail !== false && (
+              <RightSide 
+                banners={data.right} 
+                onBannerClick={handleBannerClick} 
+                height="h-[500px]"
+                userLat={location.latitude}
+                userLng={location.longitude}
+              />
+            )}
           </div>
+        ) : (
+          <div className="hidden lg:grid lg:grid-cols-[50%_50%] gap-3 md:gap-4 mb-4">
+            {/* LEFT COLUMN (50%) */}
+            {heroSections.leftRail !== false && (
+              <LeftRail 
+                banners={data.left} 
+                onBannerClick={handleBannerClick} 
+                height="h-[500px]"
+                userLat={location.latitude}
+                userLng={location.longitude}
+              />
+            )}
 
-          {/* RIGHT COLUMN (20%) */}
-          <RightSide 
-            banners={data.right} 
-            onBannerClick={handleBannerClick} 
-            height="h-[500px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
-        </div>
+            {/* RIGHT COLUMN (50%) */}
+            {heroSections.rightRail !== false && (
+              <RightSide 
+                banners={data.right} 
+                onBannerClick={handleBannerClick} 
+                height="h-[500px]"
+                userLat={location.latitude}
+                userLng={location.longitude}
+              />
+            )}
+          </div>
+        )}
 
         {/* Tablet: Adjusted 3-Column Layout */}
-        <div className="hidden md:grid lg:hidden md:grid-cols-[18%_64%_18%] gap-2 md:gap-3 mb-4">
-          {/* LEFT COLUMN */}
-          <LeftRail 
-            banners={data.left} 
-            onBannerClick={handleBannerClick} 
-            height="h-[400px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
+        {showHeroBanner ? (
+          <div className="hidden md:grid lg:hidden md:grid-cols-[18%_64%_18%] gap-2 md:gap-3 mb-4">
+            {/* LEFT COLUMN */}
+            {heroSections.leftRail !== false && (
+              <LeftRail 
+                banners={data.left} 
+                onBannerClick={handleBannerClick} 
+                height="h-[400px]"
+                userLat={location.latitude}
+                userLng={location.longitude}
+              />
+            )}
 
-          {/* CENTER COLUMN */}
-          <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[400px]" />
+            {/* CENTER COLUMN */}
+            <div className="flex items-center justify-center">
+              <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[400px]" />
+            </div>
+
+            {/* RIGHT COLUMN */}
+            {heroSections.rightRail !== false && (
+              <RightSide 
+                banners={data.right} 
+                onBannerClick={handleBannerClick} 
+                height="h-[400px]"
+                userLat={location.latitude}
+                userLng={location.longitude}
+              />
+            )}
           </div>
+        ) : (
+          <div className="hidden md:grid lg:hidden md:grid-cols-[50%_50%] gap-2 md:gap-3 mb-4">
+            {/* LEFT COLUMN */}
+            {heroSections.leftRail !== false && (
+              <LeftRail 
+                banners={data.left} 
+                onBannerClick={handleBannerClick} 
+                height="h-[400px]"
+                userLat={location.latitude}
+                userLng={location.longitude}
+              />
+            )}
 
-          {/* RIGHT COLUMN */}
-          <RightSide 
-            banners={data.right} 
-            onBannerClick={handleBannerClick} 
-            height="h-[400px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
-        </div>
+            {/* RIGHT COLUMN */}
+            {heroSections.rightRail !== false && (
+              <RightSide 
+                banners={data.right} 
+                onBannerClick={handleBannerClick} 
+                height="h-[400px]"
+                userLat={location.latitude}
+                userLng={location.longitude}
+              />
+            )}
+          </div>
+        )}
 
         {/* Mobile: 3-Column Grid Layout (Same as desktop but smaller) */}
-        <div className="md:hidden grid grid-cols-[22%_56%_22%] gap-1.5 sm:gap-2 mb-4">
-          {/* LEFT COLUMN */}
-          <LeftRail 
-            banners={data.left} 
-            onBannerClick={handleBannerClick} 
-            height="h-[280px] sm:h-[320px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
+        {showHeroBanner ? (
+          <div className="md:hidden grid grid-cols-[22%_56%_22%] gap-1.5 sm:gap-2 mb-4">
+            {/* LEFT COLUMN */}
+            {heroSections.leftRail !== false && (
+              <LeftRail 
+                banners={data.left} 
+                onBannerClick={handleBannerClick} 
+                height="h-[280px] sm:h-[320px]"
+                userLat={location.latitude}
+                userLng={location.longitude}
+              />
+            )}
 
-          {/* CENTER COLUMN - Hero */}
-          <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[280px] sm:h-[320px]" />
+            {/* CENTER COLUMN - Hero */}
+            <div className="flex items-center justify-center">
+              <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[280px] sm:h-[320px]" />
+            </div>
+
+            {/* RIGHT COLUMN */}
+            {heroSections.rightRail !== false && (
+              <RightSide 
+                banners={data.right} 
+                onBannerClick={handleBannerClick} 
+                height="h-[280px] sm:h-[320px]"
+                userLat={location.latitude}
+                userLng={location.longitude}
+              />
+            )}
           </div>
+        ) : (
+          <div className="md:hidden grid grid-cols-[50%_50%] gap-1.5 sm:gap-2 mb-4">
+            {/* LEFT COLUMN */}
+            {heroSections.leftRail !== false && (
+              <LeftRail 
+                banners={data.left} 
+                onBannerClick={handleBannerClick} 
+                height="h-[280px] sm:h-[320px]"
+                userLat={location.latitude}
+                userLng={location.longitude}
+              />
+            )}
 
-          {/* RIGHT COLUMN */}
-          <RightSide 
-            banners={data.right} 
-            onBannerClick={handleBannerClick} 
-            height="h-[280px] sm:h-[320px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
-        </div>
+            {/* RIGHT COLUMN */}
+            {heroSections.rightRail !== false && (
+              <RightSide 
+                banners={data.right} 
+                onBannerClick={handleBannerClick} 
+                height="h-[280px] sm:h-[320px]"
+                userLat={location.latitude}
+                userLng={location.longitude}
+              />
+            )}
+          </div>
+        )}
 
         {/* BOTTOM RAIL - 12 Featured Shops */}
-        <BottomRail 
-          banners={data.bottom} 
-          onBannerClick={handleBannerClick}
-          userLat={location.latitude}
-          userLng={location.longitude}
-        />
+        {heroSections.bottomRail !== false && (
+          <BottomRail 
+            banners={data.bottom} 
+            onBannerClick={handleBannerClick}
+            userLat={location.latitude}
+            userLng={location.longitude}
+          />
+        )}
 
         {/* BOTTOM STRIP - 30 Nearby Shops */}
-        <BottomStrip 
-          banners={data.bottom} 
-          onBannerClick={handleBannerClick}
-        />
+        {heroSections.bottomStrip !== false && (
+          <BottomStrip 
+            banners={data.bottom} 
+            onBannerClick={handleBannerClick}
+          />
+        )}
       </div>
     </section>
   );

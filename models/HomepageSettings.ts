@@ -10,6 +10,7 @@ export interface IHomepageSettings extends Document {
     featuredBusinesses: boolean;
     topRated: boolean;
     newBusinesses: boolean;
+    searchFilter: boolean; // Search & Filter Shops section
   };
   heroSections: {
     leftRail: boolean;
@@ -64,6 +65,7 @@ const HomepageSettingsSchema = new Schema<IHomepageSettings>(
       featuredBusinesses: { type: Boolean, default: true },
       topRated: { type: Boolean, default: true },
       newBusinesses: { type: Boolean, default: true },
+      searchFilter: { type: Boolean, default: true }, // Search & Filter Shops section
     },
     heroSections: {
       leftRail: { type: Boolean, default: true },

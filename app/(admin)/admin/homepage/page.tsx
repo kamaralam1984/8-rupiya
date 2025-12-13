@@ -17,6 +17,7 @@ interface HomepageSettings {
     featuredBusinesses: boolean;
     topRated: boolean;
     newBusinesses: boolean;
+    searchFilter: boolean;
   };
   heroSections?: {
     leftRail: boolean;
@@ -64,6 +65,7 @@ export default function HomepageManagement() {
       featuredBusinesses: true,
       topRated: true,
       newBusinesses: true,
+      searchFilter: true,
     },
     heroSections: {
       leftRail: true,
@@ -331,6 +333,7 @@ export default function HomepageManagement() {
               featuredBusinesses: 'Featured Businesses',
               topRated: 'Top Rated Businesses',
               newBusinesses: 'New Businesses',
+              searchFilter: 'Search & Filter Shops',
             };
             return (
               <label

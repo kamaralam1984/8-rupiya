@@ -15,14 +15,43 @@ const CACHE_HEADERS = {
  */
 export async function GET(request: NextRequest) {
   try {
-    await connectDB();
+    console.log('🔍 Starting search-options API call...');
+    
+    // Connect to database with error handling
+    try {
+      await connectDB();
+      console.log('✅ Database connected');
+    } catch (dbError: any) {
+      console.error('❌ Database connection failed:', dbError);
+      // Return empty arrays if database connection fails
+      return NextResponse.json({
+        success: true, // Return success: true even if DB fails, so frontend can still work
+        pincodes: [],
+        areas: [],
+        categories: [],
+        cities: [],
+        totalShops: 0,
+        debug: {
+          error: 'Database connection failed',
+          message: dbError?.message || 'Unknown database error',
+        },
+      }, {
+        headers: CACHE_HEADERS,
+      });
+    }
 
     // Fetch ONLY from AgentShop collection (to prevent duplicates)
     // AgentShop has 'address' field, not 'city' or 'area' - we need to extract them
-    const agentShops = await AgentShop.find({})
-      .select('pincode address category')
-      .lean()
-      .catch(() => []);
+    let agentShops: any[] = [];
+    try {
+      agentShops = await AgentShop.find({})
+        .select('pincode address category paymentStatus')
+        .lean();
+      console.log(`✅ Found ${agentShops.length} agent shops`);
+    } catch (queryError: any) {
+      console.error('❌ Error querying AgentShop:', queryError);
+      throw queryError;
+    }
 
     // Extract unique values
     const pincodes = new Set<string>();
@@ -39,7 +68,34 @@ export async function GET(request: NextRequest) {
       'Jodhpur', 'Raipur', 'Kota', 'Guwahati', 'Chandigarh', 'Solapur', 'Hubli', 'Mysore', 'Tiruchirappalli'
     ];
 
-    agentShops.forEach((shop: any) => {
+    // Filter only PAID shops for search options
+    // If no shops found, return empty arrays but still success
+    if (!agentShops || agentShops.length === 0) {
+      console.log('⚠️ No shops found in database, returning empty arrays');
+      return NextResponse.json({
+        success: true,
+        pincodes: [],
+        areas: [],
+        categories: [],
+        cities: [],
+        totalShops: 0,
+        debug: {
+          citiesExtracted: 0,
+          shopsProcessed: 0,
+          totalShopsInDB: 0,
+        },
+      }, {
+        headers: CACHE_HEADERS,
+      });
+    }
+    
+    const paidShops = agentShops.filter((shop: any) => 
+      shop.paymentStatus === 'PAID' || !shop.paymentStatus // Include shops without paymentStatus as well
+    );
+    
+    console.log(`📊 Filtered to ${paidShops.length} PAID shops (out of ${agentShops.length} total)`);
+
+    paidShops.forEach((shop: any) => {
       // Pincodes
       if (shop.pincode && typeof shop.pincode === 'string' && shop.pincode.trim()) {
         pincodes.add(shop.pincode.trim());
@@ -169,7 +225,7 @@ export async function GET(request: NextRequest) {
     });
     
     // Log extraction results for debugging
-    console.log(`📊 Extracted from ${agentShops.length} shops:`, {
+    console.log(`📊 Extracted from ${paidShops.length} PAID shops:`, {
       cities: cities.size,
       areas: areas.size,
       pincodes: pincodes.size,
@@ -190,7 +246,8 @@ export async function GET(request: NextRequest) {
       areasCount: sortedAreas.length,
       categoriesCount: sortedCategories.length,
       pincodesCount: sortedPincodes.length,
-      totalShops: agentShops.length,
+      totalShops: paidShops.length,
+      totalShopsInDB: agentShops.length,
     });
 
     return NextResponse.json({
@@ -199,27 +256,44 @@ export async function GET(request: NextRequest) {
       areas: sortedAreas,
       categories: sortedCategories,
       cities: sortedCities, // Ensure cities array is always present
-      totalShops: agentShops.length,
+      totalShops: paidShops.length,
       debug: {
         citiesExtracted: sortedCities.length,
-        shopsProcessed: agentShops.length,
+        shopsProcessed: paidShops.length,
+        totalShopsInDB: agentShops.length,
       },
     }, {
       headers: CACHE_HEADERS,
     });
   } catch (error: any) {
-    console.error('Error fetching search options:', error);
+    console.error('❌ Error fetching search options:', error);
+    console.error('❌ Error stack:', error?.stack);
+    console.error('❌ Error name:', error?.name);
+    console.error('❌ Error message:', error?.message);
+    
+    // Always return a valid response structure, even on error
+    // This ensures the frontend can handle it gracefully
+    const errorResponse = {
+      success: false,
+      error: 'Failed to fetch search options',
+      details: error?.message || 'Unknown error',
+      errorName: error?.name || 'Unknown',
+      pincodes: [] as string[],
+      areas: [] as string[],
+      categories: [] as string[],
+      cities: [] as string[],
+    };
+    
+    console.error('❌ Returning error response:', errorResponse);
+    
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to fetch search options',
-        details: error.message,
-        pincodes: [],
-        areas: [],
-        categories: [],
-        cities: [],
-      },
-      { status: 500 }
+      errorResponse,
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
     );
   }
 }

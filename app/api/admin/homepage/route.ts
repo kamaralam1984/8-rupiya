@@ -33,6 +33,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
           featuredBusinesses: true,
           topRated: true,
           newBusinesses: true,
+          searchFilter: true,
         },
         heroSections: {
           leftRail: true,
@@ -129,6 +130,7 @@ export const PUT = requireAdmin(async (request: NextRequest) => {
           featuredBusinesses: true,
           topRated: true,
           newBusinesses: true,
+          searchFilter: true,
         },
         heroSections: cleanBody.heroSections || {
           leftRail: true,

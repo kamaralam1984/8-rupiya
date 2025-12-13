@@ -11,6 +11,7 @@ const defaultSettings = {
     featuredBusinesses: true,
     topRated: true,
     newBusinesses: true,
+    searchFilter: true,
   },
   heroSections: {
     leftRail: true,

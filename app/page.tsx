@@ -20,6 +20,13 @@ interface HomepageSettings {
     featuredBusinesses: boolean;
     topRated: boolean;
     newBusinesses: boolean;
+    searchFilter?: boolean;
+  };
+  heroSections?: {
+    leftRail: boolean;
+    rightRail: boolean;
+    bottomRail: boolean;
+    bottomStrip: boolean;
   };
   layout: {
     theme: string;
@@ -81,6 +88,13 @@ export default function Home() {
           featuredBusinesses: true,
           topRated: true,
           newBusinesses: true,
+          searchFilter: true,
+        },
+        heroSections: {
+          leftRail: true,
+          rightRail: true,
+          bottomRail: true,
+          bottomStrip: true,
         },
         layout: {
           theme: 'light',
@@ -104,6 +118,13 @@ export default function Home() {
       featuredBusinesses: true,
       topRated: true,
       newBusinesses: true,
+      searchFilter: true,
+    },
+    heroSections: {
+      leftRail: true,
+      rightRail: true,
+      bottomRail: true,
+      bottomStrip: true,
     },
     layout: {
       theme: 'light',
@@ -158,16 +179,24 @@ export default function Home() {
         style={{ maxWidth: containerWidth }}
       >
         {/* Search & Filter Section - At the Top */}
-        <div style={{ marginBottom: sectionSpacing }}>
-          <HomepageSearchFilter />
-        </div>
-
-        {/* Hero Section */}
-        {sections.hero && (
-          <div style={{ marginBottom: sectionSpacing }} id="businesses-section">
-            <HeroSection />
+        {sections.searchFilter !== false && (
+          <div style={{ marginBottom: sectionSpacing }}>
+            <HomepageSearchFilter />
           </div>
         )}
+
+        {/* Hero Section - Always render, but HeroBanner will be conditionally shown */}
+        <div style={{ marginBottom: sectionSpacing }} id="businesses-section">
+          <HeroSection 
+            showHeroBanner={sections.hero !== false}
+            heroSections={homepageSettings.heroSections || {
+              leftRail: true,
+              rightRail: true,
+              bottomRail: true,
+              bottomStrip: true,
+            }}
+          />
+        </div>
 
         {/* Categories Section */}
         {sections.categories && (
