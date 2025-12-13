@@ -2,30 +2,114 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import type { BusinessSummary } from '../types';
 import { useLocation } from '../contexts/LocationContext';
+import { useSearch } from '../contexts/SearchContext';
+import { safeJsonParse } from '../utils/fetchHelpers';
 
 export default function NewBusinesses() {
   const { location } = useLocation();
+  const { searchParams, isSearchActive } = useSearch();
   const [businesses, setBusinesses] = useState<BusinessSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('/api/businesses/featured');
-        const data = await res.json();
-        // Take last 6 as "new" businesses (in real app, would filter by created date)
-        const newBusinesses = (data.businesses || []).slice(-6).reverse();
+        setIsLoading(true);
+        
+        // Build API URL with filters
+        let url = '/api/shops/nearby?useMongoDB=true&radiusKm=1000';
+        
+        // Add location coordinates if available
+        if (location.latitude && location.longitude) {
+          url += `&userLat=${location.latitude}&userLng=${location.longitude}`;
+        }
+        
+        // Add search filters
+        if (searchParams.pincode) {
+          url += `&pincode=${encodeURIComponent(searchParams.pincode)}`;
+        }
+        if (searchParams.city) {
+          url += `&city=${encodeURIComponent(searchParams.city)}`;
+        }
+        if (searchParams.category) {
+          url += `&category=${encodeURIComponent(searchParams.category)}`;
+        }
+        if (searchParams.shopName) {
+          url += `&shopName=${encodeURIComponent(searchParams.shopName)}`;
+        }
+        
+        const res = await fetch(url);
+        const data = await safeJsonParse<{ success?: boolean; shops?: any[] }>(res);
+        
+        if (data?.success && data?.shops) {
+          // Filter visible shops and map to BusinessSummary format
+          const visibleShops = data.shops
+            .filter((shop: any) => shop.isVisible !== false)
+            .map((shop: any) => ({
+              id: shop.id || shop._id,
+              name: shop.shopName || shop.name || 'Unnamed Shop',
+              category: shop.category || 'Uncategorized',
+              imageUrl: shop.photoUrl || shop.iconUrl || shop.imageUrl || '/placeholder-shop.jpg',
+              rating: shop.rating || 4.0,
+              reviews: shop.reviews || 0,
+              city: shop.city || 'Unknown',
+              state: shop.state,
+              distance: shop.distance,
+              visitorCount: shop.visitorCount || 0,
+              createdAt: shop.createdAt || new Date().toISOString(),
+            }));
+          
+          // Filter by shop name if search query provided
+          let filteredShops = visibleShops;
+          if (searchParams.shopName) {
+            const query = searchParams.shopName.toLowerCase();
+            filteredShops = visibleShops.filter(shop =>
+              shop.name.toLowerCase().includes(query)
+            );
+          }
+          
+          // Sort by creation date (newest first), then by distance
+          filteredShops.sort((a: any, b: any) => {
+            const dateA = new Date(a.createdAt || 0).getTime();
+            const dateB = new Date(b.createdAt || 0).getTime();
+            if (dateB !== dateA) {
+              return dateB - dateA;
+            }
+            if (a.distance !== undefined && b.distance !== undefined) {
+              return a.distance - b.distance;
+            }
+            return (b.visitorCount || 0) - (a.visitorCount || 0);
+          });
+          
+          // Take top 6 newest
+          setBusinesses(filteredShops.slice(0, 6));
+        } else {
+          // Fallback to featured API if no shops found
+          const fallbackRes = await fetch('/api/businesses/featured');
+          const fallbackData = await fallbackRes.json();
+          const newBusinesses = (fallbackData.businesses || []).slice(-6).reverse();
         setBusinesses(newBusinesses);
+        }
       } catch (e) {
         console.error('Failed to load new businesses', e);
+        // Fallback to featured API on error
+        try {
+          const fallbackRes = await fetch('/api/businesses/featured');
+          const fallbackData = await fallbackRes.json();
+          const newBusinesses = (fallbackData.businesses || []).slice(-6).reverse();
+          setBusinesses(newBusinesses);
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError);
+        }
       } finally {
         setIsLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [location, searchParams, isSearchActive]);
 
   if (isLoading) {
     return (
@@ -57,21 +141,25 @@ export default function NewBusinesses() {
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">New Businesses {location.city || 'Patna'}</h2>
             <p className="text-sm sm:text-base text-gray-600 mt-1">Recently added businesses in your area</p>
           </div>
-          <a href="/search?sort=newest" className="inline-flex items-center gap-2 text-sm sm:text-base font-semibold text-blue-600 hover:text-blue-700 transition-colors self-start sm:self-auto group">
-            <span>View all</span>
-            <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </a>
         </div>
 
+        {businesses.length === 0 && !isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-600 text-lg mb-2">No shops found</p>
+            <p className="text-gray-500 text-sm">
+              {isSearchActive 
+                ? 'Try adjusting your search filters'
+                : 'No new shops available at the moment'}
+            </p>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-          {businesses.map((biz, index) => {
-            const distance = (2 + Math.random() * 5).toFixed(1);
-            const locations = ['Rajendra Nagar', 'Kankarbagh', 'Boring Road', 'Gandhi Maidan', 'Exhibition Road', 'Patliputra Road'];
-            const area = locations[index % locations.length];
-            const savePercent = Math.floor(Math.random() * 30) + 5;
+            {businesses.map((biz: any, index) => {
+              const distance = biz.distance !== undefined ? biz.distance.toFixed(1) : 'N/A';
             
             return (
-              <article key={biz.id} className="group rounded-xl bg-white shadow-md border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-purple-300 cursor-pointer">
+                <Link key={biz.id} href={`/shop/${biz.id}`}>
+                  <article className="group rounded-xl bg-white shadow-md border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-purple-300 cursor-pointer">
                 <div className="relative h-40 sm:h-48 overflow-hidden">
                   <Image 
                     src={biz.imageUrl} 
@@ -80,12 +168,9 @@ export default function NewBusinesses() {
                     className="object-cover transition-transform duration-500 group-hover:scale-105" 
                     sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw" 
                   />
+                      {!isSearchActive && (
                   <span className="absolute top-2 left-2 z-20 inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-purple-500 text-white shadow-md">
                     New
-                  </span>
-                  {index < 2 && (
-                    <span className="absolute top-2 right-2 z-20 inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-red-500 text-white shadow-md">
-                      Save {savePercent}%
                     </span>
                   )}
                 </div>
@@ -94,6 +179,9 @@ export default function NewBusinesses() {
                   <div className="flex items-center gap-1 mb-1.5">
                     <span className="text-yellow-500 text-sm font-semibold">★</span>
                     <span className="text-sm font-semibold text-gray-900">{biz.rating.toFixed(1)}</span>
+                        {biz.reviews > 0 && (
+                          <span className="text-xs text-gray-500">({biz.reviews})</span>
+                        )}
                   </div>
                   <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-1.5 line-clamp-2 min-h-[2.5rem] group-hover:text-purple-600 transition-colors">
                     {biz.name}
@@ -103,13 +191,17 @@ export default function NewBusinesses() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span className="truncate">{distance}km, {area}</span>
+                        <span className="truncate">
+                          {distance !== 'N/A' && `${distance}km`} {biz.city}
+                        </span>
                   </div>
                 </div>
               </article>
+                </Link>
             );
           })}
         </div>
+        )}
       </div>
     </section>
   );

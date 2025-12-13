@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateDistance } from '@/app/utils/distance';
 import connectDB from '@/lib/mongodb';
-import Shop from '@/models/Shop'; // Old shop model
-import AdminShop from '@/lib/models/Shop'; // New admin shop model (shopsfromimage collection)
-import AgentShop from '@/lib/models/AgentShop'; // Agent shops
+import AgentShop from '@/lib/models/AgentShop'; // ONLY Agent shops
 import { PRICING_PLANS } from '@/app/utils/pricing';
 
 // Cache-Control headers for better performance
@@ -22,6 +20,7 @@ interface ShopWithDistance {
   state?: string;
   address: string;
   area?: string; // Area/locality name
+  pincode?: string; // Pincode from database
   phone?: string;
   email?: string;
   website?: string;
@@ -52,6 +51,8 @@ interface ShopWithDistance {
  * 
  * Returns shops sorted by distance, filtered by radius
  */
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -62,11 +63,15 @@ export async function GET(request: NextRequest) {
     const city = searchParams.get('city');
     const area = searchParams.get('area');
     const pincode = searchParams.get('pincode');
+<<<<<<< HEAD
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200); // Max 200 items
     const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
     const skip = (page - 1) * limit;
+=======
+    const category = searchParams.get('category');
+>>>>>>> main
 
-    // If city, area, or pincode is provided, we can search without coordinates
+    // If city, area, pincode, or category is provided, we can search without coordinates
     // But if coordinates are provided, use them for distance calculation
     const hasLocationFilters = city || area || pincode;
     const hasCoordinates = userLat && userLng;
@@ -149,6 +154,22 @@ export async function GET(request: NextRequest) {
           }
         }
         
+        // Add category filter (exact match)
+        if (category) {
+          // Category should be exact match, add to $and if $or exists, otherwise add directly
+          if (queryFilter.$or) {
+            // If $or exists, we need to use $and to combine with category
+            const existingFilter = { ...queryFilter };
+            queryFilter.$and = [
+              existingFilter,
+              { category: category }
+            ];
+            delete queryFilter.$or;
+          } else {
+            queryFilter.category = category;
+          }
+        }
+        
         // Also filter by coordinates if provided (for shops with valid coordinates)
         if (hasCoordinates) {
           // We'll filter by distance later, but ensure shops have coordinates
@@ -158,6 +179,7 @@ export async function GET(request: NextRequest) {
         
         // IMPORTANT: Only show PAID shops on homepage (PENDING shops require admin approval)
         // Filter by payment status - only PAID shops should be displayed
+        // Also filter by visibility - only show shops where isVisible !== false
         const paymentFilter = {
           $or: [
             { paymentStatus: 'PAID' },
@@ -165,11 +187,15 @@ export async function GET(request: NextRequest) {
           ],
         };
         
-        // Combine payment filter with existing query
-        const finalQuery = Object.keys(queryFilter).length > 0
-          ? { $and: [queryFilter, paymentFilter] }
-          : paymentFilter;
+        // Visibility filter - only show visible shops (isVisible !== false)
+        const visibilityFilter = {
+          $or: [
+            { isVisible: true },
+            { isVisible: { $exists: false } }, // Shops without isVisible field (default to visible)
+          ],
+        };
         
+<<<<<<< HEAD
         // Fetch from all shop sources: old Shop model, new AdminShop model, and AgentShop model
         // Apply filters to all queries - show all plan types
         // Use pagination and field selection for better performance
@@ -203,67 +229,32 @@ export async function GET(request: NextRequest) {
                 .lean()
           ).catch(() => []), // Agent shops - only PAID shops
         ]);
+=======
+        // Combine all filters
+        const allFilters = [paymentFilter, visibilityFilter];
+        if (Object.keys(queryFilter).length > 0) {
+          allFilters.push(queryFilter);
+        }
+>>>>>>> main
         
-        // Transform old shops
-        const transformedOldShops = oldShops.map((shop: any) => ({
-          id: shop._id.toString(),
-          name: shop.name,
-          category: shop.category,
-          imageUrl: shop.imageUrl,
-          rating: shop.rating || 4.5, // Default rating if not present
-          reviews: shop.reviews || 0,
-          city: shop.city || '',
-          state: shop.state || '',
-          address: shop.address || '',
-          phone: shop.phone || '',
-          email: shop.email || '',
-          website: shop.website || '',
-          latitude: shop.latitude,
-          longitude: shop.longitude,
-          description: shop.description || '',
-          offerPercent: shop.offerPercent || 0,
-          priceLevel: shop.priceLevel || '',
-          tags: shop.tags || [],
-          featured: shop.featured || false,
-          sponsored: shop.sponsored || false,
-          visitorCount: shop.visitorCount || 0,
-        }));
+        const finalQuery = allFilters.length > 1
+          ? { $and: allFilters }
+          : allFilters[0];
         
-        // Transform admin shops (from shopsfromimage collection)
-        const transformedAdminShops = adminShops.map((shop: any) => ({
-          id: shop._id.toString(),
-          name: shop.shopName || shop.name,
-          category: shop.category,
-          imageUrl: shop.photoUrl || shop.iconUrl || shop.imageUrl,
-          rating: 4.5, // Default rating
-          reviews: 0,
-          city: shop.city || '',
-          state: '',
-          address: shop.fullAddress || shop.address || '',
-          area: shop.area || '',
-          phone: shop.mobile || '',
-          email: '',
-          website: '',
-          latitude: shop.latitude,
-          longitude: shop.longitude,
-          description: '',
-          offerPercent: 0,
-          priceLevel: '',
-          tags: [],
-          featured: shop.planType === 'FEATURED' || shop.isHomePageBanner || false,
-          sponsored: shop.planType === 'PREMIUM' || shop.planType === 'FEATURED' || false,
-          visitorCount: shop.visitorCount || 0,
-          planType: shop.planType || 'BASIC',
-          priorityRank: (() => {
-            const planType = (shop.planType || 'BASIC') as keyof typeof PRICING_PLANS;
-            const planDetails = PRICING_PLANS[planType] || PRICING_PLANS.BASIC;
-            return shop.priorityRank !== undefined && shop.priorityRank !== null 
-              ? shop.priorityRank 
-              : planDetails.priorityRank;
-          })(),
-          isLeftBar: shop.isLeftBar || shop.planType === 'LEFT_BAR' || false,
-          isRightBar: shop.isRightBar || shop.planType === 'RIGHT_BAR' || false,
-        }));
+        // Fetch ONLY from AgentShop collection (to prevent duplicates)
+        // Check if limit parameter is provided in URL
+        const limitParam = searchParams.get('limit');
+        const limitCount = limitParam ? parseInt(limitParam) : (Object.keys(finalQuery).length > 0 ? undefined : undefined); // No limit if no filters (fetch all shops)
+        
+        // Base filter for shops without query filters (payment + visibility)
+        const baseFilter = {
+          $and: [paymentFilter, visibilityFilter]
+        };
+        
+        const agentShops = await (Object.keys(finalQuery).length > 0 
+          ? AgentShop.find(finalQuery).lean() 
+          : (limitCount ? AgentShop.find(baseFilter).limit(limitCount).lean() : AgentShop.find(baseFilter).lean())
+        ).catch(() => []); // ONLY Agent shops
         
         // Transform agent shops
         const transformedAgentShops = agentShops.map((shop: any) => ({
@@ -273,8 +264,9 @@ export async function GET(request: NextRequest) {
           imageUrl: shop.photoUrl,
           rating: 4.5, // Default rating
           reviews: 0,
-          city: '', // Agent shops may not have city
+          city: shop.city || '', // Agent shops may not have city
           area: shop.area || '',
+          pincode: shop.pincode || '', // Include pincode from database
           state: '',
           address: shop.address,
           phone: shop.mobile || '',
@@ -299,10 +291,14 @@ export async function GET(request: NextRequest) {
           isRightBar: shop.planType === 'RIGHT_BAR' || false,
         }));
         
-        // Combine all shops
-        shops = [...transformedOldShops, ...transformedAdminShops, ...transformedAgentShops];
+        // Use ONLY agent shops
+        shops = transformedAgentShops;
         
+<<<<<<< HEAD
         // Removed verbose log - only log errors
+=======
+        console.log(`Loaded ${agentShops.length} agent shops (ONLY AgentShop collection)`);
+>>>>>>> main
       } catch (dbError) {
         console.error('MongoDB error:', dbError);
         // Return empty array if MongoDB fails
@@ -350,6 +346,7 @@ export async function GET(request: NextRequest) {
           state: shop.state,
           address: shop.address,
           area: shop.area || '',
+          pincode: shop.pincode || '', // Include pincode from database
           phone: shop.phone,
           email: shop.email,
           website: shop.website,

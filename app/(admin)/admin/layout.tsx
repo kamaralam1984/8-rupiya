@@ -151,11 +151,13 @@ export default function AdminLayout({
     { name: 'Categories', href: '/admin/categories', icon: '📁', color: 'purple', allowedRoles: ['admin', 'editor'] },
     { name: 'Businesses', href: '/admin/businesses', icon: '🏪', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
     { name: 'Shops', href: '/admin/shops', icon: '🏬', color: 'emerald', allowedRoles: ['admin', 'editor', 'operator'] },
+    { name: 'Shop Directory', href: '/admin/shops/directory', icon: '📂', color: 'teal', allowedRoles: ['admin', 'editor', 'operator'] },
     { name: 'Pending Shops', href: '/admin/shops/pending', icon: '⏳', color: 'orange', allowedRoles: ['admin', 'editor'] },
     { name: 'New Shop (Image)', href: '/admin/shops/new-from-image', icon: '📸', color: 'cyan', allowedRoles: ['admin', 'editor'] },
     { name: 'Renew Shops', href: '/admin/shops/renew', icon: '🔄', color: 'orange', allowedRoles: ['admin', 'editor'] },
     { name: 'Agents', href: '/admin/agents', icon: '👤', color: 'violet', allowedRoles: ['admin', 'editor'] },
     { name: 'Revenue', href: '/admin/revenue', icon: '💰', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
+    { name: 'Reports & Analytics', href: '/admin/reports', icon: '📊', color: 'indigo', allowedRoles: ['admin', 'editor', 'operator'] },
     { name: 'Database', href: '/admin/database', icon: '🗄️', color: 'slate', allowedRoles: ['admin'] }, // Sirf Admin
     { name: 'Pages', href: '/admin/pages', icon: '📄', color: 'pink', allowedRoles: ['admin', 'editor'] },
   ];

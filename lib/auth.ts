@@ -10,7 +10,13 @@ export function authenticateRequest(request: NextRequest): {
   error: string | null;
 } {
   const authHeader = request.headers.get('authorization');
-  const token = extractTokenFromHeader(authHeader);
+  let token = extractTokenFromHeader(authHeader);
+
+  // Fallback: Check query parameter for token (useful for PDF exports)
+  if (!token) {
+    const { searchParams } = new URL(request.url);
+    token = searchParams.get('token') || null;
+  }
 
   if (!token) {
     return {

@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar";
 import HeroSection from "./components/HeroSection";
+import HomepageSearchFilter from "./components/HomepageSearchFilter";
 import CategoryGrid from "./components/CategoryGrid";
 import OffersStrip from "./components/OffersStrip";
 import FeaturedBusinesses from "./components/FeaturedBusinesses";
 import LatestOffers from "./components/LatestOffers";
 import TopRatedBusinesses from "./components/TopRatedBusinesses";
 import NewBusinesses from "./components/NewBusinesses";
-import NearbyBusinesses from "./components/NearbyBusinesses";
 import { safeJsonParse } from "./utils/fetchHelpers";
 
 interface HomepageSettings {
@@ -157,9 +157,14 @@ export default function Home() {
         className="mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-4 sm:pb-6"
         style={{ maxWidth: containerWidth }}
       >
+        {/* Search & Filter Section - At the Top */}
+        <div style={{ marginBottom: sectionSpacing }}>
+          <HomepageSearchFilter />
+        </div>
+
         {/* Hero Section */}
         {sections.hero && (
-          <div style={{ marginBottom: sectionSpacing }}>
+          <div style={{ marginBottom: sectionSpacing }} id="businesses-section">
             <HeroSection />
           </div>
         )}
@@ -199,10 +204,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Nearby Businesses Section - Bottom Strip - Shows shops based on current location and distance */}
-        <div style={{ marginBottom: sectionSpacing }}>
-          <NearbyBusinesses limit={12} />
-        </div>
       </main>
 
       {/* Footer */}
