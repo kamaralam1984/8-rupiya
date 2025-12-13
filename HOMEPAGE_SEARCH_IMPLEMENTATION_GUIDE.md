@@ -78,7 +78,7 @@ This document explains how the **Search & Filter** functionality was implemented
 │  • Transforms shops to banner format                        │
 │  • Sorts Left/Right rails by distance (nearest first)       │
 │  • Updates state → Renders LeftRail, RightSide, BottomStrip │
-└─────────────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────────────┘jjjsjj
 ```
 
 ---
