@@ -1,4 +1,4 @@
-# 🏠 Homepage Search & Filter Implementation Guide
+# 🏠 home Homepage Search & Filter Implementation Guide
 
 ## 📋 Table of Contents
 1. [Overview](#overview)
