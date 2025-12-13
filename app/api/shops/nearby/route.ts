@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateDistance } from '@/app/utils/distance';
 import connectDB from '@/lib/mongodb';
-import Shop from '@/models/Shop'; // Old shop model
-import AdminShop from '@/lib/models/Shop'; // New admin shop model (shopsfromimage collection)
-import AgentShop from '@/lib/models/AgentShop'; // Agent shops
+import AgentShop from '@/lib/models/AgentShop'; // Agent shops - ONLY source for homepage
 import { PRICING_PLANS } from '@/app/utils/pricing';
+// Note: Only AgentShop is used for homepage to avoid duplicates
+// Old Shop and AdminShop imports removed as they're no longer needed
 
 interface ShopWithDistance {
   id: string;
@@ -208,87 +208,14 @@ export async function GET(request: NextRequest) {
           $and: [paymentFilter, visibilityFilter]
         };
         
-        const [oldShops, adminShops, agentShops] = await Promise.all([
-          (Object.keys(finalQuery).length > 0 
-            ? Shop.find(finalQuery).lean() 
-            : (limitCount ? Shop.find(baseFilter).limit(limitCount).lean() : Shop.find(baseFilter).lean())
-          ).catch(() => []), // Old shop model
-          (Object.keys(finalQuery).length > 0 
-            ? AdminShop.find(finalQuery).lean() 
-            : (limitCount ? AdminShop.find(baseFilter).limit(limitCount).lean() : AdminShop.find(baseFilter).lean())
-          ).catch(() => []), // New admin shop model (shopsfromimage) - Shop.ts - Fetch ALL on page load
-          (Object.keys(finalQuery).length > 0 
-            ? AgentShop.find(finalQuery).lean() 
-            : (limitCount ? AgentShop.find(baseFilter).limit(limitCount).lean() : AgentShop.find(baseFilter).lean())
-          ).catch(() => []), // Agent shops - only PAID shops
-        ]);
+        // ONLY fetch from AgentShop to avoid duplicates on homepage
+        const agentShops = await (Object.keys(finalQuery).length > 0 
+          ? AgentShop.find(finalQuery).lean() 
+          : (limitCount ? AgentShop.find(baseFilter).limit(limitCount).lean() : AgentShop.find(baseFilter).lean())
+        ).catch(() => []); // Agent shops - only PAID shops
         
-        // Transform old shops
-        const transformedOldShops = oldShops.map((shop: any) => ({
-          id: shop._id.toString(),
-          name: shop.name,
-          category: shop.category,
-          imageUrl: shop.imageUrl,
-          rating: shop.rating || 4.5, // Default rating if not present
-          reviews: shop.reviews || 0,
-          city: shop.city || '',
-          state: shop.state || '',
-          address: shop.address || '',
-          area: shop.area || '',
-          pincode: shop.pincode || '', // Include pincode from database
-          phone: shop.phone || '',
-          email: shop.email || '',
-          website: shop.website || '',
-          latitude: shop.latitude,
-          longitude: shop.longitude,
-          description: shop.description || '',
-          offerPercent: shop.offerPercent || 0,
-          priceLevel: shop.priceLevel || '',
-          tags: shop.tags || [],
-          featured: shop.featured || false,
-          sponsored: shop.sponsored || false,
-          visitorCount: shop.visitorCount || 0,
-        }));
-        
-        // Transform admin shops (from shopsfromimage collection)
-        const transformedAdminShops = adminShops.map((shop: any) => ({
-          id: shop._id.toString(),
-          name: shop.shopName || shop.name,
-          category: shop.category,
-          imageUrl: shop.photoUrl || shop.iconUrl || shop.imageUrl,
-          rating: 4.5, // Default rating
-          reviews: 0,
-          city: shop.city || '',
-          state: '',
-          address: shop.fullAddress || shop.address || '',
-          area: shop.area || '',
-          pincode: shop.pincode || '', // Include pincode
-          phone: shop.mobile || '',
-          email: '',
-          website: '',
-          latitude: shop.latitude,
-          longitude: shop.longitude,
-          description: '',
-          offerPercent: 0,
-          priceLevel: '',
-          tags: [],
-          featured: shop.planType === 'FEATURED' || shop.isHomePageBanner || false,
-          sponsored: shop.planType === 'PREMIUM' || shop.planType === 'FEATURED' || false,
-          visitorCount: shop.visitorCount || 0,
-          planType: shop.planType || 'BASIC',
-          priorityRank: (() => {
-            const planType = (shop.planType || 'BASIC') as keyof typeof PRICING_PLANS;
-            const planDetails = PRICING_PLANS[planType] || PRICING_PLANS.BASIC;
-            return shop.priorityRank !== undefined && shop.priorityRank !== null 
-              ? shop.priorityRank 
-              : planDetails.priorityRank;
-          })(),
-          isLeftBar: shop.isLeftBar || shop.planType === 'LEFT_BAR' || false,
-          isRightBar: shop.isRightBar || shop.planType === 'RIGHT_BAR' || false,
-        }));
-        
-        // Transform agent shops
-        const transformedAgentShops = agentShops.map((shop: any) => ({
+        // Transform agent shops ONLY
+        shops = agentShops.map((shop: any) => ({
           id: shop._id.toString(),
           name: shop.shopName,
           category: shop.category,
@@ -322,10 +249,7 @@ export async function GET(request: NextRequest) {
           isRightBar: shop.planType === 'RIGHT_BAR' || false,
         }));
         
-        // Combine all shops
-        shops = [...transformedOldShops, ...transformedAdminShops, ...transformedAgentShops];
-        
-        console.log(`Loaded ${oldShops.length} old shops, ${adminShops.length} admin shops, ${agentShops.length} agent shops`);
+        console.log(`Loaded ${agentShops.length} agent shops (ONLY AgentShop used for homepage)`);
       } catch (dbError) {
         console.error('MongoDB error:', dbError);
         // Return empty array if MongoDB fails

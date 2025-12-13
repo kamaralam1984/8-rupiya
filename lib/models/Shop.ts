@@ -10,6 +10,7 @@ export interface IShop extends Document {
   category: string;
   categoryRef?: Types.ObjectId; // Reference to Category model
   mobile?: string;
+  email?: string; // Email ID for SEO and contact
   area?: string;
   fullAddress: string;
   city?: string;
@@ -81,6 +82,12 @@ const ShopSchema = new Schema<IShop>(
       type: String,
       trim: true,
       match: [/^(\+?\d{1,3}[-.\s]?)?(\d{10})$/, 'Please provide a valid 10-digit mobile number'],
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address'],
     },
     area: {
       type: String,

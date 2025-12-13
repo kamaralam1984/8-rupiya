@@ -26,29 +26,45 @@ export default function AdminLayout({
 
   useEffect(() => {
     const checkAdminAccess = async () => {
+      // Wait a bit for token to load from localStorage
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Check token from localStorage directly in case context hasn't updated
+      const storedToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const finalToken = token || storedToken;
+      
       // First check if user is logged in
-      if (!token) {
+      if (!finalToken) {
+        console.log('No token found, redirecting to login');
         router.push('/login?redirect=/admin');
         return;
       }
 
       // Verify user role from server (in case it was updated in DB)
       try {
+        console.log('Checking admin access with token:', finalToken.substring(0, 20) + '...');
         const res = await fetch('/api/auth/me', {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${finalToken}`,
+            'Content-Type': 'application/json',
           },
         });
 
+        console.log('Auth check response status:', res.status);
+
         if (!res.ok) {
-          // Silently handle auth errors - don't show toast for expected failures
+          const errorData = await res.json().catch(() => ({}));
+          console.error('Auth check failed:', res.status, errorData);
+          
+          // If token is invalid, clear it and redirect
           if (res.status === 401 || res.status === 403) {
+            console.log('Token invalid or expired, clearing and redirecting');
+            logout(); // Clear invalid token
             router.push('/login?redirect=/admin');
             return;
           }
+          
           // Only log unexpected errors, don't show toast
-          const errorData = await res.json().catch(() => ({}));
-          console.error('Auth check failed:', res.status, errorData);
           setError(errorData.error || 'Failed to verify admin access');
           setIsLoading(false);
           return;
@@ -140,8 +156,10 @@ export default function AdminLayout({
     { name: 'New Shop (Image)', href: '/admin/shops/new-from-image', icon: '📸', color: 'cyan', allowedRoles: ['admin', 'editor'] },
     { name: 'Renew Shops', href: '/admin/shops/renew', icon: '🔄', color: 'orange', allowedRoles: ['admin', 'editor'] },
     { name: 'Agents', href: '/admin/agents', icon: '👤', color: 'violet', allowedRoles: ['admin', 'editor'] },
+    { name: 'Operators', href: '/admin/operators', icon: '🔧', color: 'green', allowedRoles: ['admin', 'editor'] },
     { name: 'Revenue', href: '/admin/revenue', icon: '💰', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
     { name: 'Reports & Analytics', href: '/admin/reports', icon: '📊', color: 'indigo', allowedRoles: ['admin', 'editor', 'operator'] },
+    { name: 'Display Limits', href: '/admin/settings', icon: '⚙️', color: 'gray', allowedRoles: ['admin', 'editor'] },
     { name: 'Database', href: '/admin/database', icon: '🗄️', color: 'slate', allowedRoles: ['admin'] }, // Sirf Admin
     { name: 'Pages', href: '/admin/pages', icon: '📄', color: 'pink', allowedRoles: ['admin', 'editor'] },
   ];
@@ -214,6 +232,7 @@ export default function AdminLayout({
               teal: active ? 'bg-teal-50 text-teal-700 border-l-4 border-teal-600' : 'text-gray-700 hover:bg-teal-50 hover:text-teal-600',
               violet: active ? 'bg-violet-50 text-violet-700 border-l-4 border-violet-600' : 'text-gray-700 hover:bg-violet-50 hover:text-violet-600',
               slate: active ? 'bg-slate-50 text-slate-700 border-l-4 border-slate-600' : 'text-gray-700 hover:bg-slate-50 hover:text-slate-600',
+              gray: active ? 'bg-gray-50 text-gray-700 border-l-4 border-gray-600' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-600',
             };
             return (
               <Link

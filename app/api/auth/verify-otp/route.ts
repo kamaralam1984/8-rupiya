@@ -127,6 +127,19 @@ export async function POST(request: NextRequest) {
         user.isEmailVerified = true;
         await user.save();
       }
+    } else if (type === 'email-verification') {
+      // For email verification, just verify OTP and return success
+      // No user creation needed, just verification
+      // Delete used OTP
+      await OTP.findByIdAndDelete(otpDoc._id);
+      
+      return NextResponse.json(
+        {
+          success: true,
+          message: 'Email verified successfully',
+        },
+        { status: 200 }
+      );
     } else {
       // For password reset, just verify OTP (password reset logic can be added later)
       return NextResponse.json(

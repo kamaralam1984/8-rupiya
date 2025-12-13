@@ -221,7 +221,7 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
   // Function 9: Get transition class based on effect type
   const getTransitionClass = (index: number, effect?: string) => {
     const isActive = index === currentIndex;
-    const baseClass = 'absolute inset-0 transition-all duration-500';
+    const baseClass = 'absolute inset-0 transition-all duration-500 overflow-hidden';
 
     switch (effect) {
       case 'slide':
@@ -374,7 +374,7 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
   return (
     <div
       ref={sliderRef}
-      className="relative w-full h-full bg-white rounded-xl overflow-hidden shadow-lg border border-gray-200 group"
+      className="relative w-full h-full bg-white rounded-xl overflow-hidden shadow-lg border border-gray-200 group flex flex-col"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onMouseMove={(e) => {
@@ -387,8 +387,8 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
     >
-      {/* Slider Container */}
-      <div className="relative w-full h-24 sm:h-32 md:h-36">
+      {/* Slider Container - Smaller on mobile */}
+      <div className="relative w-full h-full min-h-[120px] sm:min-h-[160px] md:min-h-[180px]">
         {/* Slider Images with various effects */}
         {sliderImages.map((image, index) => {
           const isActive = index === currentIndex;
@@ -400,7 +400,7 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
               ref={(el) => {
                 imageRefs.current[index] = el;
               }}
-              className={transitionClass}
+              className={`${transitionClass} w-full h-full`}
               style={{
                 transform: isActive && parallax ? `translateX(${parallax}px) scale(${scale})` : `scale(${scale})`,
                 filter: isActive
@@ -413,36 +413,26 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
                 if (!image.linkUrl || image.linkUrl === '#') {
                   e.preventDefault();
                 }
-              }}>
+              }} className="block w-full h-full">
                 <Image
                   src={image.imageUrl}
                   alt={image.alt}
                   fill
-                  className="object-cover object-center w-full cursor-pointer"
+                  className="object-cover cursor-pointer"
                   priority={index === 0}
-                  sizes="100vw"
+                  sizes="(max-width: 768px) 100vw, 50vw"
                 />
               </Link>
               {image.title && isActive && (
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-                  <h3 className="text-white text-sm font-semibold">{image.title}</h3>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                  <h3 className="text-white text-xs sm:text-sm font-semibold">{image.title}</h3>
                 </div>
               )}
             </div>
           );
         })}
 
-        {/* Progress Bar */}
-        {sliderImages.length > 1 && (
-          <div className="absolute top-0 left-0 right-0 h-1 bg-black/20 z-40">
-            <div
-              className="h-full bg-gradient-to-r from-amber-400 to-yellow-500 transition-all duration-50"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        )}
-
-        {/* Navigation Arrows with enhanced effects */}
+        {/* Navigation Arrows */}
         {sliderImages.length > 1 && (
           <>
             <button
@@ -466,63 +456,6 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
           </>
         )}
 
-        {/* Control Buttons */}
-        {sliderImages.length > 1 && (
-          <div className="absolute top-2 right-2 z-30 flex gap-2">
-            <button
-              onClick={togglePause}
-              className="bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full transition-all hover:scale-110"
-              aria-label={isPaused ? 'Resume' : 'Pause'}
-              title={isPaused ? 'Resume' : 'Pause'}
-            >
-              {isPaused ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              )}
-            </button>
-            <button
-              onClick={toggleFullscreen}
-              className="bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full transition-all hover:scale-110"
-              aria-label="Fullscreen"
-              title="Fullscreen"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-              </svg>
-            </button>
-          </div>
-        )}
-
-        {/* Dots Indicator with enhanced design */}
-        {sliderImages.length > 1 && (
-          <div className="absolute bottom-1 sm:bottom-2 left-1/2 -translate-x-1/2 z-30 flex gap-1 sm:gap-1.5">
-            {sliderImages.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => goToSlide(index)}
-                className={`h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full transition-all ${
-                  index === currentIndex
-                    ? 'bg-white w-4 sm:w-6 shadow-lg shadow-white/50'
-                    : 'bg-white/50 hover:bg-white/75'
-                }`}
-                aria-label={`Go to slide ${index + 1}`}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Slide Counter */}
-        {sliderImages.length > 1 && (
-          <div className="absolute top-2 left-2 z-30 bg-black/50 text-white px-2 py-1 rounded text-xs font-medium">
-            {currentIndex + 1} / {sliderImages.length}
-          </div>
-        )}
       </div>
     </div>
   );

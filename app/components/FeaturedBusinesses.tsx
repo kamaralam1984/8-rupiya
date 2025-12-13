@@ -10,13 +10,36 @@ export default function FeaturedBusinesses() {
   const { location } = useLocation();
   const [businesses, setBusinesses] = useState<BusinessSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [limit, setLimit] = useState(10);
+  const [iconSize, setIconSize] = useState(200);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.success) {
+          if (data.displayLimits?.featuredBusinesses) {
+            setLimit(data.displayLimits.featuredBusinesses);
+          }
+          if (data.iconSizes?.featuredBusinesses) {
+            setIconSize(data.iconSizes.featuredBusinesses);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await fetch('/api/businesses/featured');
         const data = await safeJsonParse<{ businesses?: BusinessSummary[] }>(res);
-        setBusinesses(data?.businesses || []);
+        const allBusinesses = data?.businesses || [];
+        setBusinesses(allBusinesses.slice(0, limit));
       } catch (e) {
         console.error('Failed to load featured businesses', e);
       } finally {
@@ -24,7 +47,7 @@ export default function FeaturedBusinesses() {
       }
     };
     fetchData();
-  }, []);
+  }, [limit]);
 
   if (isLoading) {
     return (
@@ -58,7 +81,14 @@ export default function FeaturedBusinesses() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div 
+          className="grid gap-3 sm:gap-4"
+          style={{
+            gridTemplateColumns: businesses.length <= 5 
+              ? `repeat(${businesses.length}, minmax(0, 1fr))`
+              : 'repeat(auto-fit, minmax(150px, 1fr))',
+          }}
+        >
           {businesses.map((biz, index) => {
             // Generate random distance and location for demo (in real app, calculate from coordinates)
             const distance = (2 + Math.random() * 5).toFixed(1);
@@ -68,7 +98,7 @@ export default function FeaturedBusinesses() {
             
             return (
               <article key={biz.id} className="group rounded-xl bg-white shadow-md border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-blue-300 cursor-pointer">
-                <div className="relative h-40 sm:h-48 overflow-hidden">
+                <div className="relative overflow-hidden" style={{ height: `${iconSize}px` }}>
                   <Image 
                     src={biz.imageUrl} 
                     alt={biz.name} 

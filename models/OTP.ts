@@ -3,7 +3,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export interface IOTP extends Document {
   email: string;
   otp: string;
-  type: 'signup' | 'login' | 'reset';
+  type: 'signup' | 'login' | 'reset' | 'email-verification';
   expiresAt: Date;
   verified: boolean;
   createdAt: Date;
@@ -25,7 +25,7 @@ const OTPSchema = new Schema<IOTP>(
     },
     type: {
       type: String,
-      enum: ['signup', 'login', 'reset'],
+      enum: ['signup', 'login', 'reset', 'email-verification'],
       required: true,
       default: 'signup',
     },

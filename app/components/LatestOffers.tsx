@@ -7,13 +7,36 @@ import type { Offer } from '../types';
 export default function LatestOffers() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [limit, setLimit] = useState(10);
+  const [iconSize, setIconSize] = useState(200);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.success) {
+          if (data.displayLimits?.latestOffers) {
+            setLimit(data.displayLimits.latestOffers);
+          }
+          if (data.iconSizes?.latestOffers) {
+            setIconSize(data.iconSizes.latestOffers);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await fetch('/api/offers');
         const data = await res.json();
-        setOffers(data.offers || []);
+        const allOffers = data.offers || [];
+        setOffers(allOffers.slice(0, limit));
       } catch (e) {
         console.error('Failed to load latest offers', e);
       } finally {
@@ -21,7 +44,7 @@ export default function LatestOffers() {
       }
     };
     fetchData();
-  }, []);
+  }, [limit]);
 
   const formatTimeRemaining = (expiresAt?: string) => {
     if (!expiresAt) return null;
@@ -70,7 +93,14 @@ export default function LatestOffers() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div 
+          className="grid gap-3 sm:gap-4"
+          style={{
+            gridTemplateColumns: offers.length <= 5 
+              ? `repeat(${offers.length}, minmax(0, 1fr))`
+              : 'repeat(auto-fit, minmax(150px, 1fr))',
+          }}
+        >
           {offers.map((offer, index) => {
             const distance = (2 + Math.random() * 5).toFixed(1);
             const locations = ['Rajendra Nagar', 'Kankarbagh', 'Boring Road', 'Gandhi Maidan', 'Exhibition Road', 'Patliputra Road'];
@@ -79,7 +109,7 @@ export default function LatestOffers() {
             
             return (
               <article key={offer.id} className="group rounded-xl bg-white shadow-md border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-orange-300 cursor-pointer">
-                <div className="relative h-40 sm:h-48 overflow-hidden">
+                <div className="relative overflow-hidden" style={{ height: `${iconSize}px` }}>
                   {offer.imageUrl ? (
                     <Image 
                       src={offer.imageUrl} 

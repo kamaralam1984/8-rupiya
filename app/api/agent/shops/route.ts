@@ -130,8 +130,10 @@ export async function POST(request: NextRequest) {
       shopName,
       ownerName,
       mobile,
+      email,
       category,
       pincode,
+      area,
       address,
       photoUrl,
       additionalPhotos, // Additional photos (optional, max 9)
@@ -147,13 +149,15 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validation
-    if (!shopName || !ownerName || !mobile || !category || !pincode || !address || !photoUrl) {
+    if (!shopName || !ownerName || !mobile || !email || !category || !pincode || !area || !address || !photoUrl) {
       console.error('❌ Missing required fields:', {
         shopName: !!shopName,
         ownerName: !!ownerName,
         mobile: !!mobile,
+        email: !!email,
         category: !!category,
         pincode: !!pincode,
+        area: !!area,
         address: !!address,
         photoUrl: !!photoUrl,
       });
@@ -256,6 +260,7 @@ export async function POST(request: NextRequest) {
         shopName: shopName.trim(),
         ownerName: ownerName.trim(),
         mobile: mobile.trim(),
+        email: email?.trim() || undefined,
         category: categoryName, // Keep category name for backward compatibility
         pincode: pincode.trim(),
         address: address.trim(),
@@ -325,9 +330,9 @@ export async function POST(request: NextRequest) {
       // Get agent info for admin shop creation
       const agent = await Agent.findById(payload.agentId);
       
-      // Extract area, city, and district from address if possible
+      // Use provided area or extract from address if not provided
       const addressParts = address.split(',');
-      const extractedArea = addressParts[0]?.trim() || '';
+      const extractedArea = area || addressParts[0]?.trim() || '';
       const extractedCity = addressParts[addressParts.length - 1]?.trim() || '';
       // Try to extract district from address (usually second last part)
       const extractedDistrict = addressParts.length > 2 ? addressParts[addressParts.length - 2]?.trim() : undefined;
@@ -346,6 +351,7 @@ export async function POST(request: NextRequest) {
         category: categoryName, // Use category name
         categoryRef: categoryRef || undefined, // Link to Category model
         mobile: mobile?.trim() || undefined,
+        email: email?.trim() || undefined, // Email ID for SEO and contact
         area: extractedArea || undefined,
         fullAddress: address.trim(),
         city: extractedCity || undefined,

@@ -15,13 +15,28 @@ import BestDealsSlider from './hero/BestDealsSlider';
 
 interface HeroSectionProps {
   category?: string;
+  heroSections?: {
+    leftRail: boolean;
+    rightRail: boolean;
+    bottomRail: boolean;
+    bottomStrip: boolean;
+  };
 }
 
-export default function HeroSection({ category }: HeroSectionProps) {
+export default function HeroSection({ category, heroSections }: HeroSectionProps) {
   const { location } = useLocation();
-  const { searchParams, isSearchActive } = useSearch();
+  const { searchParams, isSearchActive, clearSearch } = useSearch();
   const [data, setData] = useState<HeroSectionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Use heroSections from props or defaults
+  const sectionVisibility = {
+    leftRail: heroSections?.leftRail ?? true,
+    rightRail: heroSections?.rightRail ?? true,
+    rightSide: heroSections?.rightRail ?? true, // rightSide maps to rightRail
+    bottomRail: heroSections?.bottomRail ?? true,
+    bottomStrip: heroSections?.bottomStrip ?? true,
+  };
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -68,8 +83,37 @@ export default function HeroSection({ category }: HeroSectionProps) {
                               (searchData.leftRail?.length || 0) + 
                               (searchData.rightRail?.length || 0) + 
                               (searchData.bottomStrip?.length || 0);
+            
+            // Debug: Log actual shop data
+            if (searchData.mainResults && searchData.mainResults.length > 0) {
+              console.log(`📋 Main Results (Hero):`, searchData.mainResults.slice(0, 2).map((s: any) => ({ id: s.id, name: s.name, planType: s.planType })));
+            }
+            if (searchData.leftRail && searchData.leftRail.length > 0) {
+              console.log(`📋 Left Rail:`, searchData.leftRail.slice(0, 2).map((s: any) => ({ id: s.id, name: s.name, planType: s.planType })));
+            }
+            if (searchData.rightRail && searchData.rightRail.length > 0) {
+              console.log(`📋 Right Rail:`, searchData.rightRail.slice(0, 2).map((s: any) => ({ id: s.id, name: s.name, planType: s.planType })));
+            }
+            if (searchData.bottomStrip && searchData.bottomStrip.length > 0) {
+              console.log(`📋 Bottom Strip:`, searchData.bottomStrip.slice(0, 3).map((s: any) => ({ id: s.id, name: s.name, planType: s.planType })));
+            }
+            
             if (totalShops === 0) {
-              console.warn(`⚠️ No shops found for pincode: ${searchParams.pincode}`);
+              console.warn(`⚠️ No shops found for search:`, {
+                pincode: searchParams.pincode,
+                area: searchParams.area,
+                category: searchParams.category,
+                shopName: searchParams.shopName,
+              });
+              // Show empty state - set empty data so user knows search was performed
+              setData({
+                hero: undefined,
+                left: [],
+                right: [],
+                bottom: [],
+              });
+              setIsLoading(false);
+              return;
             }
             
             // Track used shop IDs to prevent duplicates
@@ -127,13 +171,15 @@ export default function HeroSection({ category }: HeroSectionProps) {
                 return transformShopToBanner(shop);
               });
 
-            // Transform bottom strip - Show ALL plan types (BOTTOM_RAIL, BASIC, PREMIUM, FEATURED, BANNER, HERO)
-            // HERO shops appear in both hero section AND bottom strip
+            // Transform bottom strip - Show ALL shops from API response
+            // According to SEARCH_FLOW_DIAGRAM.md, bottom strip should show all remaining shops
+            // API already organizes shops correctly, so we just need to transform them
             const bottomBanners = searchData.bottomStrip
               .filter((shop: any) => {
-                // Show all shops except LEFT_BAR and RIGHT_SIDE (they have their own rails)
-                const isLeftOrRight = shop?.planType === 'LEFT_BAR' || shop?.planType === 'RIGHT_SIDE';
-                return shop?.id && !isLeftOrRight && !usedShopIds.has(shop.id);
+                // Only filter out shops that are already in left/right rails (to prevent duplicates)
+                // But allow HERO shops to appear in both hero section AND bottom strip
+                const isAlreadyInRail = usedShopIds.has(shop.id) && shop?.planType !== 'HERO';
+                return shop?.id && !isAlreadyInRail;
               })
               .sort((a: any, b: any) => {
                 // Sort by plan priority: HERO > BOTTOM_RAIL > PREMIUM > FEATURED > BANNER > BASIC
@@ -153,20 +199,35 @@ export default function HeroSection({ category }: HeroSectionProps) {
                 // If same plan priority, sort by visitorCount (popularity)
                 return (b.visitorCount || 0) - (a.visitorCount || 0);
               })
+              // Final deduplication to ensure no duplicate shops
+              .reduce((acc: any[], shop: any) => {
+                if (shop && shop.id && !acc.find((s: any) => s.id === shop.id)) {
+                  acc.push(shop);
+                }
+                return acc;
+              }, [])
               .slice(0, 30) // Show 30 shops in bottom strip
               .map((shop: any) => {
-                // Don't mark HERO shops as used (they're already in hero section)
-                if (shop.planType !== 'HERO') {
-                  usedShopIds.add(shop.id);
-                }
+                // Mark all shops as used to prevent duplicates within bottom strip
+                // HERO shops can appear in both hero section AND bottom strip, but only once in each
+                usedShopIds.add(shop.id);
                 return transformShopToBanner(shop);
               });
+
+            // Final deduplication of bottomBanners by bannerId
+            const bottomBannersDeduped = new Map<string, any>();
+            bottomBanners.forEach((banner: any) => {
+              if (banner && banner.bannerId && !bottomBannersDeduped.has(banner.bannerId)) {
+                bottomBannersDeduped.set(banner.bannerId, banner);
+              }
+            });
+            const finalBottomBanners = Array.from(bottomBannersDeduped.values());
 
             setData({
               hero: heroBanner || undefined,
               left: leftBanners,
               right: rightBanners,
-              bottom: bottomBanners,
+              bottom: finalBottomBanners,
             });
             setIsLoading(false);
             return;
@@ -577,16 +638,28 @@ export default function HeroSection({ category }: HeroSectionProps) {
         // Step 5: Bottom Strip - Prioritize BASIC and HERO plan shops, but if filters are active and none found, show any shops (except LEFT_BAR and RIGHT_SIDE)
         // Hero shops appear in both Hero section AND Bottom Strip
         // But exclude LEFT_BAR and RIGHT_SIDE shops from bottom (they only appear in their respective rails)
+        // Also exclude shops already used in left/right rails (except HERO shops which can appear in hero + bottom)
         const bottomShopsFiltered = uniqueShopsArray.filter((shop) => {
           // Exclude LEFT_BAR and RIGHT_SIDE from bottom strip (they only appear in their respective rails)
           const isLeftOrRight = shop.planType === 'LEFT_BAR' || shop.planType === 'RIGHT_SIDE';
+          // Exclude shops already used in left/right rails (except HERO shops which can appear in hero + bottom)
+          const isAlreadyUsed = usedShopIds.has(shop.id) && shop.planType !== 'HERO';
           return !isLeftOrRight &&
+                 !isAlreadyUsed &&
                  shop && shop.id && (shop.name || shop.shopName);
         });
         
         console.log(`🔍 Bottom strip filtering: isSearchActive=${isSearchActive}, filteredShops=${bottomShopsFiltered.length}`);
         
-        const bottomShops = bottomShopsFiltered
+        // Deduplicate within bottom strip to ensure each shop appears only once
+        const bottomShopsUnique = new Map<string, any>();
+        bottomShopsFiltered.forEach((shop) => {
+          if (shop && shop.id && !bottomShopsUnique.has(shop.id)) {
+            bottomShopsUnique.set(shop.id, shop);
+          }
+        });
+        
+        const bottomShops = Array.from(bottomShopsUnique.values())
           .filter((shop) => {
             // On page load (no filters), show ALL shops from Shop.ts
             // If filters are active, show any shop (already filtered by category/pincode)
@@ -625,10 +698,8 @@ export default function HeroSection({ category }: HeroSectionProps) {
           })
           .slice(0, 30) // Get exactly 30 shops from Shop.ts (AdminShop)
           .map((shop) => {
-            // Don't mark as used if it's a HERO shop (it's already in hero section)
-            if (shop.planType !== 'HERO') {
-              usedShopIds.add(shop.id);
-            }
+            // Mark all shops as used (including HERO) to prevent duplicates in bottom strip
+            usedShopIds.add(shop.id);
             return {
               bannerId: shop.id,
               imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
@@ -717,9 +788,16 @@ export default function HeroSection({ category }: HeroSectionProps) {
         console.log(`✅ Combined right shops: ${combinedRight.length}`, combinedRight.map(s => s.advertiser));
 
         // Bottom strip: nearby shops (prioritized) - no banners, only shops
-        const combinedBottom = bottomShops.slice(0, 30); // Show 30 shops from Shop.ts
+        // Final deduplication to ensure no duplicate bannerIds
+        const bottomShopsDeduped = new Map<string, any>();
+        bottomShops.forEach((shop) => {
+          if (shop && shop.bannerId && !bottomShopsDeduped.has(shop.bannerId)) {
+            bottomShopsDeduped.set(shop.bannerId, shop);
+          }
+        });
+        const combinedBottom = Array.from(bottomShopsDeduped.values()).slice(0, 30); // Show 30 shops from Shop.ts
         
-        console.log(`✅ Combined bottom shops: ${combinedBottom.length}`, combinedBottom.map(s => s.advertiser));
+        console.log(`✅ Combined bottom shops: ${combinedBottom.length} (deduplicated)`, combinedBottom.map(s => s.advertiser));
 
         setData({
           // Hero: Only show if planType is 'HERO', otherwise show banner or undefined
@@ -790,13 +868,13 @@ export default function HeroSection({ category }: HeroSectionProps) {
       <section className="max-w-[98%] mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-6">
         <div className="bg-white rounded-2xl shadow-md p-2 md:p-3">
           <div className="grid grid-cols-1 lg:grid-cols-[20%_60%_20%] gap-3">
-            <div className="h-[480px] space-y-2">
+            <div className="h-[469px] space-y-2">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="h-full bg-gray-200 rounded-lg animate-pulse" />
               ))}
             </div>
-            <div className="h-[480px] bg-gray-200 rounded-xl animate-pulse" />
-            <div className="h-[480px] space-y-2">
+            <div className="h-[469px] bg-gray-200 rounded-xl animate-pulse" />
+            <div className="h-[469px] space-y-2">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="h-full bg-gray-200 rounded-lg animate-pulse" />
               ))}
@@ -807,11 +885,42 @@ export default function HeroSection({ category }: HeroSectionProps) {
     );
   }
 
+  // Show empty state when search is active but no results found
+  if (isSearchActive && data && (!data.left?.length && !data.right?.length && !data.bottom?.length && !data.hero)) {
+    return (
+      <section className="max-w-[98%] mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-6">
+        <div className="bg-white rounded-2xl shadow-md p-6 md:p-8">
+          <div className="flex flex-col items-center justify-center py-12">
+            <svg className="w-20 h-20 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">कोई दुकान नहीं मिली</h3>
+            <p className="text-gray-600 text-center mb-4">
+              आपकी खोज के अनुसार कोई दुकान नहीं मिली। कृपया अलग फ़िल्टर आज़माएं।
+            </p>
+            <p className="text-sm text-gray-500 text-center mb-6">
+              Search criteria: {searchParams.pincode && `Pincode: ${searchParams.pincode} `}
+              {searchParams.area && `City/Area: ${searchParams.area} `}
+              {searchParams.category && `Category: ${searchParams.category} `}
+              {searchParams.shopName && `Shop Name: ${searchParams.shopName}`}
+            </p>
+            <button
+              onClick={() => clearSearch()}
+              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   if (!data) {
     return (
       <section className="max-w-[98%] mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-6">
         <div className="bg-white rounded-2xl shadow-md p-2 md:p-3">
-          <div className="h-[480px] bg-linear-to-br from-gray-100 to-gray-200 rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-gray-300">
+          <div className="h-[469px] bg-linear-to-br from-gray-100 to-gray-200 rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-gray-300">
             <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
@@ -841,97 +950,156 @@ export default function HeroSection({ category }: HeroSectionProps) {
           <BestDealsSlider category={category} />
         </div>
 
-        {/* Desktop: 3-Column Grid Layout */}
-        <div className="hidden lg:grid lg:grid-cols-[20%_60%_20%] gap-3 md:gap-4 mb-4">
-          {/* LEFT COLUMN (20%) */}
-          <LeftRail 
-            banners={data.left} 
-            onBannerClick={handleBannerClick} 
-            height="h-[391px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
+        {/* Desktop: Dynamic Grid Layout based on section visibility */}
+        {(() => {
+          const showLeft = sectionVisibility.leftRail;
+          const showRight = sectionVisibility.rightSide;
+          console.log('🖥️ Desktop Layout - Left:', showLeft, 'Right:', showRight, 'Full visibility:', sectionVisibility);
+          const gridCols = showLeft && showRight 
+            ? 'lg:grid-cols-[20%_60%_20%]' 
+            : showLeft 
+            ? 'lg:grid-cols-[20%_80%]' 
+            : showRight 
+            ? 'lg:grid-cols-[80%_20%]' 
+            : 'lg:grid-cols-[100%]';
+          
+          return (
+            <div className={`hidden lg:grid ${gridCols} gap-3 md:gap-4 mb-4`}>
+              {/* LEFT COLUMN (20%) */}
+              {showLeft && (
+                <LeftRail 
+                  banners={data.left} 
+                  onBannerClick={handleBannerClick} 
+                  height="h-[469px]"
+                  userLat={location.latitude}
+                  userLng={location.longitude}
+                />
+              )}
 
-          {/* CENTER COLUMN (60%) - Hero */}
-          <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[391px]" />
-          </div>
+              {/* CENTER COLUMN - Hero */}
+              <div className="flex items-center justify-center">
+                <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[469px]" />
+              </div>
 
-          {/* RIGHT COLUMN (20%) */}
-          <RightSide 
-            banners={data.right} 
-            onBannerClick={handleBannerClick} 
-            height="h-[391px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
-        </div>
+              {/* RIGHT COLUMN (20%) */}
+              {showRight && (
+                <RightSide 
+                  banners={data.right} 
+                  onBannerClick={handleBannerClick} 
+                  height="h-[469px]"
+                  userLat={location.latitude}
+                  userLng={location.longitude}
+                />
+              )}
+            </div>
+          );
+        })()}
 
-        {/* Tablet: Adjusted 3-Column Layout */}
-        <div className="hidden md:grid lg:hidden md:grid-cols-[18%_64%_18%] gap-2 md:gap-3 mb-4">
-          {/* LEFT COLUMN */}
-          <LeftRail 
-            banners={data.left} 
-            onBannerClick={handleBannerClick} 
-            height="h-[293px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
+        {/* Tablet: Dynamic Grid Layout based on section visibility */}
+        {(() => {
+          const showLeft = sectionVisibility.leftRail;
+          const showRight = sectionVisibility.rightSide;
+          const gridCols = showLeft && showRight 
+            ? 'md:grid-cols-[18%_64%_18%]' 
+            : showLeft 
+            ? 'md:grid-cols-[18%_82%]' 
+            : showRight 
+            ? 'md:grid-cols-[82%_18%]' 
+            : 'md:grid-cols-[100%]';
+          
+          return (
+            <div className={`hidden md:grid lg:hidden ${gridCols} gap-2 md:gap-3 mb-4`}>
+              {/* LEFT COLUMN */}
+              {showLeft && (
+                <LeftRail 
+                  banners={data.left} 
+                  onBannerClick={handleBannerClick} 
+                  height="h-[352px]"
+                  userLat={location.latitude}
+                  userLng={location.longitude}
+                />
+              )}
 
-          {/* CENTER COLUMN */}
-          <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[293px]" />
-          </div>
+              {/* CENTER COLUMN */}
+              <div className="flex items-center justify-center">
+                <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[352px]" />
+              </div>
 
-          {/* RIGHT COLUMN */}
-          <RightSide 
-            banners={data.right} 
-            onBannerClick={handleBannerClick} 
-            height="h-[293px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
-        </div>
+              {/* RIGHT COLUMN */}
+              {showRight && (
+                <RightSide 
+                  banners={data.right} 
+                  onBannerClick={handleBannerClick} 
+                  height="h-[352px]"
+                  userLat={location.latitude}
+                  userLng={location.longitude}
+                />
+              )}
+            </div>
+          );
+        })()}
 
-        {/* Mobile: 3-Column Grid Layout (Same as desktop but smaller) */}
-        <div className="md:hidden grid grid-cols-[22%_56%_22%] gap-1.5 sm:gap-2 mb-4">
-          {/* LEFT COLUMN */}
-          <LeftRail 
-            banners={data.left} 
-            onBannerClick={handleBannerClick} 
-            height="h-[176px] sm:h-[240px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
+        {/* Mobile: Dynamic Grid Layout based on section visibility */}
+        {(() => {
+          const showLeft = sectionVisibility.leftRail;
+          const showRight = sectionVisibility.rightSide;
+          const gridCols = showLeft && showRight 
+            ? 'grid-cols-[22%_56%_22%]' 
+            : showLeft 
+            ? 'grid-cols-[22%_78%]' 
+            : showRight 
+            ? 'grid-cols-[78%_22%]' 
+            : 'grid-cols-[100%]';
+          
+          return (
+            <div className={`md:hidden grid ${gridCols} gap-1.5 sm:gap-2 mb-4`}>
+              {/* LEFT COLUMN */}
+              {showLeft && (
+                <LeftRail 
+                  banners={data.left} 
+                  onBannerClick={handleBannerClick} 
+                  height="h-[211px] sm:h-[288px]"
+                  userLat={location.latitude}
+                  userLng={location.longitude}
+                />
+              )}
 
-          {/* CENTER COLUMN - Hero */}
-          <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[176px] sm:h-[240px]" />
-          </div>
+              {/* CENTER COLUMN - Hero */}
+              <div className="flex items-center justify-center">
+                <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[211px] sm:h-[288px]" />
+              </div>
 
-          {/* RIGHT COLUMN */}
-          <RightSide 
-            banners={data.right} 
-            onBannerClick={handleBannerClick} 
-            height="h-[176px] sm:h-[240px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
-        </div>
+              {/* RIGHT COLUMN */}
+              {showRight && (
+                <RightSide 
+                  banners={data.right} 
+                  onBannerClick={handleBannerClick} 
+                  height="h-[211px] sm:h-[288px]"
+                  userLat={location.latitude}
+                  userLng={location.longitude}
+                />
+              )}
+            </div>
+          );
+        })()}
 
         {/* BOTTOM RAIL - 12 Featured Shops */}
-        <BottomRail 
-          banners={data.bottom} 
-          onBannerClick={handleBannerClick}
-          userLat={location.latitude}
-          userLng={location.longitude}
-        />
+        {sectionVisibility.bottomRail && (
+          <BottomRail 
+            banners={data.bottom} 
+            onBannerClick={handleBannerClick}
+            userLat={location.latitude}
+            userLng={location.longitude}
+          />
+        )}
 
         {/* BOTTOM STRIP - 30 Nearby Shops */}
-        <BottomStrip 
-          banners={data.bottom} 
-          onBannerClick={handleBannerClick}
-        />
+        {sectionVisibility.bottomStrip && (
+          <BottomStrip 
+            banners={data.bottom} 
+            onBannerClick={handleBannerClick}
+          />
+        )}
       </div>
     </section>
   );

@@ -79,54 +79,45 @@ export default function ShopCard({
       <div className="p-4 sm:p-5">
         <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-green-600 transition-colors">{name}</h3>
         
-        {/* Visitor Count, Distance, and Travel Time */}
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          {/* Visitor Count */}
-          {visitorCount !== undefined && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1 rounded-full">
-              <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              <span className="font-semibold text-gray-700">{visitorCount || 0}</span>
-              <span className="text-gray-500">visitors</span>
-            </div>
-          )}
-          
+        {/* All Info in One Line: km, min, visitor, location */}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 mb-4">
           {/* Distance */}
           {distance > 0 && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1 rounded-full">
-              <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="font-semibold text-gray-700">{distance.toFixed(1)} km</span>
-            </div>
+            <span className="font-semibold text-gray-700">{distance.toFixed(1)} km</span>
+          )}
+          
+          {/* Separator */}
+          {distance > 0 && (travelTimeMinutes > 0 || visitorCount !== undefined || city) && (
+            <span className="text-gray-400">•</span>
           )}
           
           {/* Travel Time */}
-          {travelTimeText && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1 rounded-full">
-              <svg className="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="font-semibold text-gray-700">{travelTimeText}</span>
-            </div>
+          {travelTimeMinutes > 0 && (
+            <>
+              <span className="font-semibold text-gray-700">{travelTimeMinutes} min</span>
+              {(visitorCount !== undefined || city) && (
+                <span className="text-gray-400">•</span>
+              )}
+            </>
+          )}
+          
+          {/* Visitor Count */}
+          {visitorCount !== undefined && (
+            <>
+              <span className="font-semibold text-gray-700">{visitorCount || 0} visitor</span>
+              {city && (
+                <span className="text-gray-400">•</span>
+              )}
+            </>
+          )}
+          
+          {/* Location */}
+          {city && (
+            <span className="text-gray-700 truncate">
+              📍 {city}{state ? `, ${state}` : ''}
+            </span>
           )}
         </div>
-
-        {/* Location */}
-        {city && (
-          <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-            <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0L6.343 16.657A8 8 0 1117.657 16.657z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span className="truncate">
-              {city}{state ? `, ${state}` : ''}
-            </span>
-          </div>
-        )}
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t border-gray-100">
           <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">

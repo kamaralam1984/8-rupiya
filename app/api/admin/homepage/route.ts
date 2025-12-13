@@ -10,6 +10,19 @@ export const GET = requireAdmin(async (request: NextRequest) => {
 
     let settings = await HomepageSettings.findOne({ isActive: true }).lean();
 
+    // If settings exist but heroSections is missing, add defaults
+    if (settings && !settings.heroSections) {
+      settings = {
+        ...settings,
+        heroSections: {
+          leftRail: true,
+          rightRail: true,
+          bottomRail: true,
+          bottomStrip: true,
+        },
+      };
+    }
+
     // If no settings exist, create default
     if (!settings) {
       const defaultSettings = await HomepageSettings.create({
@@ -20,6 +33,12 @@ export const GET = requireAdmin(async (request: NextRequest) => {
           featuredBusinesses: true,
           topRated: true,
           newBusinesses: true,
+        },
+        heroSections: {
+          leftRail: true,
+          rightRail: true,
+          bottomRail: true,
+          bottomStrip: true,
         },
         shopConfig: {
           enabled: false,
@@ -86,6 +105,9 @@ export const PUT = requireAdmin(async (request: NextRequest) => {
       if (cleanBody.sections) {
         settings.sections = { ...settings.sections, ...cleanBody.sections };
       }
+      if (cleanBody.heroSections) {
+        settings.heroSections = { ...settings.heroSections, ...cleanBody.heroSections };
+      }
       if (cleanBody.shopConfig) {
         settings.shopConfig = { ...settings.shopConfig, ...cleanBody.shopConfig };
       }
@@ -107,6 +129,12 @@ export const PUT = requireAdmin(async (request: NextRequest) => {
           featuredBusinesses: true,
           topRated: true,
           newBusinesses: true,
+        },
+        heroSections: cleanBody.heroSections || {
+          leftRail: true,
+          rightRail: true,
+          bottomRail: true,
+          bottomStrip: true,
         },
         shopConfig: cleanBody.shopConfig || {
           enabled: false,

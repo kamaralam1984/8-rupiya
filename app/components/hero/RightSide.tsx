@@ -1,8 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { sortBannersByDistance, getBannerDistance } from '../../utils/shopDistance';
+import ShopDetailsModal from '../ShopDetailsModal';
 
 interface Banner {
   bannerId: string;
@@ -29,6 +30,9 @@ interface RightSideProps {
 }
 
 export default function RightSide({ banners, onBannerClick, height = 'h-[480px]', userLat, userLng }: RightSideProps) {
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   // Sort banners by distance if user location is available
   const sortedBanners = useMemo(() => {
     if (userLat !== null && userLat !== undefined && userLng !== null && userLng !== undefined) {
@@ -68,12 +72,34 @@ export default function RightSide({ banners, onBannerClick, height = 'h-[480px]'
       {banner ? (
         <div className="relative group w-full h-full">
           {/* Show shop with image */}
-          <a
-            href={banner.website || banner.link || `/shop/${banner.bannerId}`}
-            target={banner.website ? '_blank' : undefined}
-            rel={banner.website ? 'noopener noreferrer' : undefined}
-            onClick={() => onBannerClick(banner.bannerId, 'right', 0, banner.website || banner.link)}
-            className="relative block w-full h-full rounded-lg bg-white shadow-sm overflow-hidden hover:scale-[1.02] hover:shadow-md transition-all duration-150 group"
+          <div
+            onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              // Only open modal for shops (not external websites)
+              if (!banner.website) {
+                setSelectedShopId(banner.bannerId);
+                setIsModalOpen(true);
+              } else {
+                // External websites open in new tab
+                window.open(banner.website, '_blank', 'noopener,noreferrer');
+              }
+              // Track analytics
+              try {
+                await fetch('/api/analytics/banner-click', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    bannerId: banner.bannerId, 
+                    section: 'right', 
+                    position: 0 
+                  }),
+                });
+              } catch (error) {
+                console.error('Error tracking banner click:', error);
+              }
+            }}
+            className="relative block w-full h-full rounded-lg bg-white shadow-sm overflow-hidden hover:scale-[1.02] hover:shadow-md transition-all duration-150 group cursor-pointer"
             aria-label={`Shop: ${banner.advertiser || banner.alt} - ${banner.area || ''} - Right Side`}
           >
             {/* Shop Image */}
@@ -94,30 +120,30 @@ export default function RightSide({ banners, onBannerClick, height = 'h-[480px]'
                 {banner.advertiser || banner.alt}
               </h3>
               
-              {(banner.area || banner.city) && (
-                <p className="text-xs sm:text-sm text-white/90 mb-2 line-clamp-1 drop-shadow">
-                  📍 {banner.area || banner.city}
-                </p>
-              )}
-              
-              <div className="flex flex-wrap items-center gap-2 mb-2">
+              {/* All Info in One Line: km, min, visitor, location */}
+              <div className="text-xs sm:text-sm text-white/90 mb-2 line-clamp-1 drop-shadow flex flex-wrap items-center gap-1.5">
                 {(distance !== null || banner.distance !== undefined) && (
-                  <p className="text-xs sm:text-sm text-blue-300 font-semibold drop-shadow">
-                    {((distance ?? banner.distance) || 0).toFixed(1)} km
-                  </p>
+                  <>
+                    <span className="text-blue-300 font-semibold">{((distance ?? banner.distance) || 0).toFixed(1)} km</span>
+                    <span className="text-white/60">•</span>
+                    <span className="text-amber-300 font-semibold">{Math.round(((distance ?? banner.distance) || 0) * 1.5)} min</span>
+                    {(banner.visitorCount !== undefined || banner.area || banner.city) && (
+                      <span className="text-white/60">•</span>
+                    )}
+                  </>
                 )}
                 {banner.visitorCount !== undefined && (
-                  <p className="text-xs sm:text-sm text-white/80 font-semibold drop-shadow">
-                    👁️ {banner.visitorCount || 0}
-                  </p>
+                  <>
+                    <span className="text-white/80 font-semibold">{banner.visitorCount || 0} visitor</span>
+                    {(banner.area || banner.city) && (
+                      <span className="text-white/60">•</span>
+                    )}
+                  </>
+                )}
+                {(banner.area || banner.city) && (
+                  <span className="text-white/90">📍 {banner.area || banner.city}</span>
                 )}
               </div>
-              
-              {(distance !== null || banner.distance !== undefined) && (
-                <p className="text-xs sm:text-sm text-amber-300 font-semibold drop-shadow">
-                  ⏱️ {Math.round(((distance ?? banner.distance) || 0) * 1.5)} min
-                </p>
-              )}
               
               {banner.website && (
                 <p className="text-xs text-white/80 mt-2 truncate">
@@ -125,20 +151,22 @@ export default function RightSide({ banners, onBannerClick, height = 'h-[480px]'
                 </p>
               )}
             </div>
-          </a>
+          </div>
           
-          {/* Distance, Time, Visitor - Simple text format */}
-          {(distance !== null || banner.distance || banner.visitorCount !== undefined) && (
-            <div className="absolute bottom-2 left-2 right-2 z-10">
-              <div className="text-blue-700 text-xs sm:text-sm font-bold text-center bg-white/90 px-2 py-1 rounded">
-                {((distance ?? banner.distance) || 0).toFixed(1).padStart(4, '0')}km / {Math.round(((distance ?? banner.distance) || 0) * 1.5).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         renderPlaceholder()
       )}
+
+      {/* Shop Details Modal */}
+      <ShopDetailsModal
+        shopId={selectedShopId}
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedShopId(null);
+        }}
+      />
     </div>
   );
 }

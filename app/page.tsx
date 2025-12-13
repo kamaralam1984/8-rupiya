@@ -20,6 +20,12 @@ interface HomepageSettings {
     topRated: boolean;
     newBusinesses: boolean;
   };
+  heroSections?: {
+    leftRail: boolean;
+    rightRail: boolean;
+    bottomRail: boolean;
+    bottomStrip: boolean;
+  };
   layout: {
     theme: string;
     primaryColor: string;
@@ -81,6 +87,12 @@ export default function Home() {
           topRated: true,
           newBusinesses: true,
         },
+        heroSections: {
+          leftRail: true,
+          rightRail: true,
+          bottomRail: true,
+          bottomStrip: true,
+        },
         layout: {
           theme: 'light',
           primaryColor: '#3b82f6',
@@ -103,6 +115,12 @@ export default function Home() {
       featuredBusinesses: true,
       topRated: true,
       newBusinesses: true,
+    },
+    heroSections: {
+      leftRail: true,
+      rightRail: true,
+      bottomRail: true,
+      bottomStrip: true,
     },
     layout: {
       theme: 'light',
@@ -158,8 +176,8 @@ export default function Home() {
       >
         {/* Hero Section */}
         {sections.hero && (
-          <div style={{ marginBottom: sectionSpacing }}>
-            <HeroSection />
+          <div id="hero-section" style={{ marginBottom: sectionSpacing }}>
+            <HeroSection heroSections={homepageSettings.heroSections} />
           </div>
         )}
 

@@ -117,10 +117,33 @@ export default function CategoryGrid() {
   const [showAllDropdown, setShowAllDropdown] = useState(false);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
+  const [limit, setLimit] = useState(20);
+  const [iconSize, setIconSize] = useState({ desktop: 112, mobile: 80 });
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const desktopScrollRef = useRef<HTMLDivElement>(null);
   const mobileScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.success) {
+          if (data.displayLimits?.topCategories) {
+            setLimit(data.displayLimits.topCategories);
+          }
+          if (data.iconSizes?.topCategories) {
+            const size = data.iconSizes.topCategories;
+            setIconSize({ desktop: size, mobile: Math.round(size * 0.71) });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -129,9 +152,12 @@ export default function CategoryGrid() {
         const data = await response.json();
         console.log('Categories fetched:', data.categories?.length || 0, 'categories');
         
+        // Limit categories before processing
+        const categoriesToProcess = (data.categories || []).slice(0, limit);
+        
         // Fetch nearest shop for each category to get distance/time/visitor count
         const categoriesWithDistance = await Promise.all(
-          (data.categories || []).map(async (category: Category) => {
+          categoriesToProcess.map(async (category: Category) => {
             try {
               // Fetch nearest shop in this category
               const shopsResponse = await fetch(
@@ -430,7 +456,13 @@ export default function CategoryGrid() {
             className="overflow-x-auto scrollbar-hide scroll-smooth"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            <div className="flex gap-4 pb-2" style={{ width: 'max-content' }}>
+            <div 
+              className="flex gap-4 pb-2" 
+              style={{ 
+                width: categories.length <= 10 ? '100%' : 'max-content',
+                justifyContent: categories.length <= 10 ? 'flex-start' : 'flex-start',
+              }}
+            >
               {categories.map((category, index) => {
                 const customImageUrl = getCategoryImageUrl(category.slug, category.iconUrl);
 
@@ -438,11 +470,14 @@ export default function CategoryGrid() {
                   <button
                     key={`category-desktop-${category.id || category.slug || index}`}
                     onClick={() => handleCategoryClick(category)}
-                    className="group shrink-0 flex flex-col items-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    className={`group ${categories.length <= 10 ? 'flex-1' : 'shrink-0'} flex flex-col items-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
                     aria-label={`Browse ${category.displayName} - ${category.itemCount} shops available`}
-                    style={{ minWidth: '112px' }}
+                    style={{ 
+                      minWidth: categories.length <= 10 ? 'auto' : `${iconSize.desktop}px`,
+                      maxWidth: categories.length <= 10 ? 'none' : `${iconSize.desktop}px`,
+                    }}
                   >
-                    <div className="relative mb-2 flex items-center justify-center h-24 w-24 md:h-28 md:w-28">
+                    <div className="relative mb-2 flex items-center justify-center" style={{ height: `${iconSize.desktop}px`, width: `${iconSize.desktop}px` }}>
                       {customImageUrl ? (
                         <div className="relative w-full h-full rounded-full overflow-hidden bg-white border-2 border-gray-100 shadow-sm group-hover:shadow-md transition-all duration-200">
                           <Image
@@ -454,39 +489,18 @@ export default function CategoryGrid() {
                         </div>
                       ) : (
                         <div className="w-full h-full rounded-full bg-white border-2 border-gray-100 shadow-sm group-hover:shadow-md transition-all duration-200 flex items-center justify-center overflow-hidden">
-                          <CategoryIcon categorySlug={category.slug} className="w-16 h-16 md:w-20 md:h-20" />
+                          <CategoryIcon categorySlug={category.slug} className={`w-[${Math.round(iconSize.desktop * 0.7)}px] h-[${Math.round(iconSize.desktop * 0.7)}px]`} />
                         </div>
                       )}
-                      {/* Distance, Time, and Visitor Count Badge */}
-                      {(category.distance !== undefined || category.visitorCount !== undefined) && (
+                      {/* Visitor Count Badge */}
+                      {category.visitorCount !== undefined && (
                         <div className="absolute -top-1 -right-1 z-10">
-                          <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg flex flex-col items-center gap-0.5">
-                            {category.distance !== undefined && category.distance > 0 && (
-                              <>
-                                <div className="flex items-center gap-0.5">
-                                  <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  </svg>
-                                  <span>{category.distance.toFixed(1)}km</span>
-                                </div>
-                                <div className="flex items-center gap-0.5">
-                                  <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  <span>{Math.round(category.distance * 1.5)}min</span>
-                                </div>
-                              </>
-                            )}
-                            {category.visitorCount !== undefined && (
-                              <div className="flex items-center gap-0.5">
-                                <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                <span>{category.visitorCount || 0}</span>
-                              </div>
-                            )}
+                          <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg flex items-center gap-0.5">
+                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span>{category.visitorCount || 0}</span>
                           </div>
                         </div>
                       )}
@@ -536,7 +550,13 @@ export default function CategoryGrid() {
             className="overflow-x-auto pb-4 -mx-2 px-2 scrollbar-hide scroll-smooth"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            <div className="flex gap-3" style={{ width: 'max-content' }}>
+            <div 
+              className="flex gap-3" 
+              style={{ 
+                width: categories.length <= 5 ? '100%' : 'max-content',
+                justifyContent: categories.length <= 5 ? 'flex-start' : 'flex-start',
+              }}
+            >
               {categories.map((category, index) => {
                 const customImageUrl = getCategoryImageUrl(category.slug, category.iconUrl);
 
@@ -544,10 +564,11 @@ export default function CategoryGrid() {
                   <button
                     key={`category-mobile-${category.id || category.slug || index}`}
                     onClick={() => handleCategoryClick(category)}
-                    className="shrink-0 flex flex-col items-center focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[80px]"
+                    className={`${categories.length <= 5 ? 'flex-1' : 'shrink-0'} flex flex-col items-center focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    style={{ minWidth: categories.length <= 5 ? 'auto' : `${iconSize.mobile}px` }}
                     aria-label={`Browse ${category.displayName} - ${category.itemCount} shops available`}
                   >
-                    <div className="relative mb-2 flex items-center justify-center h-20 w-20">
+                    <div className="relative mb-2 flex items-center justify-center" style={{ height: `${iconSize.mobile}px`, width: `${iconSize.mobile}px` }}>
                       {customImageUrl ? (
                         <div className="relative w-full h-full rounded-full overflow-hidden bg-white border-2 border-gray-100 shadow-sm">
                           <Image
@@ -559,39 +580,20 @@ export default function CategoryGrid() {
                         </div>
                       ) : (
                         <div className="w-full h-full rounded-full bg-white border-2 border-gray-100 shadow-sm flex items-center justify-center overflow-hidden">
-                          <CategoryIcon categorySlug={category.slug} className="w-16 h-16" />
+                          <div style={{ width: `${Math.round(iconSize.mobile * 0.7)}px`, height: `${Math.round(iconSize.mobile * 0.7)}px` }}>
+                            <CategoryIcon categorySlug={category.slug} className="w-full h-full" />
+                          </div>
                         </div>
                       )}
-                      {/* Distance, Time, and Visitor Count Badge */}
-                      {(category.distance !== undefined || category.visitorCount !== undefined) && (
+                      {/* Visitor Count Badge */}
+                      {category.visitorCount !== undefined && (
                         <div className="absolute -top-1 -right-1 z-10">
-                          <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[7px] font-bold shadow-lg flex flex-col items-center gap-0.5">
-                            {category.distance !== undefined && category.distance > 0 && (
-                              <>
-                                <div className="flex items-center gap-0.5">
-                                  <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  </svg>
-                                  <span>{category.distance.toFixed(1)}km</span>
-                                </div>
-                                <div className="flex items-center gap-0.5">
-                                  <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  <span>{Math.round(category.distance * 1.5)}min</span>
-                                </div>
-                              </>
-                            )}
-                            {category.visitorCount !== undefined && (
-                              <div className="flex items-center gap-0.5">
-                                <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                <span>{category.visitorCount || 0}</span>
-                              </div>
-                            )}
+                          <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[7px] font-bold shadow-lg flex items-center gap-0.5">
+                            <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span>{category.visitorCount || 0}</span>
                           </div>
                         </div>
                       )}

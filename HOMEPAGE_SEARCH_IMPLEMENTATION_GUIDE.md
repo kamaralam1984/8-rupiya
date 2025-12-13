@@ -78,7 +78,11 @@ This document explains how the **Search & Filter** functionality was implemented
 │  • Transforms shops to banner format                        │
 │  • Sorts Left/Right rails by distance (nearest first)       │
 │  • Updates state → Renders LeftRail, RightSide, BottomStrip │
+<<<<<<< HEAD
 └─────────────────────────────────────────────────────────────┘
+=======
+└─────────────────────────────────────────────────────────────┘jjjsjj
+>>>>>>> 7094f775d556bec9fd893c0345bad1c45341ae28
 ```
 
 ---
@@ -556,7 +560,11 @@ export async function GET(request: NextRequest) {
 }
 ```
 
+<<<<<<< HEAD
 #### 6.3 Fallback Logic for Left/Right Rails
+=======
+#### 6.3 Fallback Logic for Left/Right Rails and hello
+>>>>>>> 7094f775d556bec9fd893c0345bad1c45341ae28
 ```typescript
 // If no LEFT_BAR shops found, use any filtered shops (excluding HERO and RIGHT_SIDE)
 if (leftRailShops.length === 0) {

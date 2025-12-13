@@ -18,6 +18,12 @@ interface HomepageSettings {
     topRated: boolean;
     newBusinesses: boolean;
   };
+  heroSections?: {
+    leftRail: boolean;
+    rightRail: boolean;
+    bottomRail: boolean;
+    bottomStrip: boolean;
+  };
   shopConfig: {
     enabled: boolean;
     featuredShops: string[];
@@ -58,6 +64,12 @@ export default function HomepageManagement() {
       featuredBusinesses: true,
       topRated: true,
       newBusinesses: true,
+    },
+    heroSections: {
+      leftRail: true,
+      rightRail: true,
+      bottomRail: true,
+      bottomStrip: true,
     },
     shopConfig: {
       enabled: false,
@@ -114,7 +126,17 @@ export default function HomepageManagement() {
 
       const data = await safeJsonParse<{ settings: HomepageSettings }>(response);
       if (data?.settings) {
-        setSettings(data.settings);
+        // Ensure heroSections exists with defaults if not present
+        const settingsWithDefaults = {
+          ...data.settings,
+          heroSections: data.settings.heroSections || {
+            leftRail: true,
+            rightRail: true,
+            bottomRail: true,
+            bottomStrip: true,
+          },
+        };
+        setSettings(settingsWithDefaults);
       }
     } catch (error) {
       console.error('Error fetching homepage settings:', error);
@@ -300,27 +322,76 @@ export default function HomepageManagement() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Page Sections</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.entries(settings.sections).map(([key, value]) => (
-            <label
-              key={key}
-              className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-blue-300 transition-all cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                checked={value}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    sections: { ...settings.sections, [key]: e.target.checked },
-                  })
-                }
-                className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-              />
-              <span className="text-sm font-medium text-gray-700 capitalize">
-                {key.replace(/([A-Z])/g, ' $1').trim()}
-              </span>
-            </label>
-          ))}
+          {Object.entries(settings.sections).map(([key, value]) => {
+            // Map section keys to user-friendly labels
+            const labels: { [key: string]: string } = {
+              hero: 'Hero Section',
+              categories: 'Categories',
+              offers: 'Latest Offers',
+              featuredBusinesses: 'Featured Businesses',
+              topRated: 'Top Rated Businesses',
+              newBusinesses: 'New Businesses',
+            };
+            return (
+              <label
+                key={key}
+                className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-blue-300 transition-all cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={value}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      sections: { ...settings.sections, [key]: e.target.checked },
+                    })
+                  }
+                  className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  {labels[key] || key.replace(/([A-Z])/g, ' $1').trim()}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Hero Section Components */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Hero Section Components</h2>
+        <p className="text-sm text-gray-600 mb-4">Control visibility of hero section sub-components</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {settings.heroSections && Object.entries(settings.heroSections).map(([key, value]) => {
+            // Map hero section keys to user-friendly labels
+            const labels: { [key: string]: string } = {
+              leftRail: 'Left Rail',
+              rightRail: 'Right Rail',
+              bottomRail: 'Featured Shops (12)',
+              bottomStrip: 'Nearby Shops (30)',
+            };
+            return (
+              <label
+                key={key}
+                className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg hover:border-purple-300 transition-all cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={value}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      heroSections: { ...settings.heroSections!, [key]: e.target.checked },
+                    })
+                  }
+                  className="w-5 h-5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  {labels[key] || key.replace(/([A-Z])/g, ' $1').trim()}
+                </span>
+              </label>
+            );
+          })}
         </div>
       </div>
 

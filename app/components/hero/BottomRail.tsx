@@ -1,8 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { sortBannersByDistance, getBannerDistance } from '../../utils/shopDistance';
+import ShopDetailsModal from '../ShopDetailsModal';
 
 interface Banner {
   bannerId: string;
@@ -28,14 +29,28 @@ interface BottomRailProps {
 }
 
 export default function BottomRail({ banners, onBannerClick, userLat, userLng }: BottomRailProps) {
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Deduplicate banners by bannerId to ensure each shop appears only once
+  const uniqueBanners = useMemo(() => {
+    const seen = new Set<string>();
+    return banners.filter((banner) => {
+      if (!banner || !banner.bannerId) return false;
+      if (seen.has(banner.bannerId)) return false;
+      seen.add(banner.bannerId);
+      return true;
+    });
+  }, [banners]);
+
   // Sort banners by distance if user location is available
   const sortedBanners = useMemo(() => {
     if (userLat !== null && userLat !== undefined && userLng !== null && userLng !== undefined) {
-      const sorted = sortBannersByDistance(banners, userLat, userLng);
+      const sorted = sortBannersByDistance(uniqueBanners, userLat, userLng);
       return sorted.map(item => item.banner);
     }
-    return banners;
-  }, [banners, userLat, userLng]);
+    return uniqueBanners;
+  }, [uniqueBanners, userLat, userLng]);
 
   // Show first 12 banners
   const currentBanners = useMemo(() => {
@@ -77,16 +92,29 @@ export default function BottomRail({ banners, onBannerClick, userLat, userLng }:
               key={`bottom-rail-${index}-${banner.bannerId || index}`}
               className="relative group"
             >
-              <a
-                href={banner.website || banner.link || `/shop/${banner.bannerId}`}
-                target={banner.website ? '_blank' : undefined}
-                rel={banner.website ? 'noopener noreferrer' : undefined}
-                onClick={() => onBannerClick(banner.bannerId, 'bottomrail', index, banner.website || banner.link)}
-                className={`relative block w-full h-32 sm:h-40 md:h-44 lg:h-48 rounded-lg bg-white overflow-hidden border-2 hover:scale-[1.05] transition-all duration-300 group animate-bottom-rail-glow`}
-                aria-label={`Shop: ${banner.advertiser || banner.alt} - ${banner.area || ''} - Bottom Rail slot ${index + 1}`}
-                style={{
-                  animationDelay: `${index * 1}s`,
+              <div
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setSelectedShopId(banner.bannerId);
+                  setIsModalOpen(true);
+                  // Track analytics but don't navigate
+                  try {
+                    await fetch('/api/analytics/banner-click', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ 
+                        bannerId: banner.bannerId, 
+                        section: 'bottomrail', 
+                        position: index 
+                      }),
+                    });
+                  } catch (error) {
+                    console.error('Error tracking banner click:', error);
+                  }
                 }}
+                className="relative block w-full h-32 sm:h-40 md:h-44 lg:h-48 rounded-lg bg-white overflow-hidden border-2 border-gray-200 hover:scale-[1.05] transition-all duration-300 group cursor-pointer"
+                aria-label={`Shop: ${banner.advertiser || banner.alt} - ${banner.area || ''} - Bottom Rail slot ${index + 1}`}
               >
                 {/* Shop Image */}
                 {banner.imageUrl && (
@@ -106,30 +134,30 @@ export default function BottomRail({ banners, onBannerClick, userLat, userLng }:
                     {banner.advertiser || banner.alt}
                   </h3>
                   
-                  {(banner.area || banner.city) && (
-                    <p className="text-[10px] sm:text-xs text-white/90 mb-1 line-clamp-1 drop-shadow">
-                      📍 {banner.area || banner.city}
-                    </p>
-                  )}
-                  
-                  <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                  {/* All Info in One Line: km, min, visitor, location */}
+                  <div className="text-[9px] sm:text-[10px] text-white/90 mb-1 line-clamp-1 drop-shadow flex flex-wrap items-center gap-1">
                     {(distance !== null || banner.distance !== undefined) && (
-                      <p className="text-[10px] sm:text-xs text-blue-300 font-semibold drop-shadow">
-                        {((distance ?? banner.distance) || 0).toFixed(1)} km
-                      </p>
+                      <>
+                        <span className="text-blue-300 font-semibold">{((distance ?? banner.distance) || 0).toFixed(1)} km</span>
+                        <span className="text-white/60">•</span>
+                        <span className="text-amber-300 font-semibold">{Math.round(((distance ?? banner.distance) || 0) * 1.5)} min</span>
+                        {(banner.visitorCount !== undefined || banner.area || banner.city) && (
+                          <span className="text-white/60">•</span>
+                        )}
+                      </>
                     )}
                     {banner.visitorCount !== undefined && (
-                      <p className="text-[10px] sm:text-xs text-white/80 font-semibold drop-shadow">
-                        👁️ {banner.visitorCount || 0}
-                      </p>
+                      <>
+                        <span className="text-white/80 font-semibold">{banner.visitorCount || 0} visitor</span>
+                        {(banner.area || banner.city) && (
+                          <span className="text-white/60">•</span>
+                        )}
+                      </>
+                    )}
+                    {(banner.area || banner.city) && (
+                      <span className="text-white/90">📍 {banner.area || banner.city}</span>
                     )}
                   </div>
-                  
-                  {(distance !== null || banner.distance !== undefined) && (
-                    <p className="text-[9px] sm:text-[10px] text-amber-300 font-semibold drop-shadow">
-                      ⏱️ {Math.round(((distance ?? banner.distance) || 0) * 1.5)} min
-                    </p>
-                  )}
                   
                   {banner.website && (
                     <p className="text-[8px] sm:text-[9px] text-white/80 mt-1 truncate">
@@ -137,16 +165,8 @@ export default function BottomRail({ banners, onBannerClick, userLat, userLng }:
                     </p>
                   )}
                 </div>
-              </a>
+              </div>
               
-              {/* Distance, Time, Visitor - Simple text format */}
-              {(distance !== null || banner.distance || banner.visitorCount !== undefined) && (
-                <div className="absolute bottom-1 left-1 right-1 z-10">
-                  <div className="text-blue-700 text-[8px] sm:text-xs font-bold text-center bg-white/90 px-1 sm:px-2 py-0.5 sm:py-1 rounded">
-                    {((distance ?? banner.distance) || 0).toFixed(1).padStart(4, '0')}km / {Math.round(((distance ?? banner.distance) || 0) * 1.5).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
-                  </div>
-                </div>
-              )}
             </div>
           ) : (
             <div key={`bottom-rail-placeholder-${index}`}>
@@ -155,6 +175,16 @@ export default function BottomRail({ banners, onBannerClick, userLat, userLng }:
           );
         })}
       </div>
+
+      {/* Shop Details Modal */}
+      <ShopDetailsModal
+        shopId={selectedShopId}
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedShopId(null);
+        }}
+      />
     </div>
   );
 }
