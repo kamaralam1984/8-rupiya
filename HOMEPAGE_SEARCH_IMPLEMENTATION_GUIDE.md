@@ -556,7 +556,7 @@ export async function GET(request: NextRequest) {
 }
 ```
 
-#### 6.3 Fallback Logic for Left/Right Rails and 
+#### 6.3 Fallback Logic for Left/Right Rails and hello
 ```typescript
 // If no LEFT_BAR shops found, use any filtered shops (excluding HERO and RIGHT_SIDE)
 if (leftRailShops.length === 0) {
