@@ -4,7 +4,6 @@ import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import ShopDetailsModal from '../ShopDetailsModal';
 
 interface HeroBannerData {
   bannerId: string;
@@ -16,7 +15,6 @@ interface HeroBannerData {
   advertiser?: string;
   distance?: number;
   isBusiness?: boolean;
-  website?: string;
   userLat?: number | null;
   userLng?: number | null;
   lat?: number;
@@ -46,11 +44,9 @@ interface HeroBannerProps {
   category?: string;
 }
 
-export default function HeroBanner({ hero, onBannerClick, height = 'h-[469px]', category }: HeroBannerProps) {
+export default function HeroBanner({ hero, onBannerClick, height = 'h-[480px]', category }: HeroBannerProps) {
   const pathname = usePathname();
   const [heroBanner, setHeroBanner] = useState<HeroBannerData | null>(hero || null);
-  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Fetch hero banner from API if not provided
   useEffect(() => {
@@ -195,66 +191,35 @@ export default function HeroBanner({ hero, onBannerClick, height = 'h-[469px]', 
   // If it's a shop (isBusiness), show ONLY shop image (no text, no details)
   if (heroBanner.isBusiness) {
     return (
-      <>
-        <div
-          onClick={async (e) => {
+      <Link
+        href={heroBanner.link}
+        onClick={(e) => {
+          if (heroBanner.link === '#') {
             e.preventDefault();
-            e.stopPropagation();
-            // Only open modal for shops (not external websites)
-            if (!heroBanner.website) {
-              setSelectedShopId(heroBanner.bannerId);
-              setIsModalOpen(true);
-            } else {
-              // External websites open in new tab
-              window.open(heroBanner.website, '_blank', 'noopener,noreferrer');
-            }
-            // Track analytics
-            try {
-              await fetch('/api/analytics/banner-click', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  bannerId: heroBanner.bannerId, 
-                  section: 'hero', 
-                  position: 0 
-                }),
-              });
-            } catch (error) {
-              console.error('Error tracking banner click:', error);
-            }
-          }}
-          className={`relative w-full ${height} rounded-xl overflow-hidden shadow-lg border-2 border-blue-300 hover:border-blue-500 group transition-all duration-300 hover:scale-[1.02] cursor-pointer`}
-          aria-label={`Shop: ${heroBanner.title || heroBanner.advertiser}`}
-        >
-          {/* Shop Image Only - No Text, No Details */}
-          {heroBanner.imageUrl ? (
-            <Image
-              src={heroBanner.imageUrl}
-              alt={heroBanner.title || heroBanner.advertiser || 'Shop'}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-              priority
-              sizes="(max-width: 1024px) 100vw, 60vw"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-              <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-          )}
-        </div>
-
-        {/* Shop Details Modal */}
-        <ShopDetailsModal
-          shopId={selectedShopId}
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedShopId(null);
-          }}
-        />
-      </>
+          }
+          onBannerClick(heroBanner.bannerId, 'hero', 0, heroBanner.link);
+        }}
+        className={`relative w-full ${height} rounded-xl overflow-hidden shadow-lg border-2 border-blue-300 hover:border-blue-500 group transition-all duration-300 hover:scale-[1.02]`}
+        aria-label={`Shop: ${heroBanner.title || heroBanner.advertiser}`}
+      >
+        {/* Shop Image Only - No Text, No Details */}
+        {heroBanner.imageUrl ? (
+          <Image
+            src={heroBanner.imageUrl}
+            alt={heroBanner.title || heroBanner.advertiser || 'Shop'}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            priority
+            sizes="(max-width: 1024px) 100vw, 60vw"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+            <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+        )}
+      </Link>
     );
   }
 
@@ -316,6 +281,14 @@ export default function HeroBanner({ hero, onBannerClick, height = 'h-[469px]', 
         </div>
       )}
       
+      {/* Distance, Time, Visitor - Simple text format */}
+      {(heroBanner.distance !== undefined || heroBanner.isBusiness || heroBanner.visitorCount !== undefined) && (
+        <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 z-20">
+          <div className="text-blue-700 text-sm sm:text-base font-bold text-center bg-white/90 px-3 py-2 rounded-lg shadow-lg">
+            {(heroBanner.distance || 0).toFixed(1).padStart(4, '0')}km / {Math.round((heroBanner.distance || 0) * 1.5).toString().padStart(2, '0')}min / {(heroBanner.visitorCount || 0).toString().padStart(2, '0')}visitor
+          </div>
+        </div>
+      )}
     </div>
   );
 }

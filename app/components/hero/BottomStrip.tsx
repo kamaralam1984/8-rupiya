@@ -1,8 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useMemo, useState, useEffect } from 'react';
-import ShopDetailsModal from '../ShopDetailsModal';
+import { useMemo } from 'react';
 
 interface Banner {
   bannerId: string;
@@ -10,8 +9,6 @@ interface Banner {
   alt: string;
   link: string;
   advertiser?: string;
-  shopName?: string;
-  name?: string;
   lat?: number;
   lng?: number;
   distance?: number;
@@ -32,49 +29,14 @@ interface BottomStripProps {
   ) => void;
 }
 
+// Fallback banners removed - only shops will be shown
+
 export default function BottomStrip({ banners, onBannerClick }: BottomStripProps) {
-  const [limit, setLimit] = useState(30);
-  const [iconSize, setIconSize] = useState({ desktop: 66, mobile: 41 });
-  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const res = await fetch('/api/settings');
-        const data = await res.json();
-        if (data.success) {
-          if (data.displayLimits?.nearbyShops) {
-            setLimit(data.displayLimits.nearbyShops);
-          }
-          if (data.iconSizes?.bottomStrip) {
-            const size = data.iconSizes.bottomStrip;
-            setIconSize({ desktop: size, mobile: Math.round(size * 0.62) });
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching settings:', error);
-      }
-    };
-    fetchSettings();
-  }, []);
-
-  // Deduplicate banners by bannerId to ensure each shop appears only once
-  const uniqueBanners = useMemo(() => {
-    const seen = new Set<string>();
-    return banners.filter((banner) => {
-      if (!banner || !banner.bannerId) return false;
-      if (seen.has(banner.bannerId)) return false;
-      seen.add(banner.bannerId);
-      return true;
-    });
-  }, [banners]);
-
-  // Show shops up to configured limit
+  // Show all shops (up to 30), no rotation
   const currentBanners = useMemo(() => {
-    return uniqueBanners.slice(0, limit);
-  }, [uniqueBanners, limit]);
-
+    // Show all shops (with or without websites)
+    return banners.slice(0, 30);
+  }, [banners]);
   const renderPlaceholder = (position: number) => (
     <div
       onClick={() => window.location.href = '/advertise'}
@@ -87,168 +49,455 @@ export default function BottomStrip({ banners, onBannerClick }: BottomStripProps
     </div>
   );
 
-  const renderBanner = (banner: Banner, index: number, rowLength: number, isMobile: boolean = false) => {
-    const actualIndex = index;
-    // Calculate flex-basis to fill available space when fewer items than max per row
-    const itemsPerRow = isMobile ? itemsPerRowMobile : itemsPerRowDesktop;
-    const flexBasis = rowLength < itemsPerRow ? `${100 / rowLength}%` : undefined;
-    
-    return banner ? (
-      <div 
-        key={`bottom-${isMobile ? 'mobile-' : ''}${actualIndex}-${banner.bannerId || actualIndex}`} 
-        className={`relative group flex-1 ${isMobile ? 'max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]' : 'max-w-[112px] min-w-[94px]'}`}
-        style={flexBasis ? { flexBasis, maxWidth: flexBasis } : {}}
-      >
-        <div
-          onClick={async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // Only open modal for shops (not external websites)
-            if (!banner.website) {
-              setSelectedShopId(banner.bannerId);
-              setIsModalOpen(true);
-            } else {
-              // External websites open in new tab
-              window.open(banner.website, '_blank', 'noopener,noreferrer');
-            }
-            // Track analytics
-            try {
-              await fetch('/api/analytics/banner-click', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  bannerId: banner.bannerId, 
-                  section: 'bottom', 
-                  position: actualIndex 
-                }),
-              });
-            } catch (error) {
-              console.error('Error tracking banner click:', error);
-            }
-          }}
-          className={`relative w-full inline-flex flex-col items-center justify-center ${isMobile ? 'h-12 sm:h-14 px-1' : 'h-20 px-2'} rounded-md border-2 border-gray-200 bg-white shadow-sm hover:scale-105 ${isMobile ? 'hover:shadow-md' : 'hover:shadow-lg'} transition-all duration-200 overflow-hidden cursor-pointer`}
-          aria-label={`Shop: ${banner.advertiser || banner.alt} - ${banner.area || ''} - Bottom slot ${actualIndex + 1}`}
-        >
-          {banner.imageUrl && (
-            <Image
-              src={banner.imageUrl}
-              alt={banner.advertiser || banner.alt}
-              width={isMobile ? iconSize.mobile : iconSize.desktop}
-              height={isMobile ? Math.round(iconSize.mobile * 0.8) : Math.round(iconSize.desktop * 0.8)}
-              className="object-cover max-h-full max-w-full"
-              loading="lazy"
-            />
-          )}
-          {/* Shop name, distance, time, and visitor count in one line */}
-          <div className={`absolute bottom-0 left-0 right-0 px-1 py-0.5 ${isMobile ? 'text-[6px]' : 'text-[7px]'} leading-tight`}>
-            <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap justify-center">
-              {/* Shop Name */}
-              {(banner.advertiser || banner.shopName || banner.name) && (
-                <span className="font-semibold truncate max-w-[45%] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                  {banner.advertiser || banner.shopName || banner.name}
-                </span>
-              )}
-              {/* Separator */}
-              {((banner.advertiser || banner.shopName || banner.name) && 
-                (banner.distance !== undefined || banner.visitorCount !== undefined)) && (
-                <span className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">•</span>
-              )}
-              {/* Distance - Red */}
-              {banner.distance !== undefined && banner.distance > 0 && (
-                <span className="whitespace-nowrap text-red-500 font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{banner.distance.toFixed(1)}km</span>
-              )}
-              {/* Time - Yellow */}
-              {banner.distance !== undefined && banner.distance > 0 && (
-                <>
-                  <span className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">•</span>
-                  <span className="whitespace-nowrap text-yellow-400 font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{Math.round(banner.distance * 1.5)}min</span>
-                </>
-              )}
-              {/* Visitor Count */}
-              {banner.visitorCount !== undefined && (
-                <>
-                  {(banner.distance !== undefined || banner.advertiser || banner.shopName || banner.name) && (
-                    <span className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">•</span>
-                  )}
-                  <span className="whitespace-nowrap text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{banner.visitorCount || 0}👁️</span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    ) : (
-      <div key={`bottom-placeholder-${actualIndex}`} className={`flex-1 ${isMobile ? 'max-w-[61px] sm:max-w-[70px]' : 'max-w-[112px]'}`}>
-        {renderPlaceholder(actualIndex)}
-      </div>
-    );
-  };
-
-  // Split banners into rows dynamically based on limit
-  const itemsPerRowDesktop = 10;
-  const itemsPerRowMobile = 5;
-  const totalRowsDesktop = Math.ceil(limit / itemsPerRowDesktop);
-  const totalRowsMobile = Math.ceil(limit / itemsPerRowMobile);
-  
-  // Desktop rows
-  const desktopRows = Array.from({ length: totalRowsDesktop }).map((_, i) => 
-    currentBanners.slice(i * itemsPerRowDesktop, (i + 1) * itemsPerRowDesktop)
-  );
-  
-  // Mobile rows
-  const mobileRows = Array.from({ length: totalRowsMobile }).map((_, i) => 
-    currentBanners.slice(i * itemsPerRowMobile, (i + 1) * itemsPerRowMobile)
-  );
+  // Split banners into 3 rows of 10 each for desktop (total 30)
+  const row1 = currentBanners.slice(0, 10);
+  const row2 = currentBanners.slice(10, 20);
+  const row3 = currentBanners.slice(20, 30);
+  // Split banners into 6 rows of 5 each for mobile (total 30)
+  const mobileRow1 = currentBanners.slice(0, 5);
+  const mobileRow2 = currentBanners.slice(5, 10);
+  const mobileRow3 = currentBanners.slice(10, 15);
+  const mobileRow4 = currentBanners.slice(15, 20);
+  const mobileRow5 = currentBanners.slice(20, 25);
+  const mobileRow6 = currentBanners.slice(25, 30);
 
   return (
     <div className="w-full mt-6">
       <h2 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 px-2">
         Nearby Shops ({currentBanners.length})
       </h2>
-      
-      {/* Desktop: Dynamic rows */}
+      {/* Desktop: 3 Rows of 10 images each (total 30 shops, same size) */}
       <div className="hidden md:block relative" aria-live="polite">
         <div>
-          {desktopRows.map((row, rowIndex) => {
-            const rowLength = row.filter(b => b).length;
-            return (
-              <div key={`desktop-row-${rowIndex}`} className={`flex flex-wrap justify-center gap-2 ${rowIndex < desktopRows.length - 1 ? 'mb-2' : ''}`}>
-                {row.map((banner, index) => {
-                  const actualIndex = rowIndex * itemsPerRowDesktop + index;
-                  return renderBanner(banner, actualIndex, rowLength, false);
-                })}
+          {/* Row 1: 10 images */}
+          <div className="flex flex-wrap justify-center gap-2 mb-2">
+          {[...Array(10)].map((_, index) => {
+            const banner = row1[index];
+            return banner ? (
+              <div key={`bottom-row1-${index}-${banner.bannerId || index}`} className="relative group flex-1 max-w-[112px] min-w-[94px]">
+                <a
+                  href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                  target={banner.website ? '_blank' : undefined}
+                  rel={banner.website ? 'noopener noreferrer' : undefined}
+                  onClick={() => onBannerClick(banner.bannerId, 'bottom', index, banner.website || banner.link)}
+                  className="relative w-full inline-flex items-center justify-center h-20 px-2 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-lg transition-all duration-200 overflow-hidden animate-bottom-strip-glow"
+                  aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${index + 1}`}
+                  style={{
+                    animationDelay: `${index * 0.5}s`,
+                  }}
+                >
+                  {banner.imageUrl && (
+                    <Image
+                      src={banner.imageUrl}
+                      alt={banner.advertiser || banner.alt}
+                      width={66}
+                      height={53}
+                      className="object-cover max-h-full max-w-full"
+                      loading="lazy"
+                    />
+                  )}
+                  {/* Distance, Time, Visitor - Simple text format */}
+                  <div className="absolute bottom-1 left-1 right-1 z-10">
+                    <div className="text-blue-700 text-[8px] font-bold text-center bg-white/80 px-1 py-0.5 rounded">
+                      {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
+                    </div>
+                  </div>
+                </a>
+              </div>
+            ) : (
+              <div key={`bottom-placeholder-${index}`} className="flex-1 max-w-[112px]">
+                {renderPlaceholder(index)}
               </div>
             );
           })}
         </div>
+          {/* Row 2: 10 images */}
+          <div className="flex flex-wrap justify-center gap-2 mb-2">
+          {[...Array(10)].map((_, index) => {
+            const banner = row2[index];
+            const actualIndex = index + 10;
+            return banner ? (
+              <div key={`bottom-row2-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[112px] min-w-[94px]">
+                <a
+                  href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                  target={banner.website ? '_blank' : undefined}
+                  rel={banner.website ? 'noopener noreferrer' : undefined}
+                  onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
+                  className="relative w-full inline-flex items-center justify-center h-20 px-2 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-lg transition-all duration-200 overflow-hidden animate-bottom-strip-glow"
+                  aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
+                  style={{
+                    animationDelay: `${actualIndex * 0.5}s`,
+                  }}
+                >
+                  {banner.imageUrl && (
+                    <Image
+                      src={banner.imageUrl}
+                      alt={banner.advertiser || banner.alt}
+                      width={66}
+                      height={53}
+                      className="object-cover max-h-full max-w-full"
+                      loading="lazy"
+                    />
+                  )}
+                  {/* Distance, Time, Visitor - Simple text format */}
+                  <div className="absolute bottom-1 left-1 right-1 z-10">
+                    <div className="text-blue-700 text-[8px] font-bold text-center bg-white/80 px-1 py-0.5 rounded">
+                      {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
+                    </div>
+                  </div>
+                </a>
+              </div>
+            ) : (
+              <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[112px]">
+                {renderPlaceholder(actualIndex)}
+              </div>
+            );
+          })}
+          </div>
+          {/* Row 3: 10 images */}
+          <div className="flex flex-wrap justify-center gap-2">
+          {[...Array(10)].map((_, index) => {
+            const banner = row3[index];
+            const actualIndex = index + 20;
+            return banner ? (
+              <div key={`bottom-row3-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[112px] min-w-[94px]">
+                <a
+                  href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                  target={banner.website ? '_blank' : undefined}
+                  rel={banner.website ? 'noopener noreferrer' : undefined}
+                  onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
+                  className="relative w-full inline-flex items-center justify-center h-20 px-2 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-lg transition-all duration-200 overflow-hidden animate-bottom-strip-glow"
+                  aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
+                  style={{
+                    animationDelay: `${actualIndex * 0.5}s`,
+                  }}
+                >
+                  {banner.imageUrl && (
+                    <Image
+                      src={banner.imageUrl}
+                      alt={banner.advertiser || banner.alt}
+                      width={66}
+                      height={53}
+                      className="object-cover max-h-full max-w-full"
+                      loading="lazy"
+                    />
+                  )}
+                  {/* Distance, Time, Visitor - Simple text format */}
+                  <div className="absolute bottom-1 left-1 right-1 z-10">
+                    <div className="text-blue-700 text-[8px] font-bold text-center bg-white/80 px-1 py-0.5 rounded">
+                      {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
+                    </div>
+                  </div>
+                </a>
+              </div>
+            ) : (
+              <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[112px]">
+                {renderPlaceholder(actualIndex)}
+              </div>
+            );
+          })}
+          </div>
+        </div>
       </div>
 
-      {/* Mobile: Dynamic rows */}
+      {/* Mobile: 6 Rows of 5 images each (same size) */}
       <div className="md:hidden relative" aria-live="polite">
         <div>
-          {mobileRows.map((row, rowIndex) => {
-            const rowLength = row.filter(b => b).length;
-            return (
-              <div key={`mobile-row-${rowIndex}`} className={`flex flex-wrap justify-center gap-1 sm:gap-1.5 ${rowIndex < mobileRows.length - 1 ? 'mb-1 sm:mb-1.5' : ''}`}>
-                {row.map((banner, index) => {
-                  const actualIndex = rowIndex * itemsPerRowMobile + index;
-                  return renderBanner(banner, actualIndex, rowLength, true);
-                })}
-              </div>
-            );
-          })}
+          {/* Row 1: 5 images */}
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
+            {[...Array(5)].map((_, index) => {
+              const banner = mobileRow1[index];
+              return banner ? (
+                <div key={`bottom-mobile-row1-${index}-${banner.bannerId || index}`} className="relative group flex-1 max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]">
+                  <a
+                    href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                    onClick={() => onBannerClick(banner.bannerId, 'bottom', index, banner.website || banner.link)}
+                    className="relative w-full inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden animate-bottom-strip-glow"
+                    aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${index + 1}`}
+                    style={{
+                      animationDelay: `${index * 0.5}s`,
+                    }}
+                  >
+                    {banner.imageUrl && (
+                      <Image
+                        src={banner.imageUrl}
+                        alt={banner.advertiser || banner.alt}
+                        width={41}
+                        height={33}
+                        className="object-cover max-h-full max-w-full"
+                        loading="lazy"
+                      />
+                    )}
+                    {/* Distance, Time, Visitor - Simple text format */}
+                    <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
+                      <div className="text-blue-700 text-[6px] font-bold text-center bg-white/80 px-0.5 py-0 rounded">
+                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              ) : (
+                <div key={`bottom-placeholder-${index}`} className="flex-1 max-w-[61px] sm:max-w-[70px]">
+                  <div
+                    onClick={() => window.location.href = '/advertise'}
+                    className="inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Advertise here - Bottom position ${index + 1}`}
+                  >
+                    <span className="text-[7px] sm:text-[8px] font-medium text-gray-500">Ad</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Row 2: 5 images */}
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
+            {[...Array(5)].map((_, index) => {
+              const banner = mobileRow2[index];
+              const actualIndex = index + 5;
+              return banner ? (
+                <div key={`bottom-mobile-row2-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]">
+                  <a
+                    href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
+                    className="relative w-full inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden animate-bottom-strip-glow"
+                    aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
+                    style={{
+                      animationDelay: `${actualIndex * 0.5}s`,
+                    }}
+                  >
+                    {banner.imageUrl && (
+                      <Image
+                        src={banner.imageUrl}
+                        alt={banner.alt}
+                        width={41}
+                        height={33}
+                        className="object-cover max-h-full max-w-full"
+                        loading="lazy"
+                      />
+                    )}
+                    {/* Distance, Time, Visitor - Simple text format */}
+                    <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
+                      <div className="text-blue-700 text-[6px] font-bold text-center bg-white/80 px-0.5 py-0 rounded">
+                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              ) : (
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[61px] sm:max-w-[70px]">
+                  <div
+                    onClick={() => window.location.href = '/advertise'}
+                    className="inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
+                  >
+                    <span className="text-[7px] sm:text-[8px] font-medium text-gray-500">Ad</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Row 3: 5 images */}
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
+            {[...Array(5)].map((_, index) => {
+              const banner = mobileRow3[index];
+              const actualIndex = index + 10;
+              return banner ? (
+                <div key={`bottom-mobile-row3-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]">
+                  <a
+                    href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
+                    className="relative w-full inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden animate-bottom-strip-glow"
+                    aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
+                    style={{
+                      animationDelay: `${actualIndex * 0.5}s`,
+                    }}
+                  >
+                    {banner.imageUrl && (
+                      <Image
+                        src={banner.imageUrl}
+                        alt={banner.alt}
+                        width={41}
+                        height={33}
+                        className="object-cover max-h-full max-w-full"
+                        loading="lazy"
+                      />
+                    )}
+                    {/* Distance, Time, Visitor - Simple text format */}
+                    <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
+                      <div className="text-blue-700 text-[6px] font-bold text-center bg-white/80 px-0.5 py-0 rounded">
+                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              ) : (
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[61px] sm:max-w-[70px]">
+                  <div
+                    onClick={() => window.location.href = '/advertise'}
+                    className="inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
+                  >
+                    <span className="text-[7px] sm:text-[8px] font-medium text-gray-500">Ad</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Row 4: 5 images */}
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
+            {[...Array(5)].map((_, index) => {
+              const banner = mobileRow4[index];
+              const actualIndex = index + 15;
+              return banner ? (
+                <div key={`bottom-mobile-row4-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]">
+                  <a
+                    href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
+                    className="relative w-full inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden animate-bottom-strip-glow"
+                    aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
+                    style={{
+                      animationDelay: `${actualIndex * 0.5}s`,
+                    }}
+                  >
+                    {banner.imageUrl && (
+                      <Image
+                        src={banner.imageUrl}
+                        alt={banner.alt}
+                        width={41}
+                        height={33}
+                        className="object-cover max-h-full max-w-full"
+                        loading="lazy"
+                      />
+                    )}
+                    {/* Distance, Time, Visitor - Simple text format */}
+                    <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
+                      <div className="text-blue-700 text-[6px] font-bold text-center bg-white/80 px-0.5 py-0 rounded">
+                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              ) : (
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[61px] sm:max-w-[70px]">
+                  <div
+                    onClick={() => window.location.href = '/advertise'}
+                    className="inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
+                  >
+                    <span className="text-[7px] sm:text-[8px] font-medium text-gray-500">Ad</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Row 5: 5 images */}
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
+            {[...Array(5)].map((_, index) => {
+              const banner = mobileRow5[index];
+              const actualIndex = index + 20;
+              return banner ? (
+                <div key={`bottom-mobile-row5-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]">
+                  <a
+                    href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
+                    className="relative w-full inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden animate-bottom-strip-glow"
+                    aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
+                    style={{
+                      animationDelay: `${actualIndex * 0.5}s`,
+                    }}
+                  >
+                    {banner.imageUrl && (
+                      <Image
+                        src={banner.imageUrl}
+                        alt={banner.alt}
+                        width={41}
+                        height={33}
+                        className="object-cover max-h-full max-w-full"
+                        loading="lazy"
+                      />
+                    )}
+                    {/* Distance, Time, Visitor - Simple text format */}
+                    <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
+                      <div className="text-blue-700 text-[6px] font-bold text-center bg-white/80 px-0.5 py-0 rounded">
+                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              ) : (
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[61px] sm:max-w-[70px]">
+                  <div
+                    onClick={() => window.location.href = '/advertise'}
+                    className="inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
+                  >
+                    <span className="text-[7px] sm:text-[8px] font-medium text-gray-500">Ad</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Row 6: 5 images */}
+          <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5">
+            {[...Array(5)].map((_, index) => {
+              const banner = mobileRow6[index];
+              const actualIndex = index + 25;
+              return banner ? (
+                <div key={`bottom-mobile-row6-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]">
+                  <a
+                    href={banner.website || banner.link || `/shop/${banner.bannerId}`}
+                    onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
+                    className="relative w-full inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden animate-bottom-strip-glow"
+                    aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
+                    style={{
+                      animationDelay: `${actualIndex * 0.5}s`,
+                    }}
+                  >
+                    {banner.imageUrl && (
+                      <Image
+                        src={banner.imageUrl}
+                        alt={banner.alt}
+                        width={41}
+                        height={33}
+                        className="object-cover max-h-full max-w-full"
+                        loading="lazy"
+                      />
+                    )}
+                    {/* Distance, Time, Visitor - Simple text format */}
+                    <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
+                      <div className="text-blue-700 text-[6px] font-bold text-center bg-white/80 px-0.5 py-0 rounded">
+                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              ) : (
+                <div key={`bottom-placeholder-${actualIndex}`} className="flex-1 max-w-[61px] sm:max-w-[70px]">
+                  <div
+                    onClick={() => window.location.href = '/advertise'}
+                    className="inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 border-dashed border-gray-300 bg-gray-50 hover:border-blue-400 transition-colors cursor-pointer min-w-[48px] sm:min-w-[56px]"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Advertise here - Bottom position ${actualIndex + 1}`}
+                  >
+                    <span className="text-[7px] sm:text-[8px] font-medium text-gray-500">Ad</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
-
-      {/* Shop Details Modal */}
-      <ShopDetailsModal
-        shopId={selectedShopId}
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedShopId(null);
-        }}
-      />
     </div>
   );
 }

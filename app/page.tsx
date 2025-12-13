@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar";
 import HeroSection from "./components/HeroSection";
+import HomepageSearchFilter from "./components/HomepageSearchFilter";
 import CategoryGrid from "./components/CategoryGrid";
 import OffersStrip from "./components/OffersStrip";
 import FeaturedBusinesses from "./components/FeaturedBusinesses";
@@ -19,12 +20,6 @@ interface HomepageSettings {
     featuredBusinesses: boolean;
     topRated: boolean;
     newBusinesses: boolean;
-  };
-  heroSections?: {
-    leftRail: boolean;
-    rightRail: boolean;
-    bottomRail: boolean;
-    bottomStrip: boolean;
   };
   layout: {
     theme: string;
@@ -87,12 +82,6 @@ export default function Home() {
           topRated: true,
           newBusinesses: true,
         },
-        heroSections: {
-          leftRail: true,
-          rightRail: true,
-          bottomRail: true,
-          bottomStrip: true,
-        },
         layout: {
           theme: 'light',
           primaryColor: '#3b82f6',
@@ -115,12 +104,6 @@ export default function Home() {
       featuredBusinesses: true,
       topRated: true,
       newBusinesses: true,
-    },
-    heroSections: {
-      leftRail: true,
-      rightRail: true,
-      bottomRail: true,
-      bottomStrip: true,
     },
     layout: {
       theme: 'light',
@@ -174,10 +157,15 @@ export default function Home() {
         className="mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-4 sm:pb-6"
         style={{ maxWidth: containerWidth }}
       >
+        {/* Search & Filter Section - At the Top */}
+        <div style={{ marginBottom: sectionSpacing }}>
+          <HomepageSearchFilter />
+        </div>
+
         {/* Hero Section */}
         {sections.hero && (
-          <div id="hero-section" style={{ marginBottom: sectionSpacing }}>
-            <HeroSection heroSections={homepageSettings.heroSections} />
+          <div style={{ marginBottom: sectionSpacing }} id="businesses-section">
+            <HeroSection />
           </div>
         )}
 

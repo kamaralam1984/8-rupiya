@@ -1,13 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
-// Rotating slogans in Hindi
-const slogans = [
-  'अपने आस-पास की स्थानीय दुकानों को ऑनलाइन खोजें और तुरंत देखें!',
-  'अब आपके नज़दीकी दुकानदार बस एक क्लिक की दूरी पर — ऑनलाइन खोजें और खरीदें!',
-  'घर बैठे अपने आसपास की सबसे भरोसेमंद दुकानों को खोजें और तुरंत जानकारी पाएं!'
-];
 import { useLocation } from '../contexts/LocationContext';
 import toast from 'react-hot-toast';
 
@@ -50,10 +43,6 @@ export default function ShopDirectoryPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [pincodes, setPincodes] = useState<string[]>([]);
-  
-  // Rotating slogan state
-  const [currentSloganIndex, setCurrentSloganIndex] = useState(0);
-  const [isFading, setIsFading] = useState(false);
 
   useEffect(() => {
     fetchShops();
@@ -62,19 +51,6 @@ export default function ShopDirectoryPage() {
   useEffect(() => {
     applyFilters();
   }, [shops, searchQuery, selectedCategory, selectedCity, selectedPincode, location]);
-
-  // Rotate slogans with animation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIsFading(true);
-      setTimeout(() => {
-        setCurrentSloganIndex((prev) => (prev + 1) % slogans.length);
-        setIsFading(false);
-      }, 500); // Half of transition duration
-    }, 10000); // Change slogan every 10 seconds
-
-    return () => clearInterval(interval);
-  }, []);
 
   const fetchShops = async () => {
     try {
@@ -134,16 +110,9 @@ export default function ShopDirectoryPage() {
         uniqueCategories.add(shop.category.trim());
       }
       
-      // Extract cities - only valid city strings (exclude lat/long values)
-      if (shop.city && typeof shop.city === 'string') {
-        const cityValue = shop.city.trim();
-        // Filter out numeric values (lat/long) and coordinate-like strings
-        const isNumeric = /^-?\d+\.?\d*$/.test(cityValue);
-        const isCoordinate = /^-?\d+\.?\d*,\s*-?\d+\.?\d*$/.test(cityValue);
-        // Only add if it's a valid city name (not numeric or coordinate)
-        if (cityValue && !isNumeric && !isCoordinate && cityValue.length > 0) {
-          uniqueCities.add(cityValue);
-        }
+      // Extract cities - only valid city strings
+      if (shop.city && typeof shop.city === 'string' && shop.city.trim()) {
+        uniqueCities.add(shop.city.trim());
       }
       
       // Extract pincodes - handle both string and number
@@ -225,18 +194,10 @@ export default function ShopDirectoryPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b-2 border-gray-200 text-gray-900 py-4">
+      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-1 animate-search-pitara-color">Search Pitara</h1>
-          <div className="h-6 sm:h-8 flex items-center justify-start relative">
-            <p 
-              className={`text-sm sm:text-base transition-all duration-500 animate-slogan-glow ${
-                isFading ? 'opacity-0 transform translate-y-2' : 'opacity-100 transform translate-y-0'
-              }`}
-            >
-              {slogans[currentSloganIndex]}
-            </p>
-          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-2">Shop Directory</h1>
+          <p className="text-blue-100">Discover and explore local shops near you</p>
         </div>
       </div>
 
@@ -340,7 +301,9 @@ export default function ShopDirectoryPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Shop Name</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Owner</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location & Info</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plan</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Distance</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -357,29 +320,13 @@ export default function ShopDirectoryPage() {
                     <td className="px-4 py-3 text-sm text-gray-600">{shop.ownerName || 'N/A'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{shop.category || 'Uncategorized'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {shop.distance !== undefined && (
-                          <>
-                            <span>{shop.distance.toFixed(1)} km</span>
-                            <span className="text-gray-400">•</span>
-                            <span>{Math.round(shop.distance * 1.5)} min</span>
-                            {(shop.visitorCount !== undefined || shop.area || shop.city || shop.pincode) && (
-                              <span className="text-gray-400">•</span>
-                            )}
-                          </>
-                        )}
-                        {shop.visitorCount !== undefined && (
-                          <>
-                            <span>{shop.visitorCount || 0} visitor</span>
-                            {(shop.area || shop.city || shop.pincode) && (
-                              <span className="text-gray-400">•</span>
-                            )}
-                          </>
-                        )}
-                        {(shop.area || shop.city || shop.pincode) && (
-                          <span>📍 {shop.area || ''}{shop.area && (shop.city || shop.pincode) ? ', ' : ''}{shop.city || ''}{shop.city && shop.pincode ? ', ' : ''}{shop.pincode || ''}</span>
-                        )}
-                      </div>
+                      {shop.city && <span>📍 {shop.city}</span>}
+                      {shop.pincode && (
+                        <span className="ml-2">📮 {typeof shop.pincode === 'string' ? shop.pincode : String(shop.pincode)}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {shop.distance !== undefined ? `${shop.distance.toFixed(1)} km` : 'N/A'}
                     </td>
                   </tr>
                 ))}
@@ -428,44 +375,13 @@ function PublicShopCard({ shop }: { shop: Shop }) {
           </span>
         </div>
 
-        {/* All Info in One Line: km, min, visitor, location */}
-        <div className="text-xs text-gray-600 mb-3 flex flex-wrap items-center gap-2">
-          {/* Distance */}
+        <div className="text-xs text-gray-500 mb-3 space-y-1">
+          {shop.city && <div>📍 {shop.city}</div>}
+          {shop.pincode && <div>📮 {shop.pincode}</div>}
           {shop.distance !== undefined && (
-            <span className="font-semibold text-gray-700">{shop.distance.toFixed(1)} km</span>
+            <div className="text-blue-600 font-semibold">📍 {shop.distance.toFixed(1)} km away</div>
           )}
-          
-          {/* Separator */}
-          {shop.distance !== undefined && (shop.visitorCount !== undefined || shop.area || shop.city || shop.pincode) && (
-            <span className="text-gray-400">•</span>
-          )}
-          
-          {/* Travel Time */}
-          {shop.distance !== undefined && (
-            <>
-              <span className="font-semibold text-gray-700">{Math.round(shop.distance * 1.5)} min</span>
-              {(shop.visitorCount !== undefined || shop.area || shop.city || shop.pincode) && (
-                <span className="text-gray-400">•</span>
-              )}
-            </>
-          )}
-          
-          {/* Visitor Count */}
-          {shop.visitorCount !== undefined && (
-            <>
-              <span className="font-semibold text-gray-700">{shop.visitorCount || 0} visitor</span>
-              {(shop.area || shop.city || shop.pincode) && (
-                <span className="text-gray-400">•</span>
-              )}
-            </>
-          )}
-          
-          {/* Location - Area, City, Pincode */}
-          {(shop.area || shop.city || shop.pincode) && (
-            <span className="text-gray-700">
-              📍 {shop.area || ''}{shop.area && (shop.city || shop.pincode) ? ', ' : ''}{shop.city || ''}{shop.city && shop.pincode ? ', ' : ''}{shop.pincode || ''}
-            </span>
-          )}
+          <div>👁️ {shop.visitorCount || 0} views</div>
         </div>
 
         {/* View Button */}

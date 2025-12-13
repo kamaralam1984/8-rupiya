@@ -29,6 +29,65 @@ import {
   Sparkles,
   Truck,
   UtensilsCrossed,
+  ShoppingBag,
+  Stethoscope,
+  Briefcase,
+  Home,
+  Wrench,
+  BookOpen,
+  Camera,
+  Music,
+  Coffee,
+  ShoppingCart,
+  Heart,
+  Zap,
+  Scissors,
+  Phone,
+  Star,
+  Gift,
+  CreditCard,
+  Plane,
+  Bus,
+  Gamepad2,
+  Baby,
+  Shirt,
+  Laptop,
+  Tv,
+  Headphones,
+  Smartphone,
+  Watch,
+  Footprints,
+  Cookie,
+  IceCream,
+  Droplet,
+  Settings,
+  Paintbrush,
+  Apple,
+  Milk,
+  Flower2,
+  Palette,
+  Book,
+  PenTool,
+  Disc,
+  Activity,
+  Pill,
+  Microscope,
+  Leaf,
+  HeartPulse,
+  Users,
+  Code,
+  Languages,
+  Droplets,
+  Lightbulb,
+  Snowflake,
+  CircleDot,
+  Film,
+  Shield,
+  Scale,
+  Calculator,
+  Printer,
+  Store,
+  MoreHorizontal,
 } from 'lucide-react';
 
 type CategoryIconTheme = {
@@ -37,32 +96,179 @@ type CategoryIconTheme = {
   fg: string;
 };
 
+// Helper function to normalize slug for icon lookup
+const normalizeSlug = (slug: string): string => {
+  return slug.toLowerCase().trim();
+};
+
 const iconThemes: Record<string, CategoryIconTheme> = {
-  restaurants: { Icon: UtensilsCrossed, bg: 'bg-amber-50', fg: 'text-amber-600' },
-  hotels: { Icon: BedDouble, bg: 'bg-sky-50', fg: 'text-sky-600' },
-  'beauty-spa': { Icon: Sparkles, bg: 'bg-pink-50', fg: 'text-pink-500' },
-  'home-decor': { Icon: Lamp, bg: 'bg-indigo-50', fg: 'text-indigo-600' },
-  'wedding-planning': { Icon: HeartHandshake, bg: 'bg-purple-50', fg: 'text-purple-600' },
-  education: { Icon: GraduationCap, bg: 'bg-emerald-50', fg: 'text-emerald-600' },
-  'rent-hire': { Icon: KeyRound, bg: 'bg-teal-50', fg: 'text-teal-600' },
-  hospitals: { Icon: Hospital, bg: 'bg-rose-50', fg: 'text-rose-600' },
-  contractors: { Icon: Hammer, bg: 'bg-amber-50', fg: 'text-amber-700' },
-  'pet-shops': { Icon: PawPrint, bg: 'bg-orange-50', fg: 'text-orange-500' },
-  'pg-hostels': { Icon: Building, bg: 'bg-blue-50', fg: 'text-blue-600' },
-  'estate-agent': { Icon: Building2, bg: 'bg-slate-50', fg: 'text-slate-700' },
-  dentists: { Icon: Smile, bg: 'bg-blue-50', fg: 'text-blue-500' },
-  gym: { Icon: Dumbbell, bg: 'bg-lime-50', fg: 'text-lime-600' },
-  loans: { Icon: PiggyBank, bg: 'bg-yellow-50', fg: 'text-yellow-600' },
-  'event-organisers': { Icon: PartyPopper, bg: 'bg-fuchsia-50', fg: 'text-fuchsia-600' },
-  'driving-schools': { Icon: Car, bg: 'bg-sky-50', fg: 'text-sky-600' },
-  'packers-movers': { Icon: Package, bg: 'bg-amber-50', fg: 'text-amber-700' },
-  'courier-service': { Icon: Truck, bg: 'bg-rose-50', fg: 'text-rose-600' },
+  // Existing categories
+  restaurants: { Icon: UtensilsCrossed, bg: 'bg-gradient-to-br from-amber-100 to-amber-200', fg: 'text-amber-700' },
+  hotels: { Icon: BedDouble, bg: 'bg-gradient-to-br from-sky-100 to-sky-200', fg: 'text-sky-700' },
+  'beauty-spa': { Icon: Sparkles, bg: 'bg-gradient-to-br from-pink-100 to-pink-200', fg: 'text-pink-600' },
+  'home-decor': { Icon: Lamp, bg: 'bg-gradient-to-br from-indigo-100 to-indigo-200', fg: 'text-indigo-700' },
+  'wedding-planning': { Icon: HeartHandshake, bg: 'bg-gradient-to-br from-purple-100 to-purple-200', fg: 'text-purple-700' },
+  education: { Icon: GraduationCap, bg: 'bg-gradient-to-br from-emerald-100 to-emerald-200', fg: 'text-emerald-700' },
+  'rent-hire': { Icon: KeyRound, bg: 'bg-gradient-to-br from-teal-100 to-teal-200', fg: 'text-teal-700' },
+  hospitals: { Icon: Hospital, bg: 'bg-gradient-to-br from-rose-100 to-rose-200', fg: 'text-rose-700' },
+  contractors: { Icon: Hammer, bg: 'bg-gradient-to-br from-amber-100 to-orange-200', fg: 'text-amber-800' },
+  'pet-shops': { Icon: PawPrint, bg: 'bg-gradient-to-br from-orange-100 to-orange-200', fg: 'text-orange-600' },
+  'pg-hostels': { Icon: Building, bg: 'bg-gradient-to-br from-blue-100 to-blue-200', fg: 'text-blue-700' },
+  'estate-agent': { Icon: Building2, bg: 'bg-gradient-to-br from-slate-100 to-slate-200', fg: 'text-slate-800' },
+  dentists: { Icon: Smile, bg: 'bg-gradient-to-br from-blue-100 to-cyan-200', fg: 'text-blue-700' },
+  gym: { Icon: Dumbbell, bg: 'bg-gradient-to-br from-lime-100 to-green-200', fg: 'text-lime-700' },
+  loans: { Icon: PiggyBank, bg: 'bg-gradient-to-br from-yellow-100 to-yellow-200', fg: 'text-yellow-700' },
+  'event-organisers': { Icon: PartyPopper, bg: 'bg-gradient-to-br from-fuchsia-100 to-pink-200', fg: 'text-fuchsia-700' },
+  'driving-schools': { Icon: Car, bg: 'bg-gradient-to-br from-sky-100 to-blue-200', fg: 'text-sky-700' },
+  'packers-movers': { Icon: Package, bg: 'bg-gradient-to-br from-amber-100 to-yellow-200', fg: 'text-amber-800' },
+  'courier-service': { Icon: Truck, bg: 'bg-gradient-to-br from-rose-100 to-red-200', fg: 'text-rose-700' },
+  
+  // Electronics
+  electronics: { Icon: Zap, bg: 'bg-gradient-to-br from-yellow-100 to-amber-200', fg: 'text-yellow-800' },
+  'mobile-phones': { Icon: Smartphone, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  laptops: { Icon: Laptop, bg: 'bg-gradient-to-br from-slate-100 to-gray-200', fg: 'text-slate-800' },
+  televisions: { Icon: Tv, bg: 'bg-gradient-to-br from-purple-100 to-pink-200', fg: 'text-purple-700' },
+  cameras: { Icon: Camera, bg: 'bg-gradient-to-br from-indigo-100 to-blue-200', fg: 'text-indigo-700' },
+  'audio-devices': { Icon: Headphones, bg: 'bg-gradient-to-br from-pink-100 to-rose-200', fg: 'text-pink-700' },
+  
+  // Fashion
+  fashion: { Icon: Shirt, bg: 'bg-gradient-to-br from-purple-100 to-pink-200', fg: 'text-purple-700' },
+  'mens-clothing': { Icon: Shirt, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  'womens-clothing': { Icon: Shirt, bg: 'bg-gradient-to-br from-pink-100 to-rose-200', fg: 'text-pink-700' },
+  'kids-clothing': { Icon: Shirt, bg: 'bg-gradient-to-br from-yellow-100 to-amber-200', fg: 'text-yellow-800' },
+  footwear: { Icon: Footprints, bg: 'bg-gradient-to-br from-amber-100 to-orange-200', fg: 'text-amber-800' },
+  watches: { Icon: Watch, bg: 'bg-gradient-to-br from-slate-100 to-gray-200', fg: 'text-slate-800' },
+  jewellery: { Icon: Star, bg: 'bg-gradient-to-br from-yellow-100 to-amber-200', fg: 'text-yellow-800' },
+  'bags-luggage': { Icon: Package, bg: 'bg-gradient-to-br from-amber-100 to-orange-200', fg: 'text-amber-800' },
+  
+  // Home & Furniture
+  'home-furniture': { Icon: Home, bg: 'bg-gradient-to-br from-green-100 to-emerald-200', fg: 'text-green-700' },
+  furniture: { Icon: Home, bg: 'bg-gradient-to-br from-amber-100 to-orange-200', fg: 'text-amber-800' },
+  'kitchen-appliances': { Icon: Settings, bg: 'bg-gradient-to-br from-blue-100 to-cyan-200', fg: 'text-blue-700' },
+  'bathroom-accessories': { Icon: Droplet, bg: 'bg-gradient-to-br from-blue-100 to-sky-200', fg: 'text-blue-700' },
+  
+  // Grocery
+  grocery: { Icon: ShoppingCart, bg: 'bg-gradient-to-br from-green-100 to-emerald-200', fg: 'text-green-700' },
+  'fresh-fruits-vegetables': { Icon: Apple, bg: 'bg-gradient-to-br from-green-100 to-lime-200', fg: 'text-green-700' },
+  'dairy-products': { Icon: Milk, bg: 'bg-gradient-to-br from-white to-blue-100', fg: 'text-blue-700' },
+  'packaged-food': { Icon: Package, bg: 'bg-gradient-to-br from-amber-100 to-yellow-200', fg: 'text-amber-800' },
+  beverages: { Icon: Droplet, bg: 'bg-gradient-to-br from-blue-100 to-cyan-200', fg: 'text-blue-700' },
+  
+  // Beauty & Personal Care
+  'beauty-personal-care': { Icon: Sparkles, bg: 'bg-gradient-to-br from-pink-100 to-purple-200', fg: 'text-pink-700' },
+  cosmetics: { Icon: Palette, bg: 'bg-gradient-to-br from-pink-100 to-rose-200', fg: 'text-pink-700' },
+  skincare: { Icon: Flower2, bg: 'bg-gradient-to-br from-pink-100 to-purple-200', fg: 'text-pink-700' },
+  haircare: { Icon: Scissors, bg: 'bg-gradient-to-br from-purple-100 to-pink-200', fg: 'text-purple-700' },
+  grooming: { Icon: Scissors, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  perfumes: { Icon: Flower2, bg: 'bg-gradient-to-br from-purple-100 to-fuchsia-200', fg: 'text-purple-700' },
+  
+  // Sports & Fitness
+  'sports-fitness': { Icon: Dumbbell, bg: 'bg-gradient-to-br from-lime-100 to-green-200', fg: 'text-lime-700' },
+  'sports-equipment': { Icon: Dumbbell, bg: 'bg-gradient-to-br from-green-100 to-emerald-200', fg: 'text-green-700' },
+  'fitness-gear': { Icon: Dumbbell, bg: 'bg-gradient-to-br from-orange-100 to-red-200', fg: 'text-orange-700' },
+  
+  // Kids & Toys
+  'kids-toys': { Icon: Gamepad2, bg: 'bg-gradient-to-br from-yellow-100 to-amber-200', fg: 'text-yellow-800' },
+  toys: { Icon: Gamepad2, bg: 'bg-gradient-to-br from-pink-100 to-purple-200', fg: 'text-pink-700' },
+  'baby-care': { Icon: Baby, bg: 'bg-gradient-to-br from-pink-100 to-rose-200', fg: 'text-pink-700' },
+  'school-supplies': { Icon: Book, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  
+  // Automotive
+  automotive: { Icon: Car, bg: 'bg-gradient-to-br from-slate-100 to-gray-200', fg: 'text-slate-800' },
+  'car-accessories': { Icon: Car, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  'bike-accessories': { Icon: Car, bg: 'bg-gradient-to-br from-red-100 to-orange-200', fg: 'text-red-700' },
+  helmets: { Icon: CircleDot, bg: 'bg-gradient-to-br from-gray-100 to-slate-200', fg: 'text-gray-700' },
+  'gps-navigation': { Icon: Phone, bg: 'bg-gradient-to-br from-blue-100 to-cyan-200', fg: 'text-blue-700' },
+  
+  // Books & Media
+  'books-media': { Icon: BookOpen, bg: 'bg-gradient-to-br from-indigo-100 to-blue-200', fg: 'text-indigo-700' },
+  books: { Icon: BookOpen, bg: 'bg-gradient-to-br from-amber-100 to-orange-200', fg: 'text-amber-800' },
+  stationery: { Icon: PenTool, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  'music-movies': { Icon: Disc, bg: 'bg-gradient-to-br from-purple-100 to-pink-200', fg: 'text-purple-700' },
+  
+  // Health & Wellness
+  'health-wellness': { Icon: Activity, bg: 'bg-gradient-to-br from-green-100 to-emerald-200', fg: 'text-green-700' },
+  'vitamins-supplements': { Icon: Pill, bg: 'bg-gradient-to-br from-blue-100 to-cyan-200', fg: 'text-blue-700' },
+  'health-monitors': { Icon: Activity, bg: 'bg-gradient-to-br from-red-100 to-rose-200', fg: 'text-red-700' },
+  'medical-equipment': { Icon: Microscope, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  
+  // Pet Supplies
+  'pet-supplies': { Icon: PawPrint, bg: 'bg-gradient-to-br from-orange-100 to-orange-200', fg: 'text-orange-600' },
+  'pet-food': { Icon: PawPrint, bg: 'bg-gradient-to-br from-amber-100 to-yellow-200', fg: 'text-amber-800' },
+  'pet-accessories': { Icon: PawPrint, bg: 'bg-gradient-to-br from-pink-100 to-rose-200', fg: 'text-pink-700' },
+  
+  // Travel
+  travel: { Icon: Plane, bg: 'bg-gradient-to-br from-sky-100 to-blue-200', fg: 'text-sky-700' },
+  luggage: { Icon: Package, bg: 'bg-gradient-to-br from-amber-100 to-orange-200', fg: 'text-amber-800' },
+  'travel-accessories': { Icon: Package, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  backpacks: { Icon: Package, bg: 'bg-gradient-to-br from-gray-100 to-slate-200', fg: 'text-gray-700' },
+  
+  // Restaurants & Food
+  cafes: { Icon: Coffee, bg: 'bg-gradient-to-br from-amber-100 to-orange-200', fg: 'text-amber-800' },
+  'fast-food': { Icon: UtensilsCrossed, bg: 'bg-gradient-to-br from-red-100 to-orange-200', fg: 'text-red-700' },
+  bakery: { Icon: Cookie, bg: 'bg-gradient-to-br from-amber-100 to-yellow-200', fg: 'text-amber-800' },
+  'sweet-shops': { Icon: Cookie, bg: 'bg-gradient-to-br from-pink-100 to-rose-200', fg: 'text-pink-700' },
+  'ice-cream-parlors': { Icon: IceCream, bg: 'bg-gradient-to-br from-blue-100 to-cyan-200', fg: 'text-blue-700' },
+  
+  // Health & Medical
+  clinics: { Icon: Hospital, bg: 'bg-gradient-to-br from-blue-100 to-cyan-200', fg: 'text-blue-700' },
+  doctors: { Icon: Stethoscope, bg: 'bg-gradient-to-br from-red-100 to-rose-200', fg: 'text-red-700' },
+  pharmacy: { Icon: Pill, bg: 'bg-gradient-to-br from-green-100 to-emerald-200', fg: 'text-green-700' },
+  'diagnostic-centers': { Icon: Microscope, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  ayurveda: { Icon: Leaf, bg: 'bg-gradient-to-br from-green-100 to-emerald-200', fg: 'text-green-700' },
+  physiotherapy: { Icon: HeartPulse, bg: 'bg-gradient-to-br from-red-100 to-pink-200', fg: 'text-red-700' },
+  
+  // Education
+  schools: { Icon: GraduationCap, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  colleges: { Icon: GraduationCap, bg: 'bg-gradient-to-br from-purple-100 to-indigo-200', fg: 'text-purple-700' },
+  'coaching-centers': { Icon: BookOpen, bg: 'bg-gradient-to-br from-emerald-100 to-green-200', fg: 'text-emerald-700' },
+  'computer-training': { Icon: Code, bg: 'bg-gradient-to-br from-blue-100 to-cyan-200', fg: 'text-blue-700' },
+  'language-classes': { Icon: Languages, bg: 'bg-gradient-to-br from-purple-100 to-pink-200', fg: 'text-purple-700' },
+  
+  // Home Services
+  'home-services': { Icon: Home, bg: 'bg-gradient-to-br from-amber-100 to-orange-200', fg: 'text-amber-800' },
+  plumbers: { Icon: Droplets, bg: 'bg-gradient-to-br from-blue-100 to-cyan-200', fg: 'text-blue-700' },
+  electricians: { Icon: Lightbulb, bg: 'bg-gradient-to-br from-yellow-100 to-amber-200', fg: 'text-yellow-800' },
+  carpenters: { Icon: Hammer, bg: 'bg-gradient-to-br from-amber-100 to-orange-200', fg: 'text-amber-800' },
+  painters: { Icon: Paintbrush, bg: 'bg-gradient-to-br from-purple-100 to-pink-200', fg: 'text-purple-700' },
+  'ac-repair': { Icon: Snowflake, bg: 'bg-gradient-to-br from-blue-100 to-cyan-200', fg: 'text-blue-700' },
+  'appliance-repair': { Icon: Settings, bg: 'bg-gradient-to-br from-gray-100 to-slate-200', fg: 'text-gray-700' },
+  'cleaning-services': { Icon: Sparkles, bg: 'bg-gradient-to-br from-blue-100 to-sky-200', fg: 'text-blue-700' },
+  
+  // Automobile Services
+  'car-dealerships': { Icon: Car, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  'service-centers': { Icon: Wrench, bg: 'bg-gradient-to-br from-gray-100 to-slate-200', fg: 'text-gray-700' },
+  'spare-parts': { Icon: Settings, bg: 'bg-gradient-to-br from-amber-100 to-orange-200', fg: 'text-amber-800' },
+  'car-wash': { Icon: Droplet, bg: 'bg-gradient-to-br from-blue-100 to-cyan-200', fg: 'text-blue-700' },
+  'tyre-shops': { Icon: CircleDot, bg: 'bg-gradient-to-br from-gray-100 to-slate-200', fg: 'text-gray-700' },
+  
+  // Events & Entertainment
+  'movie-theaters': { Icon: Film, bg: 'bg-gradient-to-br from-purple-100 to-pink-200', fg: 'text-purple-700' },
+  'event-organizers': { Icon: PartyPopper, bg: 'bg-gradient-to-br from-fuchsia-100 to-pink-200', fg: 'text-fuchsia-700' },
+  'party-planners': { Icon: PartyPopper, bg: 'bg-gradient-to-br from-yellow-100 to-amber-200', fg: 'text-yellow-800' },
+  photographers: { Icon: Camera, bg: 'bg-gradient-to-br from-purple-100 to-pink-200', fg: 'text-purple-700' },
+  'catering-services': { Icon: UtensilsCrossed, bg: 'bg-gradient-to-br from-amber-100 to-orange-200', fg: 'text-amber-800' },
+  
+  // Other Services
+  salons: { Icon: Scissors, bg: 'bg-gradient-to-br from-pink-100 to-purple-200', fg: 'text-pink-700' },
+  gyms: { Icon: Dumbbell, bg: 'bg-gradient-to-br from-lime-100 to-green-200', fg: 'text-lime-700' },
+  'travel-agents': { Icon: Plane, bg: 'bg-gradient-to-br from-sky-100 to-blue-200', fg: 'text-sky-700' },
+  'real-estate': { Icon: Building2, bg: 'bg-gradient-to-br from-green-100 to-emerald-200', fg: 'text-green-700' },
+  insurance: { Icon: Shield, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  banks: { Icon: Building, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  lawyers: { Icon: Scale, bg: 'bg-gradient-to-br from-slate-100 to-gray-200', fg: 'text-slate-800' },
+  'ca-tax-consultants': { Icon: Calculator, bg: 'bg-gradient-to-br from-blue-100 to-indigo-200', fg: 'text-blue-700' },
+  'printing-services': { Icon: Printer, bg: 'bg-gradient-to-br from-gray-100 to-slate-200', fg: 'text-gray-700' },
+  'courier-services': { Icon: Truck, bg: 'bg-gradient-to-br from-rose-100 to-red-200', fg: 'text-rose-700' },
+  'general-store': { Icon: Store, bg: 'bg-gradient-to-br from-amber-100 to-orange-200', fg: 'text-amber-800' },
+  supermarket: { Icon: ShoppingBag, bg: 'bg-gradient-to-br from-green-100 to-emerald-200', fg: 'text-green-700' },
+  others: { Icon: MoreHorizontal, bg: 'bg-gradient-to-br from-slate-100 to-gray-200', fg: 'text-slate-700' },
 };
 
 const defaultTheme: CategoryIconTheme = {
   Icon: Grid3X3,
-  bg: 'bg-slate-100',
-  fg: 'text-slate-600',
+  bg: 'bg-gradient-to-br from-slate-100 to-slate-200',
+  fg: 'text-slate-700',
 };
 
 // Mapping category slugs to image file names in /Assets/catagory/
@@ -93,14 +299,15 @@ const getCategoryImageUrl = (categorySlug: string, fallbackIconUrl?: string): st
 };
 
 const CategoryIcon = ({ categorySlug, className }: { categorySlug: string; className?: string }) => {
-  const { Icon, bg, fg } = iconThemes[categorySlug] ?? defaultTheme;
+  const normalizedSlug = normalizeSlug(categorySlug);
+  const { Icon, bg, fg } = iconThemes[normalizedSlug] ?? defaultTheme;
   const sizeClass = className ?? 'w-16 h-16';
 
   return (
     <span
-      className={`relative flex items-center justify-center rounded-full ${bg} ${sizeClass}`}
+      className={`relative flex items-center justify-center rounded-full ${bg} ${sizeClass} shadow-md border-2 border-white/50`}
     >
-      <Icon className={`w-[50%] h-[50%] ${fg}`} strokeWidth={2} />
+      <Icon className={`w-[55%] h-[55%] ${fg}`} strokeWidth={2.5} />
     </span>
   );
 };
@@ -117,107 +324,61 @@ export default function CategoryGrid() {
   const [showAllDropdown, setShowAllDropdown] = useState(false);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
-  const [limit, setLimit] = useState(20);
-  const [iconSize, setIconSize] = useState({ desktop: 112, mobile: 80 });
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const desktopScrollRef = useRef<HTMLDivElement>(null);
   const mobileScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const res = await fetch('/api/settings');
-        const data = await res.json();
-        if (data.success) {
-          if (data.displayLimits?.topCategories) {
-            setLimit(data.displayLimits.topCategories);
-          }
-          if (data.iconSizes?.topCategories) {
-            const size = data.iconSizes.topCategories;
-            setIconSize({ desktop: size, mobile: Math.round(size * 0.71) });
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching settings:', error);
-      }
-    };
-    fetchSettings();
-  }, []);
-
-  useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch(`/api/categories?loc=${location.id}`);
-        const data = await response.json();
-        console.log('Categories fetched:', data.categories?.length || 0, 'categories');
+        setIsLoading(true);
         
-        // Limit categories before processing
-        const categoriesToProcess = (data.categories || []).slice(0, limit);
-        
-        // Fetch nearest shop for each category to get distance/time/visitor count
-        const categoriesWithDistance = await Promise.all(
-          categoriesToProcess.map(async (category: Category) => {
-            try {
-              // Fetch nearest shop in this category
-              const shopsResponse = await fetch(
-                `/api/categories/${category.slug}/businesses?type=nearby&userLat=${location.latitude || ''}&userLng=${location.longitude || ''}&limit=1`
-              );
-              const shopsData = await shopsResponse.json();
-              
-              if (shopsData.success && shopsData.businesses && shopsData.businesses.length > 0) {
-                const nearestShop = shopsData.businesses[0];
-                return {
-                  ...category,
-                  distance: nearestShop.distance || 0,
-                  visitorCount: nearestShop.visitorCount || 0,
-                };
-              }
-              
+        // Fetch categories and nearest shops in parallel
+        const [categoriesResponse, nearestShopsResponse] = await Promise.all([
+          fetch(`/api/categories?loc=${location.id}`),
+          location.latitude && location.longitude
+            ? fetch(`/api/categories/nearest-shops?userLat=${location.latitude}&userLng=${location.longitude}`)
+            : Promise.resolve(null),
+        ]);
+
+        const categoriesData = await categoriesResponse.json();
+        const nearestShopsData = nearestShopsResponse ? await nearestShopsResponse.json() : null;
+
+        const categoriesList = categoriesData.categories || [];
+        const nearestShopsMap = nearestShopsData?.categoryShops || {};
+
+        // Merge category data with nearest shop data
+        const categoriesWithDistance = categoriesList.map((category: Category) => {
+          const shopData = nearestShopsMap[category.slug] || { distance: 0, visitorCount: 0 };
               return {
                 ...category,
-                distance: 0,
-                visitorCount: 0,
+            distance: shopData.distance || 0,
+            visitorCount: shopData.visitorCount || 0,
               };
-            } catch (error) {
-              console.error(`Error fetching shop for category ${category.slug}:`, error);
-              return {
-                ...category,
-                distance: 0,
-                visitorCount: 0,
-              };
-            }
-          })
-        );
+        });
         
         setCategories(categoriesWithDistance);
       } catch (error) {
+        // Silent error - only log in development
+        if (process.env.NODE_ENV === 'development') {
         console.error('Error fetching categories:', error);
-        // Fallback to empty array on error
-        setCategories([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (location.latitude && location.longitude) {
-      fetchCategories();
-    } else {
-      // If no location, fetch categories without distance
-      const fetchCategoriesWithoutDistance = async () => {
+        }
+        // Fallback: try to fetch categories without distance
         try {
           const response = await fetch(`/api/categories?loc=${location.id}`);
           const data = await response.json();
           setCategories(data.categories || []);
-        } catch (error) {
-          console.error('Error fetching categories:', error);
+        } catch (fallbackError) {
+          // Silent fallback error
           setCategories([]);
+        }
         } finally {
           setIsLoading(false);
         }
       };
-      fetchCategoriesWithoutDistance();
-    }
+
+    fetchCategories();
   }, [location.id, location.latitude, location.longitude]);
 
   const handleCategoryClick = (category: Category) => {
@@ -456,13 +617,7 @@ export default function CategoryGrid() {
             className="overflow-x-auto scrollbar-hide scroll-smooth"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            <div 
-              className="flex gap-4 pb-2" 
-              style={{ 
-                width: categories.length <= 10 ? '100%' : 'max-content',
-                justifyContent: categories.length <= 10 ? 'flex-start' : 'flex-start',
-              }}
-            >
+            <div className="flex gap-4 pb-2" style={{ width: 'max-content' }}>
               {categories.map((category, index) => {
                 const customImageUrl = getCategoryImageUrl(category.slug, category.iconUrl);
 
@@ -470,37 +625,60 @@ export default function CategoryGrid() {
                   <button
                     key={`category-desktop-${category.id || category.slug || index}`}
                     onClick={() => handleCategoryClick(category)}
-                    className={`group ${categories.length <= 10 ? 'flex-1' : 'shrink-0'} flex flex-col items-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+                    className="group shrink-0 flex flex-col items-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     aria-label={`Browse ${category.displayName} - ${category.itemCount} shops available`}
-                    style={{ 
-                      minWidth: categories.length <= 10 ? 'auto' : `${iconSize.desktop}px`,
-                      maxWidth: categories.length <= 10 ? 'none' : `${iconSize.desktop}px`,
-                    }}
+                    style={{ minWidth: '112px' }}
                   >
-                    <div className="relative mb-2 flex items-center justify-center" style={{ height: `${iconSize.desktop}px`, width: `${iconSize.desktop}px` }}>
+                    <div className="relative mb-2 flex items-center justify-center h-24 w-24 md:h-28 md:w-28">
+                      {/* Always show icon prominently */}
+                      <div className="relative w-full h-full rounded-full bg-white border-2 border-gray-200 shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-all duration-200 flex items-center justify-center overflow-hidden">
                       {customImageUrl ? (
-                        <div className="relative w-full h-full rounded-full overflow-hidden bg-white border-2 border-gray-100 shadow-sm group-hover:shadow-md transition-all duration-200">
+                          <>
                           <Image
                             src={customImageUrl}
                             alt={category.displayName || category.slug || `Category ${category.id || ''}` || 'Category image'}
                             fill
-                            className="object-cover"
+                              className="object-cover opacity-30"
                           />
+                            {/* Icon always visible on top */}
+                            <div className="absolute inset-0 flex items-center justify-center z-10">
+                              <CategoryIcon categorySlug={category.slug} className="w-14 h-14 md:w-16 md:h-16" />
                         </div>
+                          </>
                       ) : (
-                        <div className="w-full h-full rounded-full bg-white border-2 border-gray-100 shadow-sm group-hover:shadow-md transition-all duration-200 flex items-center justify-center overflow-hidden">
-                          <CategoryIcon categorySlug={category.slug} className={`w-[${Math.round(iconSize.desktop * 0.7)}px] h-[${Math.round(iconSize.desktop * 0.7)}px]`} />
+                          <CategoryIcon categorySlug={category.slug} className="w-16 h-16 md:w-20 md:h-20" />
+                        )}
                         </div>
-                      )}
-                      {/* Visitor Count Badge */}
-                      {category.visitorCount !== undefined && (
+                      {/* Distance, Time, and Visitor Count Badge */}
+                      {(category.distance !== undefined || category.visitorCount !== undefined) && (
                         <div className="absolute -top-1 -right-1 z-10">
-                          <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg flex items-center gap-0.5">
-                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            <span>{category.visitorCount || 0}</span>
+                          <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg flex flex-col items-center gap-0.5">
+                            {category.distance !== undefined && category.distance > 0 && (
+                              <>
+                                <div className="flex items-center gap-0.5">
+                                  <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  <span>{category.distance.toFixed(1)}km</span>
+                                </div>
+                                <div className="flex items-center gap-0.5">
+                                  <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span>{Math.round(category.distance * 1.5)}min</span>
+                                </div>
+                              </>
+                            )}
+                            {category.visitorCount !== undefined && (
+                              <div className="flex items-center gap-0.5">
+                                <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                <span>{category.visitorCount || 0}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
@@ -550,13 +728,7 @@ export default function CategoryGrid() {
             className="overflow-x-auto pb-4 -mx-2 px-2 scrollbar-hide scroll-smooth"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            <div 
-              className="flex gap-3" 
-              style={{ 
-                width: categories.length <= 5 ? '100%' : 'max-content',
-                justifyContent: categories.length <= 5 ? 'flex-start' : 'flex-start',
-              }}
-            >
+            <div className="flex gap-3" style={{ width: 'max-content' }}>
               {categories.map((category, index) => {
                 const customImageUrl = getCategoryImageUrl(category.slug, category.iconUrl);
 
@@ -564,36 +736,59 @@ export default function CategoryGrid() {
                   <button
                     key={`category-mobile-${category.id || category.slug || index}`}
                     onClick={() => handleCategoryClick(category)}
-                    className={`${categories.length <= 5 ? 'flex-1' : 'shrink-0'} flex flex-col items-center focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                    style={{ minWidth: categories.length <= 5 ? 'auto' : `${iconSize.mobile}px` }}
+                    className="shrink-0 flex flex-col items-center focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[80px]"
                     aria-label={`Browse ${category.displayName} - ${category.itemCount} shops available`}
                   >
-                    <div className="relative mb-2 flex items-center justify-center" style={{ height: `${iconSize.mobile}px`, width: `${iconSize.mobile}px` }}>
+                    <div className="relative mb-2 flex items-center justify-center h-20 w-20">
+                      {/* Always show icon prominently */}
+                      <div className="relative w-full h-full rounded-full bg-white border-2 border-gray-200 shadow-lg group-hover:shadow-xl group-hover:scale-105 transition-all duration-200 flex items-center justify-center overflow-hidden">
                       {customImageUrl ? (
-                        <div className="relative w-full h-full rounded-full overflow-hidden bg-white border-2 border-gray-100 shadow-sm">
+                          <>
                           <Image
                             src={customImageUrl}
                             alt={category.displayName || category.slug || `Category ${category.id || ''}` || 'Category image'}
                             fill
-                            className="object-cover"
+                              className="object-cover opacity-30"
                           />
+                            {/* Icon always visible on top */}
+                            <div className="absolute inset-0 flex items-center justify-center z-10">
+                              <CategoryIcon categorySlug={category.slug} className="w-14 h-14" />
                         </div>
+                          </>
                       ) : (
-                        <div className="w-full h-full rounded-full bg-white border-2 border-gray-100 shadow-sm flex items-center justify-center overflow-hidden">
-                          <div style={{ width: `${Math.round(iconSize.mobile * 0.7)}px`, height: `${Math.round(iconSize.mobile * 0.7)}px` }}>
-                            <CategoryIcon categorySlug={category.slug} className="w-full h-full" />
-                          </div>
+                          <CategoryIcon categorySlug={category.slug} className="w-16 h-16" />
+                        )}
                         </div>
-                      )}
-                      {/* Visitor Count Badge */}
-                      {category.visitorCount !== undefined && (
+                      {/* Distance, Time, and Visitor Count Badge */}
+                      {(category.distance !== undefined || category.visitorCount !== undefined) && (
                         <div className="absolute -top-1 -right-1 z-10">
-                          <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[7px] font-bold shadow-lg flex items-center gap-0.5">
-                            <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            <span>{category.visitorCount || 0}</span>
+                          <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[7px] font-bold shadow-lg flex flex-col items-center gap-0.5">
+                            {category.distance !== undefined && category.distance > 0 && (
+                              <>
+                                <div className="flex items-center gap-0.5">
+                                  <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                  <span>{category.distance.toFixed(1)}km</span>
+                                </div>
+                                <div className="flex items-center gap-0.5">
+                                  <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span>{Math.round(category.distance * 1.5)}min</span>
+                                </div>
+                              </>
+                            )}
+                            {category.visitorCount !== undefined && (
+                              <div className="flex items-center gap-0.5">
+                                <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                <span>{category.visitorCount || 0}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
