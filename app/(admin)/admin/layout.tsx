@@ -26,29 +26,45 @@ export default function AdminLayout({
 
   useEffect(() => {
     const checkAdminAccess = async () => {
+      // Wait a bit for token to load from localStorage
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Check token from localStorage directly in case context hasn't updated
+      const storedToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const finalToken = token || storedToken;
+      
       // First check if user is logged in
-      if (!token) {
+      if (!finalToken) {
+        console.log('No token found, redirecting to login');
         router.push('/login?redirect=/admin');
         return;
       }
 
       // Verify user role from server (in case it was updated in DB)
       try {
+        console.log('Checking admin access with token:', finalToken.substring(0, 20) + '...');
         const res = await fetch('/api/auth/me', {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${finalToken}`,
+            'Content-Type': 'application/json',
           },
         });
 
+        console.log('Auth check response status:', res.status);
+
         if (!res.ok) {
-          // Silently handle auth errors - don't show toast for expected failures
+          const errorData = await res.json().catch(() => ({}));
+          console.error('Auth check failed:', res.status, errorData);
+          
+          // If token is invalid, clear it and redirect
           if (res.status === 401 || res.status === 403) {
+            console.log('Token invalid or expired, clearing and redirecting');
+            logout(); // Clear invalid token
             router.push('/login?redirect=/admin');
             return;
           }
+          
           // Only log unexpected errors, don't show toast
-          const errorData = await res.json().catch(() => ({}));
-          console.error('Auth check failed:', res.status, errorData);
           setError(errorData.error || 'Failed to verify admin access');
           setIsLoading(false);
           return;

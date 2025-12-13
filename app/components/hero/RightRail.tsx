@@ -63,93 +63,93 @@ export default function RightRail({ banners, onBannerClick, height = 'h-[480px]'
 
   return (
     <div 
-      className={`flex flex-col gap-1 sm:gap-2 ${height} overflow-hidden items-end`} 
+      className={`flex flex-col gap-2 ${height} overflow-hidden items-end`} 
       aria-live="polite"
     >
-      <div className="w-full h-full flex flex-col gap-1 sm:gap-2">
+      <div className="w-full h-full flex flex-col gap-2">
         {[0, 1, 2].map((index) => {
           const banner = currentBanners[index];
           const distance = banner ? getBannerDistance(banner, userLat ?? null, userLng ?? null) : null;
           return banner ? (
             <div
               key={`right-rail-${index}-${banner.bannerId || index}`}
-              className="relative group w-full"
+              className="group w-full flex-1 min-h-0"
             >
-              {/* Show shop with image */}
+              {/* Professional Card Layout: Image on top, Text below - Flexible height */}
               <a
                 href={banner.website || banner.link || `/shop/${banner.bannerId}`}
                 target={banner.website ? '_blank' : undefined}
                 rel={banner.website ? 'noopener noreferrer' : undefined}
                 onClick={() => onBannerClick(banner.bannerId, 'right', index, banner.website || banner.link)}
-                className="relative block w-full flex-1 min-h-[56px] sm:min-h-[125px] rounded-lg bg-white shadow-sm overflow-hidden hover:scale-[1.02] hover:shadow-md transition-all duration-150 group"
+                className="w-full h-full bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group flex flex-col"
                 aria-label={`Shop: ${banner.advertiser || banner.alt} - ${banner.area || ''} - Right slot ${index + 1}`}
               >
-                {/* Shop Image */}
-                {banner.imageUrl && (
+                {/* Image Section - Full width and height */}
+                <div className="relative w-full flex-1 bg-gray-100 overflow-hidden min-h-[80px]">
+                  {banner.imageUrl ? (
                   <Image
                     src={banner.imageUrl}
                     alt={banner.advertiser || banner.alt}
                     fill
-                    className="object-cover"
+                      sizes="(max-width: 640px) 22vw, (max-width: 1024px) 18vw, 20vw"
+                      className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+                      style={{ 
+                        objectFit: 'cover',
+                        objectPosition: 'center',
+                        width: '100%',
+                        height: '100%'
+                      }}
                     loading="lazy"
-                    sizes="(max-width: 640px) 22vw, (max-width: 1024px) 18vw, 20vw"
-                  />
+                    />
+                  ) : (
+                    <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
                 )}
-                {/* Overlay with shop info */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent flex flex-col justify-end p-2 sm:p-3">
-                  <h3 className="text-[10px] sm:text-xs font-bold text-white mb-0.5 line-clamp-2 drop-shadow-lg">
+                </div>
+
+                {/* Text Content Section - Professional and visible */}
+                <div className="p-3.5 shrink-0 bg-gradient-to-b from-white to-gray-50 relative z-10 border-t border-gray-200">
+                  {/* Shop Name */}
+                  <h3 className="text-sm sm:text-base font-black text-gray-900 leading-snug mb-2.5 break-words tracking-tight">
                     {banner.advertiser || banner.alt}
                   </h3>
+
+                  {/* Location */}
                   {(banner.area || banner.city) && (
-                    <p className="text-[8px] sm:text-[10px] text-white/90 mb-1 line-clamp-1 drop-shadow">
-                      📍 {banner.area || banner.city}
-                    </p>
+                    <div className="flex items-start gap-1.5 text-xs sm:text-sm font-bold text-gray-700 mb-3">
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                      </svg>
+                      <span className="break-words flex-1 leading-relaxed">{banner.area || banner.city}</span>
+                    </div>
                   )}
-                  <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                    {(distance !== null || banner.distance !== undefined) && (
-                      <p className="text-[8px] sm:text-[10px] text-amber-300 font-semibold drop-shadow">
-                        {((distance ?? banner.distance) || 0).toFixed(1)} km
-                      </p>
+
+                  {/* Stats Row */}
+                  <div className="flex items-center justify-between pt-2.5 border-t-2 border-gray-200">
+                    {((distance !== null && distance !== undefined) || (banner.distance !== null && banner.distance !== undefined)) && (
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-md border border-blue-200">
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span className="text-xs sm:text-sm font-bold text-blue-700">{((distance ?? banner.distance) ?? 0).toFixed(1)} km</span>
+                      </div>
                     )}
                     {banner.visitorCount !== undefined && (
-                      <p className="text-[8px] sm:text-[10px] text-white/80 font-semibold drop-shadow">
-                        👁️ {banner.visitorCount || 0}
-                      </p>
+                      <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-md border border-gray-300">
+                        <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <span className="text-xs sm:text-sm font-bold text-gray-800">{banner.visitorCount || 0}</span>
+                      </div>
                     )}
                   </div>
-                  {(distance !== null || banner.distance !== undefined) && (
-                    <p className="text-[7px] sm:text-[9px] text-amber-300 font-semibold drop-shadow">
-                      ⏱️ {Math.round(((distance ?? banner.distance) || 0) * 1.5)} min
-                    </p>
-                  )}
-                  {banner.website && (
-                    <p className="text-[7px] sm:text-[9px] text-white/80 mt-1 truncate">
-                      {banner.website.replace(/^https?:\/\//, '').replace(/^www\./, '')}
-                    </p>
-                  )}
                 </div>
               </a>
-              {/* Distance and Call Button Overlay */}
-              {(distance !== null || banner.isBusiness) && (
-                <>
-                  {/* Distance, Time, Visitor - Simple text format (Mobile) */}
-                  {(distance !== null || banner.distance || banner.visitorCount !== undefined) && (
-                    <div className="absolute bottom-1 left-1 right-1 sm:hidden z-10">
-                      <div className="text-blue-700 text-[8px] font-bold text-center bg-white/90 px-1 py-0.5 rounded">
-                        {((distance ?? banner.distance) || 0).toFixed(1).padStart(4, '0')}km / {Math.round(((distance ?? banner.distance) || 0) * 1.5).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
-                      </div>
-                    </div>
-                  )}
-                  {/* Distance, Time, Visitor - Simple text format (Desktop) */}
-                  {(distance !== null || banner.distance || banner.visitorCount !== undefined) && (
-                    <div className="hidden sm:block absolute bottom-1 left-1 right-1 z-10">
-                      <div className="text-blue-700 text-xs font-bold text-center bg-white/90 px-2 py-1 rounded">
-                        {((distance ?? banner.distance) || 0).toFixed(1).padStart(4, '0')}km / {Math.round(((distance ?? banner.distance) || 0) * 1.5).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
             </div>
           ) : (
             <div key={`right-placeholder-${index}`} className="w-full">

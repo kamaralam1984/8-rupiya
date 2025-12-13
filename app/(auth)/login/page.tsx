@@ -45,7 +45,17 @@ function LoginForm() {
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.success) {
+        console.log('Login successful, token received:', data.token ? 'Yes' : 'No');
+        console.log('User data received:', data.user ? 'Yes' : 'No');
+        
+        if (!data.token || !data.user) {
+          console.error('Missing token or user data in response:', data);
+          toast.dismiss(loadingToast);
+          toast.error('Login response incomplete. Please try again.');
+          return;
+        }
+        
         toast.dismiss(loadingToast);
         toast.success('Login successful! Welcome back!');
         
@@ -73,6 +83,9 @@ function LoginForm() {
           // Update auth context for regular users (user, admin, editor, operator)
           login(data.token, data.user);
           
+          // Small delay to ensure token is saved
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           // Redirect based on role
           let redirectPath = redirectUrl;
           if (selectedRole === 'admin' || selectedRole === 'editor' || selectedRole === 'operator') {
@@ -87,6 +100,7 @@ function LoginForm() {
       } else {
         toast.dismiss(loadingToast);
         toast.error(data.error || 'Login failed');
+        console.error('Login failed:', data);
       }
     } catch (err: any) {
       toast.dismiss(loadingToast);

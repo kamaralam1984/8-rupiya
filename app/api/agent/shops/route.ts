@@ -4,6 +4,7 @@ import AgentShop from '@/lib/models/AgentShop';
 import Agent from '@/lib/models/Agent';
 import AdminShop from '@/lib/models/Shop'; // Admin shop model
 import Category from '@/models/Category'; // Category model
+import Pincode from '@/lib/models/Pincode'; // Pincode model for storing pincode+area
 import { verifyAgentToken, getAgentTokenFromRequest } from '@/lib/utils/agentAuth';
 import { calculateAgentCommission, PRICING_PLANS, PlanType } from '@/app/utils/pricing';
 import { generateShopUrl } from '@/lib/utils/slugGenerator';
@@ -132,6 +133,7 @@ export async function POST(request: NextRequest) {
       mobile,
       category,
       pincode,
+      area, // Area field (required)
       address,
       photoUrl,
       additionalPhotos, // Additional photos (optional, max 9)
@@ -147,13 +149,14 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validation
-    if (!shopName || !ownerName || !mobile || !category || !pincode || !address || !photoUrl) {
+    if (!shopName || !ownerName || !mobile || !category || !pincode || !area || !address || !photoUrl) {
       console.error('❌ Missing required fields:', {
         shopName: !!shopName,
         ownerName: !!ownerName,
         mobile: !!mobile,
         category: !!category,
         pincode: !!pincode,
+        area: !!area,
         address: !!address,
         photoUrl: !!photoUrl,
       });
@@ -247,6 +250,43 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Creating shop with plan: ${finalPlanType}, Amount: ₹${finalAmount}, Commission: ₹${agentCommission}`);
     console.log('✅ Plan Features:', planFeatures);
 
+    // Save pincode + area to Pincode collection (with duplicate checking)
+    try {
+      const trimmedPincode = pincode.trim();
+      const trimmedArea = area.trim();
+      
+      // Check if pincode + area combination already exists
+      const existingPincode = await Pincode.findOne({
+        pincode: trimmedPincode,
+        area: trimmedArea,
+      });
+
+      // If pincode exists with same area, don't add again
+      // If pincode exists but area is different, add as new entry (handled by unique index)
+      if (!existingPincode) {
+        try {
+          await Pincode.create({
+            pincode: trimmedPincode,
+            area: trimmedArea,
+          });
+          console.log(`✅ Pincode+Area saved: ${trimmedPincode} - ${trimmedArea}`);
+        } catch (pincodeError: any) {
+          // If duplicate key error (same pincode + area), ignore it
+          if (pincodeError.code !== 11000) {
+            console.error('⚠️ Error saving pincode+area:', pincodeError.message);
+            // Don't fail the shop creation if pincode save fails
+          } else {
+            console.log(`ℹ️ Pincode+Area already exists: ${trimmedPincode} - ${trimmedArea}`);
+          }
+        }
+      } else {
+        console.log(`ℹ️ Pincode+Area already exists: ${trimmedPincode} - ${trimmedArea}`);
+      }
+    } catch (pincodeError: any) {
+      console.error('⚠️ Error in pincode save logic:', pincodeError.message);
+      // Don't fail the shop creation if pincode save fails
+    }
+
     // Create shop in AgentShop collection
     let shop;
     try {
@@ -258,6 +298,7 @@ export async function POST(request: NextRequest) {
         mobile: mobile.trim(),
         category: categoryName, // Keep category name for backward compatibility
         pincode: pincode.trim(),
+        area: area.trim(), // Save area field
         address: address.trim(),
         photoUrl: photoUrl.trim(),
         shopUrl: 'temp', // Temporary value, will be updated

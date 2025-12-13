@@ -32,8 +32,7 @@ export const GET = requireAdmin(async (
     // List all collections to verify
     const allCollections = await connection.db.listCollections().toArray();
     const collectionNames = allCollections.map(c => c.name);
-    console.log(`Available collections:`, collectionNames);
-    console.log(`Requested collection: ${collectionName}`);
+    // Removed verbose debug logs
     
     // Check if collection exists (case-insensitive)
     const collectionExists = collectionNames.some(name => 
@@ -120,7 +119,7 @@ export const GET = requireAdmin(async (
         .skip((page - 1) * limit)
         .limit(limit)
         .toArray();
-      console.log(`Fetched ${documents.length} documents`);
+      // Removed verbose log
       
       // For shops collection, populate agent information if createdByAgent exists
       if ((collectionName === 'shops' || collectionName === 'shopsfromimage') && documents.length > 0) {
@@ -199,7 +198,7 @@ export const GET = requireAdmin(async (
           .skip((page - 1) * limit)
           .limit(limit)
           .toArray();
-        console.log(`Fetched ${documents.length} documents (fallback)`);
+        // Removed verbose log
       } catch (fallbackError: any) {
         console.error(`Fallback find also failed:`, fallbackError);
         documents = [];

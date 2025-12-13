@@ -15,6 +15,7 @@ interface FormData {
   mobile: string;
   category: string;
   pincode: string;
+  area: string; // Area name (required)
   address: string;
   // Step 2
   photoUrl: string; // Main photo (required)
@@ -46,6 +47,7 @@ export default function AddNewShopPage() {
     mobile: '',
     category: '',
     pincode: '',
+    area: '', // Area field
     address: '',
     photoUrl: '', // Main photo (required)
     additionalPhotos: [], // Additional photos (optional, max 9 more = total 10)
@@ -114,7 +116,7 @@ export default function AddNewShopPage() {
 
   // Step 2: Basic Info
   const handleStep2Next = () => {
-    if (!formData.shopName || !formData.ownerName || !formData.mobile || !formData.category || !formData.pincode || !formData.address) {
+    if (!formData.shopName || !formData.ownerName || !formData.mobile || !formData.category || !formData.pincode || !formData.area || !formData.address) {
       setError('Please fill all required fields');
       return;
     }
@@ -745,6 +747,20 @@ export default function AddNewShopPage() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter 6-digit pincode"
                   maxLength={6}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Area <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.area}
+                  onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter area name (e.g., Rajendra Nagar, Kankarbagh)"
                   required
                 />
               </div>

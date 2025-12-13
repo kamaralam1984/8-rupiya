@@ -6,6 +6,7 @@ export interface IAgentShop extends Document {
   mobile: string;
   category: string;
   pincode: string;
+  area: string; // Area name (required for pincode system)
   address: string;
   photoUrl: string;
   additionalPhotos?: string[]; // Additional photos (optional, max 9 = total 10 with main photo)
@@ -61,6 +62,12 @@ const AgentShopSchema = new Schema<IAgentShop>(
       required: [true, 'Pincode is required'],
       trim: true,
       match: [/^\d{6}$/, 'Pincode must be 6 digits'],
+    },
+    area: {
+      type: String,
+      required: [true, 'Area is required'],
+      trim: true,
+      maxlength: [100, 'Area cannot exceed 100 characters'],
     },
     address: {
       type: String,
@@ -182,12 +189,17 @@ const AgentShopSchema = new Schema<IAgentShop>(
   }
 );
 
-// Indexes
+// Indexes for better query performance
 AgentShopSchema.index({ agentId: 1, createdAt: -1 });
 AgentShopSchema.index({ paymentStatus: 1 });
 AgentShopSchema.index({ category: 1 });
 AgentShopSchema.index({ pincode: 1 });
 AgentShopSchema.index({ createdAt: -1 });
+AgentShopSchema.index({ latitude: 1, longitude: 1 }); // For geospatial queries
+AgentShopSchema.index({ planType: 1, priorityRank: -1 }); // For plan-based sorting
+AgentShopSchema.index({ area: 1 }); // For area-based searches
+AgentShopSchema.index({ city: 1 }); // For city-based searches
+AgentShopSchema.index({ shopName: 'text', category: 'text', area: 'text' }); // Text search index
 
 const AgentShop: Model<IAgentShop> = mongoose.models.AgentShop || mongoose.model<IAgentShop>('AgentShop', AgentShopSchema);
 

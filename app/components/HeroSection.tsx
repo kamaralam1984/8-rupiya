@@ -26,12 +26,47 @@ export default function HeroSection({ category }: HeroSectionProps) {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        // If search is active, fetch search results instead
-        if (isSearchActive) {
+        console.log('🔄 HeroSection: Fetching banners...', {
+          isSearchActive,
+          searchParams,
+          location: { id: location.id, city: location.city, pincode: location.pincode },
+          filters: {
+            category: searchParams.category,
+            city: searchParams.city,
+            pincode: searchParams.pincode,
+            shopName: searchParams.shopName
+          }
+        });
+        console.log('🔄 HeroSection: Filter change detected - will update left rail, right rail, and bottom strip');
+        
+        // Check if any filters are present (category, city, pincode, shopName)
+        const hasFilters = Boolean(
+          searchParams.pincode || 
+          searchParams.category || 
+          searchParams.city || 
+          searchParams.shopName ||
+          searchParams.area
+        );
+        
+        console.log('🔍 HeroSection: Filter check:', {
+          hasFilters,
+          isSearchActive,
+          filters: {
+            category: searchParams.category,
+            city: searchParams.city,
+            pincode: searchParams.pincode,
+            shopName: searchParams.shopName
+          }
+        });
+        
+        // If filters are present, ALWAYS use /api/search endpoint to get filtered results
+        if (hasFilters || isSearchActive) {
+          console.log('✅ HeroSection: Filters detected, using /api/search endpoint');
           const searchParamsObj = new URLSearchParams();
           if (searchParams.pincode) searchParamsObj.append('pincode', searchParams.pincode);
           if (searchParams.area) searchParamsObj.append('area', searchParams.area);
           if (searchParams.category) searchParamsObj.append('category', searchParams.category);
+          if (searchParams.city) searchParamsObj.append('city', searchParams.city);
           if (searchParams.shopName) searchParamsObj.append('shopName', searchParams.shopName);
           if (searchParams.planType) searchParamsObj.append('planType', searchParams.planType);
           if (location.latitude) searchParamsObj.append('userLat', location.latitude.toString());
@@ -62,15 +97,6 @@ export default function HeroSection({ category }: HeroSectionProps) {
               pincode: searchParams.pincode,
               filters: searchData.filters,
             });
-            
-            // Log if no shops found
-            const totalShops = (searchData.mainResults?.length || 0) + 
-                              (searchData.leftRail?.length || 0) + 
-                              (searchData.rightRail?.length || 0) + 
-                              (searchData.bottomStrip?.length || 0);
-            if (totalShops === 0) {
-              console.warn(`⚠️ No shops found for pincode: ${searchParams.pincode}`);
-            }
             
             // Track used shop IDs to prevent duplicates
             const usedShopIds = new Set<string>();
@@ -109,18 +135,30 @@ export default function HeroSection({ category }: HeroSectionProps) {
             // Don't mark hero shop as used - it will also appear in bottom strip
             // Hero shops appear in both Hero section AND Bottom Strip
 
-            // Transform left rail - only LEFT_BAR plan shops
+            // Transform left rail - Show NEAREST shops (sorted by distance)
             const leftBanners = searchData.leftRail
-              .filter((shop: any) => shop?.id && shop.planType === 'LEFT_BAR' && !usedShopIds.has(shop.id))
+              .filter((shop: any) => shop?.id && !usedShopIds.has(shop.id))
+              .sort((a: any, b: any) => {
+                // Sort by distance (nearest first)
+                const distanceA = a.distance || 999999;
+                const distanceB = b.distance || 999999;
+                return distanceA - distanceB;
+              })
               .slice(0, 3)
               .map((shop: any) => {
                 usedShopIds.add(shop.id); // Mark as used
                 return transformShopToBanner(shop);
               });
 
-            // Transform right rail - only RIGHT_SIDE plan shops
+            // Transform right rail - Show NEAREST shops (sorted by distance)
             const rightBanners = searchData.rightRail
-              .filter((shop: any) => shop?.id && shop.planType === 'RIGHT_SIDE' && !usedShopIds.has(shop.id))
+              .filter((shop: any) => shop?.id && !usedShopIds.has(shop.id))
+              .sort((a: any, b: any) => {
+                // Sort by distance (nearest first)
+                const distanceA = a.distance || 999999;
+                const distanceB = b.distance || 999999;
+                return distanceA - distanceB;
+              })
               .slice(0, 3)
               .map((shop: any) => {
                 usedShopIds.add(shop.id); // Mark as used
@@ -162,6 +200,120 @@ export default function HeroSection({ category }: HeroSectionProps) {
                 return transformShopToBanner(shop);
               });
 
+            // If search returned no results, show empty state (don't fall back to all shops)
+            const totalShops = (searchData.mainResults?.length || 0) + 
+                              (searchData.leftRail?.length || 0) + 
+                              (searchData.rightRail?.length || 0) + 
+                              (searchData.bottomStrip?.length || 0);
+            
+            if (totalShops === 0) {
+              console.warn(`⚠️ No shops found in /api/search for filters:`, searchParams);
+              console.log('🔄 HeroSection: Falling back to /api/shops/nearby with filters...');
+              
+              // Fallback: Try /api/shops/nearby with filters applied
+              try {
+                let fallbackUrl = '/api/shops/nearby?useMongoDB=true&radiusKm=1000';
+                if (location.latitude && location.longitude) {
+                  fallbackUrl += `&userLat=${location.latitude}&userLng=${location.longitude}`;
+                }
+                if (searchParams.pincode) fallbackUrl += `&pincode=${encodeURIComponent(searchParams.pincode)}`;
+                if (searchParams.city) fallbackUrl += `&city=${encodeURIComponent(searchParams.city)}`;
+                if (searchParams.category) fallbackUrl += `&category=${encodeURIComponent(searchParams.category)}`;
+                if (searchParams.shopName) fallbackUrl += `&shopName=${encodeURIComponent(searchParams.shopName)}`;
+                
+                const fallbackRes = await fetch(fallbackUrl);
+                const fallbackData = await safeJsonParse<{ success?: boolean; shops?: any[] }>(fallbackRes);
+                
+                if (fallbackData?.success && fallbackData?.shops && fallbackData.shops.length > 0) {
+                  console.log(`✅ Fallback: Found ${fallbackData.shops.length} shops from /api/shops/nearby`);
+                  
+                  // Organize shops by plan type for left/right/bottom
+                  const usedShopIds = new Set<string>();
+                  const transformShopToBanner = (shop: any) => ({
+                    bannerId: shop.id || shop._id,
+                    imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
+                    alt: shop.name || shop.shopName || 'Shop',
+                    link: shop.shopUrl ? `/shop/${shop.shopUrl}` : `/contact/${shop.id || shop._id}`,
+                    advertiser: shop.name || shop.shopName || 'Shop',
+                    lat: shop.latitude || 0,
+                    lng: shop.longitude || 0,
+                    distance: shop.distance || 0,
+                    isBusiness: true,
+                    website: shop.website || undefined,
+                    area: shop.area || '',
+                    city: shop.city || '',
+                    visitorCount: shop.visitorCount || 0,
+                  });
+                  
+                  // Left Rail: Show NEAREST shops (sorted by distance)
+                  const leftBanners = fallbackData.shops
+                    .filter((shop: any) => !usedShopIds.has(shop.id || shop._id))
+                    .sort((a: any, b: any) => {
+                      // Sort by distance (nearest first)
+                      const distanceA = a.distance || 999999;
+                      const distanceB = b.distance || 999999;
+                      return distanceA - distanceB;
+                    })
+                    .slice(0, 3)
+                    .map((shop: any) => {
+                      usedShopIds.add(shop.id || shop._id);
+                      return transformShopToBanner(shop);
+                    });
+                  
+                  // Right Rail: Show NEAREST shops (sorted by distance)
+                  const rightBanners = fallbackData.shops
+                    .filter((shop: any) => !usedShopIds.has(shop.id || shop._id))
+                    .sort((a: any, b: any) => {
+                      // Sort by distance (nearest first)
+                      const distanceA = a.distance || 999999;
+                      const distanceB = b.distance || 999999;
+                      return distanceA - distanceB;
+                    })
+                    .slice(0, 3)
+                    .map((shop: any) => {
+                      usedShopIds.add(shop.id || shop._id);
+                      return transformShopToBanner(shop);
+                    });
+                  
+                  // Bottom Strip: All other shops
+                  const bottomBanners = fallbackData.shops
+                    .filter((shop: any) => {
+                      const isLeftOrRight = shop.planType === 'LEFT_BAR' || shop.planType === 'RIGHT_SIDE';
+                      return !isLeftOrRight && !usedShopIds.has(shop.id || shop._id);
+                    })
+                    .slice(0, 30)
+                    .map((shop: any) => transformShopToBanner(shop));
+                  
+                  // Hero: HERO plan shop
+                  const heroShop = fallbackData.shops.find((shop: any) => shop.planType === 'HERO');
+                  const heroBanner = heroShop ? transformShopToBanner(heroShop) : undefined;
+                  
+                  setData({
+                    hero: heroBanner || undefined,
+                    left: leftBanners,
+                    right: rightBanners,
+                    bottom: bottomBanners,
+                  });
+                  setIsLoading(false);
+                  return;
+                }
+              } catch (fallbackError) {
+                console.error('❌ Fallback also failed:', fallbackError);
+              }
+              
+              // If fallback also fails, show empty state
+              setData({
+                hero: undefined,
+                left: [],
+                right: [],
+                bottom: [],
+              });
+              setIsLoading(false);
+              return;
+            }
+            
+            console.log(`✅ Search results: Hero=${heroBanner ? 1 : 0}, Left=${leftBanners.length}, Right=${rightBanners.length}, Bottom=${bottomBanners.length}`);
+
             setData({
               hero: heroBanner || undefined,
               left: leftBanners,
@@ -185,6 +337,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
         }
 
         // Normal flow - Fetch banners and nearby shops
+        console.log('✅ HeroSection: Using normal flow (not search mode)');
         const bannerPromises = [
           fetch(`/api/banners?section=hero&loc=${location.id}${category ? `&cat=${category}` : ''}&limit=1`),
           fetch(`/api/banners?section=left&loc=${location.id}${category ? `&cat=${category}` : ''}&limit=4`),
@@ -197,21 +350,23 @@ export default function HeroSection({ category }: HeroSectionProps) {
         // Priority: searchParams > location
         const pincodeFilter = searchParams.pincode || location.pincode;
         const categoryFilter = searchParams.category || category;
+        const cityFilter = searchParams.city || location.city;
+        const areaFilter = searchParams.area || location.area;
         
         let nearbyShopsPromise: Promise<Response> | null = null;
         if (location.latitude && location.longitude) {
           // Fetch with coordinates
           let url = `/api/shops/nearby?userLat=${location.latitude}&userLng=${location.longitude}&radiusKm=1000&useMongoDB=true`;
-          if (location.city) url += `&city=${encodeURIComponent(location.city)}`;
-          if (location.area) url += `&area=${encodeURIComponent(location.area)}`;
+          if (cityFilter) url += `&city=${encodeURIComponent(cityFilter)}`;
+          if (areaFilter) url += `&area=${encodeURIComponent(areaFilter)}`;
           if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
           if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
           nearbyShopsPromise = fetch(url);
-        } else if (location.city || location.area || pincodeFilter) {
+        } else if (cityFilter || areaFilter || pincodeFilter) {
           // Fetch with location filters (city/area/pincode)
-          const cityFilter = location.city || 'Patna';
-          let url = `/api/shops/nearby?city=${encodeURIComponent(cityFilter)}&radiusKm=1000&useMongoDB=true`;
-          if (location.area) url += `&area=${encodeURIComponent(location.area)}`;
+          const finalCityFilter = cityFilter || 'Patna';
+          let url = `/api/shops/nearby?city=${encodeURIComponent(finalCityFilter)}&radiusKm=1000&useMongoDB=true`;
+          if (areaFilter) url += `&area=${encodeURIComponent(areaFilter)}`;
           if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
           if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
           nearbyShopsPromise = fetch(url);
@@ -220,6 +375,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
           let url = `/api/shops/nearby?radiusKm=1000&useMongoDB=true&limit=50`;
           if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
           if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
+          if (cityFilter) url += `&city=${encodeURIComponent(cityFilter)}`;
           nearbyShopsPromise = fetch(url);
         }
 
@@ -265,16 +421,17 @@ export default function HeroSection({ category }: HeroSectionProps) {
           // If no nearby shops found, try fetching by city/area
           if (!nearbyShopsData?.shops || nearbyShopsData.shops.length === 0) {
             console.log('📍 No nearby shops found, fetching shops by city/area...');
-            const cityFilter = location.city || 'Patna';
-            let url = `/api/shops/nearby?city=${encodeURIComponent(cityFilter)}&radiusKm=1000&useMongoDB=true&limit=50`;
+            const finalCityFilter = cityFilter || location.city || 'Patna';
+            let url = `/api/shops/nearby?city=${encodeURIComponent(finalCityFilter)}&radiusKm=1000&useMongoDB=true&limit=50`;
             if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
             if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
+            if (areaFilter) url += `&area=${encodeURIComponent(areaFilter)}`;
             const allShopsRes = await fetch(url).catch(() => null);
             if (allShopsRes) {
               const parsed = await safeJsonParse(allShopsRes);
               if (parsed?.shops && parsed.shops.length > 0) {
                 nearbyShopsData = parsed;
-                console.log(`📍 Fetched ${parsed.shops.length} shops from database (city: ${cityFilter}) for left/right rails`);
+                console.log(`📍 Fetched ${parsed.shops.length} shops from database (city: ${finalCityFilter}) for left/right rails`);
               }
             }
           }
@@ -302,9 +459,9 @@ export default function HeroSection({ category }: HeroSectionProps) {
           // If still no shops, try fetching by plan types
           if (!nearbyShopsData?.shops || nearbyShopsData.shops.length === 0) {
             console.log('📍 Trying to fetch shops by plan types for left/right rails...');
-            const leftBarUrl = `/api/shops/by-plan?planType=LEFT_BAR&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}`;
-            const rightBarUrl = `/api/shops/by-plan?planType=RIGHT_SIDE&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}`;
-            const heroUrl = `/api/shops/by-plan?planType=HERO&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}`;
+            const leftBarUrl = `/api/shops/by-plan?planType=LEFT_BAR&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}${cityFilter ? `&city=${encodeURIComponent(cityFilter)}` : ''}${areaFilter ? `&area=${encodeURIComponent(areaFilter)}` : ''}`;
+            const rightBarUrl = `/api/shops/by-plan?planType=RIGHT_SIDE&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}${cityFilter ? `&city=${encodeURIComponent(cityFilter)}` : ''}${areaFilter ? `&area=${encodeURIComponent(areaFilter)}` : ''}`;
+            const heroUrl = `/api/shops/by-plan?planType=HERO&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}${cityFilter ? `&city=${encodeURIComponent(cityFilter)}` : ''}${areaFilter ? `&area=${encodeURIComponent(areaFilter)}` : ''}`;
             const [leftBarRes, rightBarRes, heroRes] = await Promise.all([
               fetch(leftBarUrl).catch(() => null),
               fetch(rightBarUrl).catch(() => null),
@@ -411,7 +568,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
         let uniqueShopsArray = Array.from(allUniqueShops.values());
         console.log(`✅ Deduplicated shops: ${uniqueShopsArray.length} unique shops from ${allShops.length + nearbyShops.length + patnaAreaShops.length} total`);
         
-        // Apply filters from search params (pincode and category)
+        // Apply filters from search params (pincode, category, city, shopName)
         // Filter by pincode if selected
         if (searchParams.pincode) {
           const beforeFilter = uniqueShopsArray.length;
@@ -441,6 +598,28 @@ export default function HeroSection({ category }: HeroSectionProps) {
               ))
             );
           }
+        }
+        
+        // Filter by city if selected (case-insensitive matching)
+        if (searchParams.city) {
+          const beforeFilter = uniqueShopsArray.length;
+          const cityFilter = searchParams.city.trim().toLowerCase();
+          uniqueShopsArray = uniqueShopsArray.filter((shop: any) => {
+            const shopCity = (shop.city || '').toString().trim().toLowerCase();
+            return shopCity === cityFilter || shopCity.includes(cityFilter) || cityFilter.includes(shopCity);
+          });
+          console.log(`🏙️ Filtered by city "${searchParams.city}": ${beforeFilter} → ${uniqueShopsArray.length} shops`);
+        }
+        
+        // Filter by shop name if selected (case-insensitive partial matching)
+        if (searchParams.shopName) {
+          const beforeFilter = uniqueShopsArray.length;
+          const shopNameFilter = searchParams.shopName.trim().toLowerCase();
+          uniqueShopsArray = uniqueShopsArray.filter((shop: any) => {
+            const shopName = (shop.name || shop.shopName || '').toString().trim().toLowerCase();
+            return shopName.includes(shopNameFilter);
+          });
+          console.log(`🔍 Filtered by shop name "${searchParams.shopName}": ${beforeFilter} → ${uniqueShopsArray.length} shops`);
         }
         
         // Step 2: Hero - Prioritize HERO plan shops, but if filters are active and no HERO shops found, show any shop
@@ -477,32 +656,21 @@ export default function HeroSection({ category }: HeroSectionProps) {
           console.log(`🎯 Hero shop selected: ${heroShop.name || heroShop.shopName} (ID: ${heroShop.id}, Visitors: ${heroShop.visitorCount || 0})`);
         }
         
-        // Step 3: Left Rail - Get shops with planType 'LEFT_BAR' first, but if filters are active and no LEFT_BAR shops found, show any shops
+        // Step 3: Left Rail - Show NEAREST shops (sorted by distance)
         const leftBarShopsFiltered = uniqueShopsArray.filter((shop) => {
           return shop && shop.id && (shop.name || shop.shopName) &&
                  shop.latitude && shop.longitude;
         });
         
-        // Prioritize LEFT_BAR plan shops, but if filters are active and no LEFT_BAR shops, show any shops
+        // Sort by distance (nearest first) - Show nearest shops in left rail
         const leftBarShops = leftBarShopsFiltered
           .sort((a, b) => {
-            // First, prioritize LEFT_BAR plan shops
-            const isLeftBarA = a.planType === 'LEFT_BAR';
-            const isLeftBarB = b.planType === 'LEFT_BAR';
-            if (isLeftBarA && !isLeftBarB) return -1;
-            if (!isLeftBarA && isLeftBarB) return 1;
-            
-            // Then sort by priority rank (higher = first), then by distance (nearest first)
-            const priorityA = a.priorityRank || 0;
-            const priorityB = b.priorityRank || 0;
-            if (priorityB !== priorityA) {
-              return priorityB - priorityA;
-            }
+            // Sort by distance (nearest first)
             const distanceA = a.distance || 999999;
             const distanceB = b.distance || 999999;
             return distanceA - distanceB;
           })
-          .slice(0, 3) // Get exactly 3 shops
+          .slice(0, 3) // Get exactly 3 nearest shops
           .map((shop) => {
             usedShopIds.add(shop.id); // Mark as used
             return {
@@ -522,36 +690,25 @@ export default function HeroSection({ category }: HeroSectionProps) {
             };
           });
         
-        console.log(`🏪 Left rail shops (LEFT_BAR plan): ${leftBarShops.length} shops`);
-        leftBarShops.forEach((s, idx) => console.log(`  ${idx + 1}. ${s.advertiser} (ID: ${s.bannerId})`));
+        console.log(`🏪 Left rail shops (NEAREST): ${leftBarShops.length} shops`);
+        leftBarShops.forEach((s, idx) => console.log(`  ${idx + 1}. ${s.advertiser} (Distance: ${s.distance?.toFixed(1)}km, ID: ${s.bannerId})`));
 
-        // Step 4: Right Side - Get shops with planType 'RIGHT_SIDE' first, but if filters are active and no RIGHT_SIDE shops found, show any shops
+        // Step 4: Right Rail - Show NEAREST shops (sorted by distance)
         const rightBarShopsFiltered = uniqueShopsArray.filter((shop) => {
           return shop && shop.id && (shop.name || shop.shopName) &&
                  shop.latitude && shop.longitude &&
                  !usedShopIds.has(shop.id); // Exclude already used shops
         });
         
-        // Prioritize RIGHT_SIDE plan shops, but if filters are active and no RIGHT_SIDE shops, show any shops
+        // Sort by distance (nearest first) - Show nearest shops in right rail
         const rightBarShops = rightBarShopsFiltered
           .sort((a, b) => {
-            // First, prioritize RIGHT_SIDE plan shops
-            const isRightSideA = a.planType === 'RIGHT_SIDE';
-            const isRightSideB = b.planType === 'RIGHT_SIDE';
-            if (isRightSideA && !isRightSideB) return -1;
-            if (!isRightSideA && isRightSideB) return 1;
-            
-            // Then sort by priority rank (higher = first), then by distance (nearest first)
-            const priorityA = a.priorityRank || 0;
-            const priorityB = b.priorityRank || 0;
-            if (priorityB !== priorityA) {
-              return priorityB - priorityA;
-            }
+            // Sort by distance (nearest first)
             const distanceA = a.distance || 999999;
             const distanceB = b.distance || 999999;
             return distanceA - distanceB;
           })
-          .slice(0, 3) // Get exactly 3 shops
+          .slice(0, 3) // Get exactly 3 nearest shops
           .map((shop) => {
             usedShopIds.add(shop.id); // Mark as used
             return {
@@ -571,8 +728,8 @@ export default function HeroSection({ category }: HeroSectionProps) {
             };
           });
         
-        console.log(`🏪 Right side shops (RIGHT_SIDE plan): ${rightBarShops.length} shops`);
-        rightBarShops.forEach((s, idx) => console.log(`  ${idx + 1}. ${s.advertiser} (ID: ${s.bannerId})`));
+        console.log(`🏪 Right rail shops (NEAREST): ${rightBarShops.length} shops`);
+        rightBarShops.forEach((s, idx) => console.log(`  ${idx + 1}. ${s.advertiser} (Distance: ${s.distance?.toFixed(1)}km, ID: ${s.bannerId})`));
         
         // Step 5: Bottom Strip - Prioritize BASIC and HERO plan shops, but if filters are active and none found, show any shops (except LEFT_BAR and RIGHT_SIDE)
         // Hero shops appear in both Hero section AND Bottom Strip
@@ -623,7 +780,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
             const distanceB = b.distance || 999999;
             return distanceA - distanceB;
           })
-          .slice(0, 30) // Get exactly 30 shops from Shop.ts (AdminShop)
+          .slice(0, 30) // Get exactly 30 shops from AgentShop collection
           .map((shop) => {
             // Don't mark as used if it's a HERO shop (it's already in hero section)
             if (shop.planType !== 'HERO') {
@@ -763,7 +920,21 @@ export default function HeroSection({ category }: HeroSectionProps) {
     };
 
     fetchBanners();
-  }, [location.id, location.latitude, location.longitude, category, isSearchActive, searchParams.pincode, searchParams.category, searchParams.area, searchParams.shopName, searchParams.planType]);
+  }, [
+    location.id, 
+    location.latitude, 
+    location.longitude, 
+    location.city,
+    location.pincode,
+    category, 
+    isSearchActive, 
+    searchParams.pincode, 
+    searchParams.category, 
+    searchParams.area, 
+    searchParams.city, 
+    searchParams.shopName, 
+    searchParams.planType
+  ]);
 
   const handleBannerClick = async (
     bannerId: string,
@@ -790,17 +961,41 @@ export default function HeroSection({ category }: HeroSectionProps) {
       <section className="max-w-[98%] mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-6">
         <div className="bg-white rounded-2xl shadow-md p-2 md:p-3">
           <div className="grid grid-cols-1 lg:grid-cols-[20%_60%_20%] gap-3">
-            <div className="h-[480px] space-y-2">
+            <div className="h-[500px] space-y-2">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="h-full bg-gray-200 rounded-lg animate-pulse" />
               ))}
             </div>
-            <div className="h-[480px] bg-gray-200 rounded-xl animate-pulse" />
-            <div className="h-[480px] space-y-2">
+            <div className="h-[500px] bg-gray-200 rounded-xl animate-pulse" />
+            <div className="h-[500px] space-y-2">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="h-full bg-gray-200 rounded-lg animate-pulse" />
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Show empty state if search is active but no shops found
+  if (isSearchActive && data && data.left.length === 0 && data.right.length === 0 && data.bottom.length === 0 && !data.hero) {
+    return (
+      <section className="max-w-[98%] mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-6">
+        <div className="bg-white rounded-2xl shadow-md p-2 md:p-3">
+          <div className="h-[480px] bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-gray-300">
+            <svg className="w-20 h-20 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <p className="text-gray-700 font-semibold text-lg mb-2">No shops found</p>
+            <p className="text-gray-500 text-sm mb-4 text-center max-w-md">
+              {searchParams.pincode && `No shops found for pincode: ${searchParams.pincode}`}
+              {searchParams.city && !searchParams.pincode && `No shops found for city: ${searchParams.city}`}
+              {searchParams.category && !searchParams.pincode && !searchParams.city && `No shops found for category: ${searchParams.category}`}
+              {searchParams.shopName && !searchParams.pincode && !searchParams.city && !searchParams.category && `No shops found matching: ${searchParams.shopName}`}
+              {!searchParams.pincode && !searchParams.city && !searchParams.category && !searchParams.shopName && 'No shops found matching your filters'}
+            </p>
+            <p className="text-gray-400 text-xs mb-4">Try adjusting your search filters</p>
           </div>
         </div>
       </section>
@@ -847,21 +1042,21 @@ export default function HeroSection({ category }: HeroSectionProps) {
           <LeftRail 
             banners={data.left} 
             onBannerClick={handleBannerClick} 
-            height="h-[391px]"
+            height="h-[500px]"
             userLat={location.latitude}
             userLng={location.longitude}
           />
 
           {/* CENTER COLUMN (60%) - Hero */}
           <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[391px]" />
+            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[500px]" />
           </div>
 
           {/* RIGHT COLUMN (20%) */}
           <RightSide 
             banners={data.right} 
             onBannerClick={handleBannerClick} 
-            height="h-[391px]"
+            height="h-[500px]"
             userLat={location.latitude}
             userLng={location.longitude}
           />
@@ -873,21 +1068,21 @@ export default function HeroSection({ category }: HeroSectionProps) {
           <LeftRail 
             banners={data.left} 
             onBannerClick={handleBannerClick} 
-            height="h-[293px]"
+            height="h-[400px]"
             userLat={location.latitude}
             userLng={location.longitude}
           />
 
           {/* CENTER COLUMN */}
           <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[293px]" />
+            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[400px]" />
           </div>
 
           {/* RIGHT COLUMN */}
           <RightSide 
             banners={data.right} 
             onBannerClick={handleBannerClick} 
-            height="h-[293px]"
+            height="h-[400px]"
             userLat={location.latitude}
             userLng={location.longitude}
           />
@@ -899,21 +1094,21 @@ export default function HeroSection({ category }: HeroSectionProps) {
           <LeftRail 
             banners={data.left} 
             onBannerClick={handleBannerClick} 
-            height="h-[176px] sm:h-[240px]"
+            height="h-[280px] sm:h-[320px]"
             userLat={location.latitude}
             userLng={location.longitude}
           />
 
           {/* CENTER COLUMN - Hero */}
           <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[176px] sm:h-[240px]" />
+            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[280px] sm:h-[320px]" />
           </div>
 
           {/* RIGHT COLUMN */}
           <RightSide 
             banners={data.right} 
             onBannerClick={handleBannerClick} 
-            height="h-[176px] sm:h-[240px]"
+            height="h-[280px] sm:h-[320px]"
             userLat={location.latitude}
             userLng={location.longitude}
           />
