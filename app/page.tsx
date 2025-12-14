@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar";
 import HeroSection from "./components/HeroSection";
-import HomepageSearchFilter from "./components/HomepageSearchFilter";
 import CategoryGrid from "./components/CategoryGrid";
 import OffersStrip from "./components/OffersStrip";
 import FeaturedBusinesses from "./components/FeaturedBusinesses";
@@ -178,24 +177,9 @@ export default function Home() {
         className="mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-4 sm:pb-6"
         style={{ maxWidth: containerWidth }}
       >
-        {/* Search & Filter Section - At the Top */}
-        {sections.searchFilter !== false && (
-          <div style={{ marginBottom: sectionSpacing }}>
-            <HomepageSearchFilter />
-          </div>
-        )}
-
         {/* Hero Section - Always render, but HeroBanner will be conditionally shown */}
         <div style={{ marginBottom: sectionSpacing }} id="businesses-section">
-          <HeroSection 
-            showHeroBanner={sections.hero !== false}
-            heroSections={homepageSettings.heroSections || {
-              leftRail: true,
-              rightRail: true,
-              bottomRail: true,
-              bottomStrip: true,
-            }}
-          />
+          <HeroSection />
         </div>
 
         {/* Categories Section */}

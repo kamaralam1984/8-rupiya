@@ -29,15 +29,16 @@ interface Shop {
   distance?: number;
 }
 
-interface SearchPanelProps {
-  onShopClick?: (shopId: string) => void;
+interface Category {
+  _id?: string;
+  id?: string;
+  name?: string;
+  displayName?: string;
+  slug?: string;
 }
 
-interface Category {
-  id: string;
-  name: string;
-  displayName: string;
-  slug: string;
+interface SearchPanelProps {
+  onShopClick?: (shopId: string) => void;
 }
 
 export default function SearchPanel({ onShopClick }: SearchPanelProps) {
@@ -47,43 +48,23 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
   const [loading, setLoading] = useState(false);
   const [filterBy, setFilterBy] = useState<'category' | 'pincode' | 'search'>('category');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedPincode, setSelectedPincode] = useState<string>('');
+  const [pincode, setPincode] = useState<string>('');
   const [categories, setCategories] = useState<Category[]>([]);
-  const [pincodes, setPincodes] = useState<string[]>([]);
 
-  // Fetch categories and pincodes on mount
+  // Fetch categories on mount
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const res = await fetch('/api/categories');
         const data = await res.json();
         if (data.success && data.categories) {
-          setCategories(data.categories.map((cat: any) => ({
-            id: cat.id || cat._id || '',
-            name: cat.name || cat.displayName || '',
-            displayName: cat.displayName || cat.name || '',
-            slug: cat.slug || '',
-          })));
+          setCategories(data.categories);
         }
       } catch (error) {
         console.error('Error fetching categories:', error);
       }
     };
-
-    const fetchPincodes = async () => {
-      try {
-        const res = await fetch('/api/shops/search-options');
-        const data = await res.json();
-        if (data.success && data.pincodes) {
-          setPincodes(data.pincodes.sort());
-        }
-      } catch (error) {
-        console.error('Error fetching pincodes:', error);
-      }
-    };
-
     fetchCategories();
-    fetchPincodes();
   }, []);
 
   // Fetch shops based on filter
@@ -101,8 +82,8 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
 
         if (filterBy === 'category' && selectedCategory) {
           url += `&category=${encodeURIComponent(selectedCategory)}`;
-        } else if (filterBy === 'pincode' && selectedPincode) {
-          url += `&pincode=${encodeURIComponent(selectedPincode)}`;
+        } else if (filterBy === 'pincode' && pincode.trim()) {
+          url += `&pincode=${encodeURIComponent(pincode.trim())}`;
         } else if (filterBy === 'search' && searchQuery.trim()) {
           url += `&shopName=${encodeURIComponent(searchQuery.trim())}`;
         }
@@ -172,7 +153,7 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
     };
 
     fetchShops();
-  }, [filterBy, selectedCategory, selectedPincode, searchQuery, location.latitude, location.longitude, location.city]);
+  }, [filterBy, selectedCategory, pincode, searchQuery, location.latitude, location.longitude, location.city]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,8 +209,8 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
           >
             <option value="">Select Category</option>
             {categories.map((cat) => (
-              <option key={cat.id} value={cat.name}>
-                {cat.displayName}
+              <option key={cat._id || cat.id || cat.slug} value={cat.name || cat.displayName || cat.slug}>
+                {cat.displayName || cat.name || cat.slug}
               </option>
             ))}
           </select>
@@ -237,28 +218,16 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
 
         {/* Pincode Filter */}
         {filterBy === 'pincode' && (
-          <div className="flex gap-2">
-            <select
-              value={selectedPincode}
-              onChange={(e) => setSelectedPincode(e.target.value)}
+          <form onSubmit={(e) => { e.preventDefault(); }} className="flex gap-2">
+            <input
+              type="text"
+              value={pincode}
+              onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
+              placeholder="Enter pincode (e.g., 110001)"
+              maxLength={6}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select Pincode</option>
-              {pincodes.map((pincode) => (
-                <option key={pincode} value={pincode}>
-                  {pincode}
-                </option>
-              ))}
-            </select>
-            {selectedPincode && (
-              <button
-                onClick={() => setSelectedPincode('')}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Clear
-              </button>
-            )}
-          </div>
+            />
+          </form>
         )}
 
         {/* Search Input */}
@@ -279,7 +248,6 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
             </button>
           </form>
         )}
-
       </div>
 
       {/* Shops List */}
