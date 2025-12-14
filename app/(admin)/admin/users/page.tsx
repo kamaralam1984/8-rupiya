@@ -184,19 +184,38 @@ export default function UsersManagementPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
             Users Management
           </h1>
           <p className="text-gray-600 mt-1">Manage admin, editor, and operator accounts</p>
         </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              setFormData({
+                name: '',
+                email: '',
+                password: '',
+                phone: '',
+                role: 'operator', // Default to operator
+              });
+              setEditingUser(null);
+              setShowModal(true);
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+          >
+            <span>👤</span>
+            <span>Create Operator</span>
+          </button>
         <button
           onClick={() => setShowModal(true)}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
         >
           + Add User
         </button>
+        </div>
       </div>
 
       {/* Filter */}
@@ -306,9 +325,14 @@ export default function UsersManagementPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
+                <div>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {editingUser ? 'Edit User' : 'Add New User'}
+                    {editingUser ? 'Edit User' : formData.role === 'operator' ? 'Create Operator Account' : 'Add New User'}
                 </h2>
+                  {!editingUser && formData.role === 'operator' && (
+                    <p className="text-sm text-gray-500 mt-1">Create a new operator account with ID and password</p>
+                  )}
+                </div>
                 <button
                   onClick={handleCloseModal}
                   className="text-gray-400 hover:text-gray-600"

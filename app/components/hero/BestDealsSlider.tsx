@@ -40,7 +40,6 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
   const [brightness, setBrightness] = useState(1);
   const [contrast, setContrast] = useState(1);
   const [saturate, setSaturate] = useState(1);
-  const [glow, setGlow] = useState(false);
   const [particles, setParticles] = useState(false);
   const [parallax, setParallax] = useState(0);
   
@@ -248,13 +247,11 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
   // Function 10: Hover effects
   const handleMouseEnter = () => {
     setIsHovered(true);
-    setGlow(true);
     setScale(1.02);
   };
 
   const handleMouseLeave = () => {
     setIsHovered(false);
-    setGlow(false);
     setScale(1);
   };
 
@@ -375,6 +372,7 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
     <div
       ref={sliderRef}
       className="relative w-full h-full bg-white rounded-xl overflow-hidden shadow-lg border border-gray-200 group"
+      style={{ minHeight: '300px' }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onMouseMove={(e) => {
@@ -388,7 +386,7 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
       onMouseUp={handleMouseUp}
     >
       {/* Slider Container */}
-      <div className="relative w-full h-24 sm:h-32 md:h-36">
+      <div className="relative w-full h-full">
         {/* Slider Images with various effects */}
         {sliderImages.map((image, index) => {
           const isActive = index === currentIndex;
@@ -406,7 +404,6 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
                 filter: isActive
                   ? `brightness(${brightness}) contrast(${contrast}) saturate(${saturate}) blur(${blur}px)`
                   : 'brightness(0.8) blur(2px)',
-                boxShadow: glow && isActive ? '0 0 30px rgba(251, 191, 36, 0.5)' : 'none',
               }}
             >
               <Link href={image.linkUrl || '#'} onClick={(e) => {

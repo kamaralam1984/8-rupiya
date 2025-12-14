@@ -42,21 +42,6 @@ export default function BottomRail({ banners, onBannerClick, userLat, userLng }:
     return sortedBanners.slice(0, 12);
   }, [sortedBanners]);
 
-  const renderPlaceholder = (position: number) => (
-    <div
-      className="w-full flex-1 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer p-4"
-      onClick={() => window.location.href = '/advertise'}
-      role="button"
-      tabIndex={0}
-      aria-label={`Advertise here - Bottom Rail position ${position + 1}`}
-    >
-      <svg className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-      </svg>
-      <span className="text-xs sm:text-sm font-medium text-gray-600">Advertise Here</span>
-    </div>
-  );
-
   return (
     <div 
       className="w-full mt-4"
@@ -67,12 +52,12 @@ export default function BottomRail({ banners, onBannerClick, userLat, userLng }:
       </h2>
       
       {/* Grid layout - 3 columns on mobile, 4 on tablet, 6 on desktop */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((index) => {
-          const banner = currentBanners[index];
-          const distance = banner ? getBannerDistance(banner, userLat ?? null, userLng ?? null) : null;
-          
-          return banner ? (
+      {currentBanners.length > 0 ? (
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
+          {currentBanners.map((banner, index) => {
+            const distance = banner ? getBannerDistance(banner, userLat ?? null, userLng ?? null) : null;
+            
+            return banner ? (
             <div
               key={`bottom-rail-${index}-${banner.bannerId || index}`}
               className="relative group"
@@ -82,7 +67,7 @@ export default function BottomRail({ banners, onBannerClick, userLat, userLng }:
                 target={banner.website ? '_blank' : undefined}
                 rel={banner.website ? 'noopener noreferrer' : undefined}
                 onClick={() => onBannerClick(banner.bannerId, 'bottomrail', index, banner.website || banner.link)}
-                className={`relative block w-full h-32 sm:h-40 md:h-44 lg:h-48 rounded-lg bg-white overflow-hidden border-2 hover:scale-[1.05] transition-all duration-300 group animate-bottom-rail-glow`}
+                className={`relative block w-full h-32 sm:h-40 md:h-44 lg:h-48 rounded-lg bg-white overflow-hidden border-2 hover:scale-[1.05] transition-all duration-300 group`}
                 aria-label={`Shop: ${banner.advertiser || banner.alt} - ${banner.area || ''} - Bottom Rail slot ${index + 1}`}
                 style={{
                   animationDelay: `${index * 1}s`,
@@ -148,13 +133,10 @@ export default function BottomRail({ banners, onBannerClick, userLat, userLng }:
                 </div>
               )}
             </div>
-          ) : (
-            <div key={`bottom-rail-placeholder-${index}`}>
-              {renderPlaceholder(index)}
-            </div>
-          );
-        })}
-      </div>
+            ) : null;
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }

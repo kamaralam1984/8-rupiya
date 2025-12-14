@@ -47,7 +47,7 @@ export default function ShopCard({
   const travelTimeText = travelTimeMinutes > 0 ? formatTravelTime(travelTimeMinutes) : '';
 
   return (
-    <article className="group rounded-xl bg-white shadow-md border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-green-200 h-full">
+    <article className="group rounded-xl bg-white shadow-md border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 h-full">
       <div className="relative h-48 sm:h-52 overflow-hidden">
         <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent z-10" />
         <Image src={imageUrl} alt={name} fill className="object-cover transition-transform duration-500 group-hover:scale-110" sizes="(max-width: 1024px) 50vw, 33vw" />
@@ -137,7 +137,7 @@ export default function ShopCard({
             <span className="text-gray-500 font-normal">({reviews})</span>
           </div>
 
-          <a href={`/contact/${id}`} className="inline-flex items-center gap-2 rounded-xl bg-custom-gradient px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg hover:opacity-90 transition-all w-full sm:w-auto justify-center">
+          <a href={`/contact/${id}`} className="inline-flex items-center gap-2 rounded-xl bg-gray-800 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg hover:opacity-90 transition-all w-full sm:w-auto justify-center">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.129a11.042 11.042 0 005.516 5.516l1.129-2.257a1 1 0 011.21-.502l4.493 1.498A1 1 0 0121 19.72V23a2 2 0 01-2 2h-1C9.163 25 3 18.837 3 11V5z" />
             </svg>

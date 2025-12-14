@@ -17,22 +17,12 @@ interface MobileRailsProps {
 }
 
 export default function MobileRails({ leftBanners, rightBanners, onBannerClick }: MobileRailsProps) {
-  const renderPlaceholder = (section: string, position: number) => (
-    <div
-      className="w-full h-[100px] bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer"
-      onClick={() => window.location.href = '/advertise'}
-      role="button"
-      tabIndex={0}
-      aria-label={`Advertise here - ${section} position ${position + 1}`}
-    >
-      <svg className="w-6 h-6 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-      </svg>
-      <span className="text-xs font-medium text-gray-600">Advertise</span>
-    </div>
-  );
-
   const allBanners = [...leftBanners, ...rightBanners];
+
+  // Don't render if no banners
+  if (allBanners.length === 0) {
+    return null;
+  }
 
   return (
     <div className="overflow-x-auto scrollbar-hide -mx-2 sm:-mx-4 px-2 sm:px-4">
@@ -56,12 +46,6 @@ export default function MobileRails({ leftBanners, rightBanners, onBannerClick }
               sizes="(max-width: 640px) 140px, 160px"
             />
           </button>
-        ))}
-        {/* Fill remaining slots if needed */}
-        {[...Array(8 - allBanners.length)].map((_, index) => (
-          <div key={`mobile-placeholder-${index}`} className="shrink-0 w-[140px] sm:w-[160px] min-w-[140px] sm:min-w-[160px]">
-            {renderPlaceholder('mobile', index)}
-          </div>
         ))}
       </div>
     </div>

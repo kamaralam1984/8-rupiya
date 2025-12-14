@@ -12,6 +12,7 @@ import BottomRail from './hero/BottomRail';
 import BottomStrip from './hero/BottomStrip';
 import MobileRails from './hero/MobileRails';
 import BestDealsSlider from './hero/BestDealsSlider';
+import SearchPanel from './hero/SearchPanel';
 
 interface HeroSectionProps {
   category?: string;
@@ -22,6 +23,23 @@ export default function HeroSection({ category }: HeroSectionProps) {
   const { searchParams, isSearchActive } = useSearch();
   const [data, setData] = useState<HeroSectionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [heroSettings, setHeroSettings] = useState<any>(null);
+
+  // Fetch hero section settings
+  useEffect(() => {
+    const fetchHeroSettings = async () => {
+      try {
+        const res = await fetch('/api/hero-section');
+        const data = await res.json();
+        if (data.success) {
+          setHeroSettings(data.settings);
+        }
+      } catch (error) {
+        console.error('Error fetching hero settings:', error);
+      }
+    };
+    fetchHeroSettings();
+  }, []);
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -280,21 +298,21 @@ export default function HeroSection({ category }: HeroSectionProps) {
           }
           
           // 2. Fetch ALL shops for homepage (all locations, but apply filters if search params exist)
-          // On page load, fetch ALL shops from Shop.ts model with nearby functionality
+          // IMPORTANT: Homepage पर सिर्फ AgentShop से shops fetch करें (Shop.ts से नहीं)
           // Only fetch all shops if no search filters are active (page load)
           if (!isSearchActive) {
-            console.log('🌍 Page Load: Fetching ALL shops from Shop.ts for homepage...');
-            let allLocationsUrl = '/api/shops/nearby?radiusKm=1000&useMongoDB=true'; // No limit - fetch ALL shops
+            console.log('🌍 Page Load: Fetching ALL shops from AgentShop only for homepage...');
+            let allLocationsUrl = '/api/shops/nearby?radiusKm=1000&useMongoDB=true'; // No limit - fetch ALL shops from AgentShop
             if (location.latitude && location.longitude) {
               allLocationsUrl += `&userLat=${location.latitude}&userLng=${location.longitude}`;
             }
-            // Don't apply filters on page load - show all shops
+            // Don't apply filters on page load - show all shops from AgentShop
             const allLocationsRes = await fetch(allLocationsUrl).catch(() => null);
             if (allLocationsRes) {
               const parsed = await safeJsonParse(allLocationsRes);
               if (parsed?.shops && parsed.shops.length > 0) {
                 allShopsData = parsed;
-                console.log(`🌍 Page Load: Fetched ${parsed.shops.length} shops from Shop.ts (ALL shops) for homepage`);
+                console.log(`🌍 Page Load: Fetched ${parsed.shops.length} unique shops from AgentShop (ALL shops, duplicates removed) for homepage`);
               }
             }
           }
@@ -398,18 +416,33 @@ export default function HeroSection({ category }: HeroSectionProps) {
         
         console.log(`🌍 Total shops from all locations: ${allShops.length}`);
         
-        // Step 1: Deduplicate all shops by ID first (combine all sources and remove duplicates)
+        // Step 1: Deduplicate all shops by shopName + ownerName + mobile (combine all sources and remove duplicates)
+        // IMPORTANT: सिर्फ AgentShop से shops आ रहे हैं, duplicate prevention के लिए shopName + ownerName + mobile use करें
         const allUniqueShops = new Map<string, any>();
         
-        // Add shops from all sources, keeping the first occurrence
+        // Add shops from all sources, keeping unique shops based on shopName + ownerName + mobile
         [...allShops, ...nearbyShops, ...patnaAreaShops].forEach((shop: any) => {
-          if (shop && shop.id && !allUniqueShops.has(shop.id)) {
-            allUniqueShops.set(shop.id, shop);
+          if (shop && shop.id) {
+            // Create unique key from shopName + ownerName + mobile
+            const uniqueKey = `${(shop.name || shop.shopName || '').toLowerCase().trim()}_${(shop.ownerName || '').toLowerCase().trim()}_${(shop.phone || shop.mobile || '').trim()}`;
+            
+            // अगर पहले से नहीं है, तो add करें
+            // अगर है, तो latest (higher visitorCount) को keep करें
+            if (!allUniqueShops.has(uniqueKey)) {
+              allUniqueShops.set(uniqueKey, shop);
+            } else {
+              const existingShop = allUniqueShops.get(uniqueKey);
+              // Keep the one with higher visitorCount (more popular)
+              if (shop.visitorCount > (existingShop.visitorCount || 0)) {
+                allUniqueShops.set(uniqueKey, shop);
+              }
+            }
           }
         });
         
         let uniqueShopsArray = Array.from(allUniqueShops.values());
-        console.log(`✅ Deduplicated shops: ${uniqueShopsArray.length} unique shops from ${allShops.length + nearbyShops.length + patnaAreaShops.length} total`);
+        const totalBeforeDedup = allShops.length + nearbyShops.length + patnaAreaShops.length;
+        console.log(`✅ Deduplicated shops: ${uniqueShopsArray.length} unique shops from ${totalBeforeDedup} total (removed ${totalBeforeDedup - uniqueShopsArray.length} duplicates)`);
         
         // Apply filters from search params (pincode and category)
         // Filter by pincode if selected
@@ -623,7 +656,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
             const distanceB = b.distance || 999999;
             return distanceA - distanceB;
           })
-          .slice(0, 30) // Get exactly 30 shops from Shop.ts (AdminShop)
+          .slice(0, 30) // Get exactly 30 shops from AgentShop
           .map((shop) => {
             // Don't mark as used if it's a HERO shop (it's already in hero section)
             if (shop.planType !== 'HERO') {
@@ -717,7 +750,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
         console.log(`✅ Combined right shops: ${combinedRight.length}`, combinedRight.map(s => s.advertiser));
 
         // Bottom strip: nearby shops (prioritized) - no banners, only shops
-        const combinedBottom = bottomShops.slice(0, 30); // Show 30 shops from Shop.ts
+        const combinedBottom = bottomShops.slice(0, 30); // Show 30 shops from AgentShop
         
         console.log(`✅ Combined bottom shops: ${combinedBottom.length}`, combinedBottom.map(s => s.advertiser));
 
@@ -835,103 +868,237 @@ export default function HeroSection({ category }: HeroSectionProps) {
       aria-label="Hero banner section"
     >
       {/* Parent Container - White Card */}
-      <div className="bg-white rounded-xl sm:rounded-2xl shadow-md p-2 sm:p-2 md:p-3">
-        {/* SLIDER - Full Width */}
-        <div className="mb-4">
-          <BestDealsSlider category={category} />
-        </div>
-
-        {/* Desktop: 3-Column Grid Layout */}
-        <div className="hidden lg:grid lg:grid-cols-[20%_60%_20%] gap-3 md:gap-4 mb-4">
-          {/* LEFT COLUMN (20%) */}
-          <LeftRail 
-            banners={data.left} 
-            onBannerClick={handleBannerClick} 
-            height="h-[391px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
-
-          {/* CENTER COLUMN (60%) - Hero */}
-          <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[391px]" />
+      <div 
+        className="bg-white rounded-xl sm:rounded-2xl shadow-md p-2 sm:p-2 md:p-3"
+        style={{
+          backgroundColor: heroSettings?.global?.backgroundColor || '#ffffff',
+          borderRadius: heroSettings?.global?.borderRadius ? undefined : undefined,
+        }}
+      >
+        {/* SLIDER + SEARCH PANEL - 50% Each */}
+        {(heroSettings?.sections?.slider !== false && heroSettings?.slider?.enabled !== false) && (
+          <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Slider - 50% */}
+            <div className="w-full h-[300px] md:h-[400px]">
+              <div className="h-full">
+                <BestDealsSlider category={category} />
+              </div>
+            </div>
+            {/* Search Panel - 50% */}
+            <div className="w-full h-[300px] md:h-[400px]">
+              <SearchPanel 
+                onShopClick={(shopId) => {
+                  window.location.href = `/shop/${shopId}`;
+                }}
+              />
+            </div>
           </div>
+        )}
 
-          {/* RIGHT COLUMN (20%) */}
-          <RightSide 
-            banners={data.right} 
-            onBannerClick={handleBannerClick} 
-            height="h-[391px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
-        </div>
+        {/* Desktop: Dynamic Grid Layout */}
+        {(heroSettings?.sections?.leftRail !== false || heroSettings?.sections?.hero !== false || heroSettings?.sections?.rightRail !== false) && (() => {
+          const leftRailEnabled = heroSettings?.sections?.leftRail !== false && heroSettings?.leftRail?.enabled !== false;
+          const rightRailEnabled = heroSettings?.sections?.rightRail !== false && heroSettings?.rightRail?.enabled !== false;
+          const heroEnabled = heroSettings?.sections?.hero !== false && heroSettings?.hero?.enabled !== false;
+          
+          // Calculate grid columns based on enabled sections
+          let gridCols = '';
+          if (leftRailEnabled && rightRailEnabled && heroEnabled) {
+            gridCols = 'lg:grid-cols-[20%_60%_20%]'; // All three: 20% left, 60% hero, 20% right
+          } else if (leftRailEnabled && heroEnabled) {
+            gridCols = 'lg:grid-cols-[20%_80%]'; // Left + Hero: 20% left, 80% hero
+          } else if (rightRailEnabled && heroEnabled) {
+            gridCols = 'lg:grid-cols-[80%_20%]'; // Hero + Right: 80% hero, 20% right
+          } else if (heroEnabled) {
+            gridCols = 'lg:grid-cols-[100%]'; // Only Hero: 100% width
+          } else if (leftRailEnabled && rightRailEnabled) {
+            gridCols = 'lg:grid-cols-[50%_50%]'; // Left + Right (no hero): 50% each
+          } else if (leftRailEnabled) {
+            gridCols = 'lg:grid-cols-[100%]'; // Only Left: 100% width
+          } else if (rightRailEnabled) {
+            gridCols = 'lg:grid-cols-[100%]'; // Only Right: 100% width
+          } else {
+            return null; // Nothing to show
+          }
+          
+          return (
+            <div className={`hidden lg:grid ${gridCols} gap-3 md:gap-4 mb-4`}>
+              {/* LEFT COLUMN */}
+              {leftRailEnabled && (
+                <LeftRail 
+                  banners={data.left} 
+                  onBannerClick={handleBannerClick} 
+                  height={heroSettings?.leftRail?.height || "h-[391px]"}
+                  userLat={location.latitude}
+                  userLng={location.longitude}
+                  maxCount={heroSettings?.leftRail?.count || 3}
+                />
+              )}
 
-        {/* Tablet: Adjusted 3-Column Layout */}
-        <div className="hidden md:grid lg:hidden md:grid-cols-[18%_64%_18%] gap-2 md:gap-3 mb-4">
-          {/* LEFT COLUMN */}
-          <LeftRail 
-            banners={data.left} 
-            onBannerClick={handleBannerClick} 
-            height="h-[293px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
+              {/* CENTER COLUMN - Hero */}
+              {heroEnabled && (
+                <div className="flex items-center justify-center">
+                  <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height={heroSettings?.hero?.height || "h-[391px]"} />
+                </div>
+              )}
 
-          {/* CENTER COLUMN */}
-          <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[293px]" />
-          </div>
+              {/* RIGHT COLUMN */}
+              {rightRailEnabled && (
+                <RightSide 
+                  banners={data.right} 
+                  onBannerClick={handleBannerClick} 
+                  height={heroSettings?.rightRail?.height || "h-[391px]"}
+                  userLat={location.latitude}
+                  userLng={location.longitude}
+                  maxCount={heroSettings?.rightRail?.count || 3}
+                />
+              )}
+            </div>
+          );
+        })()}
 
-          {/* RIGHT COLUMN */}
-          <RightSide 
-            banners={data.right} 
-            onBannerClick={handleBannerClick} 
-            height="h-[293px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
-        </div>
+        {/* Tablet: Dynamic Grid Layout */}
+        {(heroSettings?.sections?.leftRail !== false || heroSettings?.sections?.hero !== false || heroSettings?.sections?.rightRail !== false) && (() => {
+          const leftRailEnabled = heroSettings?.sections?.leftRail !== false && heroSettings?.leftRail?.enabled !== false;
+          const rightRailEnabled = heroSettings?.sections?.rightRail !== false && heroSettings?.rightRail?.enabled !== false;
+          const heroEnabled = heroSettings?.sections?.hero !== false && heroSettings?.hero?.enabled !== false;
+          
+          // Calculate grid columns based on enabled sections
+          let gridCols = '';
+          if (leftRailEnabled && rightRailEnabled && heroEnabled) {
+            gridCols = 'md:grid-cols-[18%_64%_18%]'; // All three: 18% left, 64% hero, 18% right
+          } else if (leftRailEnabled && heroEnabled) {
+            gridCols = 'md:grid-cols-[18%_82%]'; // Left + Hero: 18% left, 82% hero
+          } else if (rightRailEnabled && heroEnabled) {
+            gridCols = 'md:grid-cols-[82%_18%]'; // Hero + Right: 82% hero, 18% right
+          } else if (heroEnabled) {
+            gridCols = 'md:grid-cols-[100%]'; // Only Hero: 100% width
+          } else if (leftRailEnabled && rightRailEnabled) {
+            gridCols = 'md:grid-cols-[50%_50%]'; // Left + Right (no hero): 50% each
+          } else if (leftRailEnabled) {
+            gridCols = 'md:grid-cols-[100%]'; // Only Left: 100% width
+          } else if (rightRailEnabled) {
+            gridCols = 'md:grid-cols-[100%]'; // Only Right: 100% width
+          } else {
+            return null; // Nothing to show
+          }
+          
+          return (
+            <div className={`hidden md:grid lg:hidden ${gridCols} gap-2 md:gap-3 mb-4`}>
+              {/* LEFT COLUMN */}
+              {leftRailEnabled && (
+                <LeftRail 
+                  banners={data.left} 
+                  onBannerClick={handleBannerClick} 
+                  height="h-[293px]"
+                  userLat={location.latitude}
+                  userLng={location.longitude}
+                  maxCount={heroSettings?.leftRail?.count || 3}
+                />
+              )}
 
-        {/* Mobile: 3-Column Grid Layout (Same as desktop but smaller) */}
-        <div className="md:hidden grid grid-cols-[22%_56%_22%] gap-1.5 sm:gap-2 mb-4">
-          {/* LEFT COLUMN */}
-          <LeftRail 
-            banners={data.left} 
-            onBannerClick={handleBannerClick} 
-            height="h-[176px] sm:h-[240px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
+              {/* CENTER COLUMN */}
+              {heroEnabled && (
+                <div className="flex items-center justify-center">
+                  <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[293px]" />
+                </div>
+              )}
 
-          {/* CENTER COLUMN - Hero */}
-          <div className="flex items-center justify-center">
-            <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[176px] sm:h-[240px]" />
-          </div>
+              {/* RIGHT COLUMN */}
+              {rightRailEnabled && (
+                <RightSide 
+                  banners={data.right} 
+                  onBannerClick={handleBannerClick} 
+                  height="h-[293px]"
+                  userLat={location.latitude}
+                  userLng={location.longitude}
+                  maxCount={heroSettings?.rightRail?.count || 3}
+                />
+              )}
+            </div>
+          );
+        })()}
 
-          {/* RIGHT COLUMN */}
-          <RightSide 
-            banners={data.right} 
-            onBannerClick={handleBannerClick} 
-            height="h-[176px] sm:h-[240px]"
-            userLat={location.latitude}
-            userLng={location.longitude}
-          />
-        </div>
+        {/* Mobile: Dynamic Grid Layout */}
+        {(heroSettings?.sections?.leftRail !== false || heroSettings?.sections?.hero !== false || heroSettings?.sections?.rightRail !== false) && (() => {
+          const leftRailEnabled = heroSettings?.sections?.leftRail !== false && heroSettings?.leftRail?.enabled !== false;
+          const rightRailEnabled = heroSettings?.sections?.rightRail !== false && heroSettings?.rightRail?.enabled !== false;
+          const heroEnabled = heroSettings?.sections?.hero !== false && heroSettings?.hero?.enabled !== false;
+          
+          // Calculate grid columns based on enabled sections
+          let gridCols = '';
+          if (leftRailEnabled && rightRailEnabled && heroEnabled) {
+            gridCols = 'grid-cols-[22%_56%_22%]'; // All three: 22% left, 56% hero, 22% right
+          } else if (leftRailEnabled && heroEnabled) {
+            gridCols = 'grid-cols-[22%_78%]'; // Left + Hero: 22% left, 78% hero
+          } else if (rightRailEnabled && heroEnabled) {
+            gridCols = 'grid-cols-[78%_22%]'; // Hero + Right: 78% hero, 22% right
+          } else if (heroEnabled) {
+            gridCols = 'grid-cols-[100%]'; // Only Hero: 100% width
+          } else if (leftRailEnabled && rightRailEnabled) {
+            gridCols = 'grid-cols-[50%_50%]'; // Left + Right (no hero): 50% each
+          } else if (leftRailEnabled) {
+            gridCols = 'grid-cols-[100%]'; // Only Left: 100% width
+          } else if (rightRailEnabled) {
+            gridCols = 'grid-cols-[100%]'; // Only Right: 100% width
+          } else {
+            return null; // Nothing to show
+          }
+          
+          return (
+            <div className={`md:hidden grid ${gridCols} gap-1.5 sm:gap-2 mb-4`}>
+              {/* LEFT COLUMN */}
+              {leftRailEnabled && (
+                <LeftRail 
+                  banners={data.left} 
+                  onBannerClick={handleBannerClick} 
+                  height="h-[176px] sm:h-[240px]"
+                  userLat={location.latitude}
+                  userLng={location.longitude}
+                  maxCount={heroSettings?.leftRail?.count || 3}
+                />
+              )}
+
+              {/* CENTER COLUMN - Hero */}
+              {heroEnabled && (
+                <div className="flex items-center justify-center">
+                  <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[176px] sm:h-[240px]" />
+                </div>
+              )}
+
+              {/* RIGHT COLUMN */}
+              {rightRailEnabled && (
+                <RightSide 
+                  banners={data.right} 
+                  onBannerClick={handleBannerClick} 
+                  height="h-[176px] sm:h-[240px]"
+                  userLat={location.latitude}
+                  userLng={location.longitude}
+                  maxCount={heroSettings?.rightRail?.count || 3}
+                />
+              )}
+            </div>
+          );
+        })()}
 
         {/* BOTTOM RAIL - 12 Featured Shops */}
-        <BottomRail 
-          banners={data.bottom} 
-          onBannerClick={handleBannerClick}
-          userLat={location.latitude}
-          userLng={location.longitude}
-        />
+        {(heroSettings?.sections?.bottomStrip !== false && heroSettings?.bottomStrip?.enabled !== false) && (
+          <BottomRail 
+            banners={data.bottom} 
+            onBannerClick={handleBannerClick}
+            userLat={location.latitude}
+            userLng={location.longitude}
+          />
+        )}
 
-        {/* BOTTOM STRIP - 30 Nearby Shops */}
-        <BottomStrip 
-          banners={data.bottom} 
-          onBannerClick={handleBannerClick}
-        />
+        {/* BOTTOM STRIP - Nearby Shops */}
+        {(heroSettings?.sections?.bottomStrip !== false && heroSettings?.bottomStrip?.enabled !== false) && (
+          <BottomStrip 
+            banners={data.bottom} 
+            onBannerClick={handleBannerClick}
+            maxCount={heroSettings?.bottomStrip?.count || 10}
+          />
+        )}
       </div>
     </section>
   );

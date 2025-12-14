@@ -125,8 +125,28 @@ export default function CategoryGrid() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch(`/api/categories?loc=${location.id}`);
+        // Build URL safely, only include loc if it exists
+        const url = location.id 
+          ? `/api/categories?loc=${location.id}`
+          : '/api/categories';
+        
+        const response = await fetch(url);
+        
+        // Check if response is ok
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
+        
+        // Check if data is valid
+        if (!data.success || !Array.isArray(data.categories)) {
+          console.warn('Invalid categories data received:', data);
+          setCategories([]);
+          setIsLoading(false);
+          return;
+        }
+        
         console.log('Categories fetched:', data.categories?.length || 0, 'categories');
         
         // Fetch nearest shop for each category to get distance/time/visitor count
@@ -137,6 +157,16 @@ export default function CategoryGrid() {
               const shopsResponse = await fetch(
                 `/api/categories/${category.slug}/businesses?type=nearby&userLat=${location.latitude || ''}&userLng=${location.longitude || ''}&limit=1`
               );
+              
+              // Check if shops response is ok
+              if (!shopsResponse.ok) {
+                return {
+                  ...category,
+                  distance: 0,
+                  visitorCount: 0,
+                };
+              }
+              
               const shopsData = await shopsResponse.json();
               
               if (shopsData.success && shopsData.businesses && shopsData.businesses.length > 0) {
@@ -180,11 +210,30 @@ export default function CategoryGrid() {
       // If no location, fetch categories without distance
       const fetchCategoriesWithoutDistance = async () => {
         try {
-          const response = await fetch(`/api/categories?loc=${location.id}`);
+          // Build URL safely, only include loc if it exists
+          const url = location.id 
+            ? `/api/categories?loc=${location.id}`
+            : '/api/categories';
+          
+          const response = await fetch(url);
+          
+          // Check if response is ok
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
           const data = await response.json();
+          
+          // Check if data is valid
+          if (data.success && Array.isArray(data.categories)) {
           setCategories(data.categories || []);
+          } else {
+            console.warn('Invalid categories data received:', data);
+            setCategories([]);
+          }
         } catch (error) {
           console.error('Error fetching categories:', error);
+          // Set empty array on error to prevent UI breaking
           setCategories([]);
         } finally {
           setIsLoading(false);

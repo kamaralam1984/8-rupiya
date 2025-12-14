@@ -6,6 +6,48 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
+// Real-time Clock Component
+function RealTimeClock() {
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-IN', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  return (
+    <div className="hidden md:flex flex-col items-end px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
+      <div className="text-lg font-bold text-blue-700 font-mono">
+        {formatTime(currentTime)}
+      </div>
+      <div className="text-xs text-gray-600 font-medium">
+        {formatDate(currentTime)}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminLayout({
   children,
 }: {
@@ -143,6 +185,9 @@ export default function AdminLayout({
     { name: 'Revenue', href: '/admin/revenue', icon: '💰', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
     { name: 'Reports & Analytics', href: '/admin/reports', icon: '📊', color: 'indigo', allowedRoles: ['admin', 'editor', 'operator'] },
     { name: 'Database', href: '/admin/database', icon: '🗄️', color: 'slate', allowedRoles: ['admin'] }, // Sirf Admin
+    { name: 'Restore', href: '/admin/restore', icon: '🔄', color: 'red', allowedRoles: ['admin'] }, // Sirf Admin
+    { name: 'Google Business', href: '/admin/google-business', icon: '🏢', color: 'blue', allowedRoles: ['admin', 'editor', 'operator'] }, // Admin, Editor, Operator
+    { name: 'Hero Section', href: '/admin/hero-section', icon: '🎯', color: 'purple', allowedRoles: ['admin', 'editor'] }, // Admin, Editor
     { name: 'Pages', href: '/admin/pages', icon: '📄', color: 'pink', allowedRoles: ['admin', 'editor'] },
   ];
 
@@ -291,6 +336,7 @@ export default function AdminLayout({
             </button>
             <div className="flex-1 lg:flex-none"></div>
             <div className="flex items-center gap-3">
+              <RealTimeClock />
               <Link
                 href="/"
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-sm flex items-center gap-2"

@@ -26,11 +26,12 @@ interface LeftRailProps {
   height?: string; // To match center height
   userLat?: number | null;
   userLng?: number | null;
+  maxCount?: number; // Maximum number of shops to display
 }
 
 // Fallback banners removed - only shop websites will be shown
 
-export default function LeftRail({ banners, onBannerClick, height = 'h-[480px]', userLat, userLng }: LeftRailProps) {
+export default function LeftRail({ banners, onBannerClick, height = 'h-[480px]', userLat, userLng, maxCount = 3 }: LeftRailProps) {
   // Sort banners by distance if user location is available
   const sortedBanners = useMemo(() => {
     if (userLat !== null && userLat !== undefined && userLng !== null && userLng !== undefined) {
@@ -40,26 +41,11 @@ export default function LeftRail({ banners, onBannerClick, height = 'h-[480px]',
     return banners;
   }, [banners, userLat, userLng]);
 
-  // Show only first 3 banners (no rotation) - show all shops (with or without websites)
+  // Show banners based on maxCount setting
   const currentBanners = useMemo(() => {
-    // Show all banners (shops with or without websites)
-    return sortedBanners.slice(0, 3);
-  }, [sortedBanners]);
-
-  const renderPlaceholder = (position: number) => (
-    <div
-      className="w-full flex-1 min-h-[56px] sm:min-h-[125px] bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer"
-      onClick={() => window.location.href = '/advertise'}
-      role="button"
-      tabIndex={0}
-      aria-label={`Advertise here - Left position ${position + 1}`}
-    >
-      <svg className="w-4 h-4 sm:w-6 sm:h-6 text-gray-400 mb-0.5 sm:mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-      </svg>
-      <span className="text-[10px] sm:text-xs font-medium text-gray-600">Advertise</span>
-    </div>
-  );
+    const count = Math.max(0, Math.min(maxCount || 3, 10)); // Limit between 0-10
+    return sortedBanners.slice(0, count);
+  }, [sortedBanners, maxCount]);
 
   return (
     <div 
@@ -67,13 +53,12 @@ export default function LeftRail({ banners, onBannerClick, height = 'h-[480px]',
       aria-live="polite"
     >
       <div className="h-full flex flex-col gap-1 sm:gap-2">
-        {[0, 1, 2].map((index) => {
-          const banner = currentBanners[index];
+        {currentBanners.map((banner, index) => {
           const distance = banner ? getBannerDistance(banner, userLat ?? null, userLng ?? null) : null;
           return banner ? (
             <div
               key={`left-rail-${index}-${banner.bannerId || index}`}
-              className="relative group"
+              className="relative group flex-1"
             >
               {/* Show shop with image */}
               <a
@@ -81,7 +66,7 @@ export default function LeftRail({ banners, onBannerClick, height = 'h-[480px]',
                 target={banner.website ? '_blank' : undefined}
                 rel={banner.website ? 'noopener noreferrer' : undefined}
                 onClick={() => onBannerClick(banner.bannerId, 'left', index, banner.website || banner.link)}
-                className="relative block w-full flex-1 min-h-[56px] sm:min-h-[125px] rounded-lg bg-white shadow-sm overflow-hidden hover:scale-[1.02] hover:shadow-md transition-all duration-150 group"
+                className="relative block w-full h-full min-h-[56px] sm:min-h-[125px] rounded-lg bg-white shadow-sm overflow-hidden hover:scale-[1.02] hover:shadow-md transition-all duration-150 group"
                 aria-label={`Shop: ${banner.advertiser || banner.alt} - ${banner.area || ''} - Left slot ${index + 1}`}
               >
                 {/* Shop Image */}
@@ -151,11 +136,7 @@ export default function LeftRail({ banners, onBannerClick, height = 'h-[480px]',
                 </>
               )}
             </div>
-          ) : (
-            <div key={`left-placeholder-${index}`}>
-              {renderPlaceholder(index)}
-            </div>
-          );
+          ) : null;
         })}
       </div>
     </div>

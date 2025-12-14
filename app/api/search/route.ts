@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import AdminShop from '@/lib/models/Shop';
-import AgentShop from '@/lib/models/AgentShop';
-import OldShop from '@/models/Shop';
+import AgentShop from '@/lib/models/AgentShop'; // सिर्फ AgentShop - homepage के लिए
 
 interface Shop {
   id: string;
@@ -285,122 +283,94 @@ export async function GET(request: NextRequest) {
       paymentStatus: 1,
     };
 
-    const [agentShops, adminShops, oldShops] = await Promise.all([
-      AgentShop.find(finalQuery)
-        .select(projection)
-        .limit(200)
-        .lean()
-        .hint({ planType: 1, pincode: 1 }) // Use index for better performance
-        .catch((err) => {
-          console.error('Error fetching AgentShops:', err);
-          return [];
-        }),
-      AdminShop.find(finalQuery)
-        .select(projection)
-        .limit(200)
-        .lean()
-        .hint({ planType: 1, pincode: 1 })
-        .catch((err) => {
-          console.error('Error fetching AdminShops:', err);
-          return [];
-        }),
-      OldShop ? OldShop.find(finalQuery)
-        .select(projection)
-        .limit(200)
-        .lean()
-        .catch((err) => {
-          console.error('Error fetching OldShops:', err);
-          return [];
-        }) : Promise.resolve([]),
-    ]);
+    // IMPORTANT: Homepage पर सिर्फ AgentShop से shops fetch करें
+    // Shop.ts (AdminShop) और old Shop model से नहीं
+    const agentShops = await AgentShop.find(finalQuery)
+      .select(projection)
+      .limit(200)
+      .lean()
+      .hint({ planType: 1, pincode: 1 }) // Use index for better performance
+      .catch((err) => {
+        console.error('Error fetching AgentShops:', err);
+        return [];
+      });
 
     // Log counts for debugging
     console.log(`\n🔍 Search Parameters:`, { shopName, category, pincode, planType, area, userLat, userLng });
     console.log(`📋 MongoDB Query:`, JSON.stringify(finalQuery, null, 2));
-    console.log(`📊 Database Results: Agent=${agentShops.length}, Admin=${adminShops.length}, Old=${oldShops.length}`);
+    console.log(`📊 Database Results: Agent=${agentShops.length} (सिर्फ AgentShop से)`);
     
     // Log plan type distribution
     const planTypeCounts: Record<string, number> = {};
-    [...agentShops, ...adminShops, ...oldShops].forEach((shop: any) => {
+    agentShops.forEach((shop: any) => {
       const plan = shop.planType || 'BASIC';
       planTypeCounts[plan] = (planTypeCounts[plan] || 0) + 1;
     });
     console.log(`📊 Plan Type Distribution:`, planTypeCounts);
 
-    // Transform shops - AgentShops FIRST (priority)
-    const allShops: Shop[] = [
-      // AgentShops - HIGHEST PRIORITY
-      ...agentShops.map((shop: any) => ({
-        id: shop._id.toString(),
-        name: shop.shopName || shop.name,
-        shopName: shop.shopName || shop.name,
-        category: shop.category,
-        area: shop.area,
-        city: shop.city,
-        pincode: shop.pincode,
-        imageUrl: shop.photoUrl || shop.imageUrl,
-        photoUrl: shop.photoUrl,
-        latitude: shop.latitude,
-        longitude: shop.longitude,
-        shopUrl: shop.shopUrl,
-        website: shop.website,
-        mobile: shop.mobile,
-        visitorCount: shop.visitorCount || 0,
-        priorityRank: shop.priorityRank || 0,
-        planType: shop.planType,
-        offers: shop.offers || [],
-        source: 'agent', // Mark as agent shop for priority
-      })),
-      // AdminShops - SECOND PRIORITY
-      ...adminShops.map((shop: any) => ({
-        id: shop._id.toString(),
-        name: shop.shopName || shop.name,
-        shopName: shop.shopName || shop.name,
-        category: shop.category,
-        area: shop.area,
-        city: shop.city,
-        pincode: shop.pincode,
-        imageUrl: shop.photoUrl || shop.iconUrl || shop.imageUrl,
-        photoUrl: shop.photoUrl,
-        latitude: shop.latitude,
-        longitude: shop.longitude,
-        shopUrl: shop.shopUrl,
-        website: shop.website,
-        mobile: shop.mobile,
-        visitorCount: shop.visitorCount || 0,
-        priorityRank: shop.priorityRank || 0,
-        planType: shop.planType,
-        offers: shop.offers || [],
-        source: 'admin',
-      })),
-      // OldShops - LOWEST PRIORITY
-      ...oldShops.map((shop: any) => ({
-        id: shop._id.toString(),
-        name: shop.name || shop.shopName,
-        shopName: shop.name || shop.shopName,
-        category: shop.category,
-        area: shop.area,
-        city: shop.city,
-        pincode: shop.pincode,
-        imageUrl: shop.imageUrl || shop.photoUrl,
-        photoUrl: shop.photoUrl,
-        latitude: shop.latitude,
-        longitude: shop.longitude,
-        shopUrl: shop.shopUrl,
-        website: shop.website,
-        mobile: shop.mobile,
-        visitorCount: shop.visitorCount || 0,
-        priorityRank: shop.priorityRank || 0,
-        planType: shop.planType,
-        offers: shop.offers || [],
-        source: 'old',
-      })),
-    ];
+    // Transform shops - सिर्फ AgentShop से
+    const transformedAgentShops = agentShops.map((shop: any) => ({
+      id: shop._id.toString(),
+      name: shop.shopName || shop.name,
+      shopName: shop.shopName || shop.name,
+      category: shop.category,
+      area: shop.area,
+      city: shop.city,
+      pincode: shop.pincode,
+      imageUrl: shop.photoUrl || shop.imageUrl,
+      photoUrl: shop.photoUrl,
+      latitude: shop.latitude,
+      longitude: shop.longitude,
+      shopUrl: shop.shopUrl,
+      website: shop.website,
+      mobile: shop.mobile,
+      ownerName: shop.ownerName, // Add ownerName for duplicate detection
+      visitorCount: shop.visitorCount || 0,
+      priorityRank: shop.priorityRank || 0,
+      planType: shop.planType,
+      offers: shop.offers || [],
+      source: 'agent', // Mark as agent shop
+    }));
 
-    // Remove duplicates
-    const uniqueShops = Array.from(
-      new Map(allShops.map((shop) => [`${shop.name}-${shop.area}-${shop.pincode}`, shop])).values()
-    );
+    // Remove duplicates - same shopName + ownerName + mobile combination
+    const uniqueShopsMap = new Map<string, Shop>();
+    transformedAgentShops.forEach((shop: any) => {
+      // Create unique key from shopName + ownerName + mobile
+      const uniqueKey = `${(shop.name || shop.shopName || '').toLowerCase().trim()}_${(shop.ownerName || '').toLowerCase().trim()}_${(shop.mobile || '').trim()}`;
+      
+      // अगर पहले से नहीं है, तो add करें
+      // अगर है, तो latest (higher visitorCount) को keep करें
+      if (!uniqueShopsMap.has(uniqueKey)) {
+        uniqueShopsMap.set(uniqueKey, shop);
+      } else {
+        const existingShop = uniqueShopsMap.get(uniqueKey);
+        // Keep the one with higher visitorCount (more popular)
+        if (shop.visitorCount > (existingShop?.visitorCount || 0)) {
+          uniqueShopsMap.set(uniqueKey, shop);
+        }
+      }
+    });
+
+    // Convert map back to array
+    const allShops: Shop[] = Array.from(uniqueShopsMap.values());
+    
+    console.log(`✅ After removing duplicates: ${allShops.length} unique shops from AgentShop (removed ${transformedAgentShops.length - allShops.length} duplicates)`);
+
+    // Additional duplicate removal by shopName+ownerName+mobile (consistent with homepage)
+    // Already done above, but this is a backup check
+    const uniqueShopsMap2 = new Map<string, Shop>();
+    allShops.forEach((shop) => {
+      const uniqueKey = `${(shop.name || shop.shopName || '').toLowerCase().trim()}_${((shop as any).ownerName || '').toLowerCase().trim()}_${(shop.mobile || '').trim()}`;
+      if (!uniqueShopsMap2.has(uniqueKey)) {
+        uniqueShopsMap2.set(uniqueKey, shop);
+      } else {
+        const existing = uniqueShopsMap2.get(uniqueKey);
+        if ((shop.visitorCount || 0) > (existing?.visitorCount || 0)) {
+          uniqueShopsMap2.set(uniqueKey, shop);
+        }
+      }
+    });
+    const uniqueShops = Array.from(uniqueShopsMap2.values());
 
     // Calculate scores for all shops
     const scoredShops = uniqueShops.map((shop) => {

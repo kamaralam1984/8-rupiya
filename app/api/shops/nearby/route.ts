@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateDistance } from '@/app/utils/distance';
 import connectDB from '@/lib/mongodb';
-import Shop from '@/models/Shop'; // Old shop model
-import AdminShop from '@/lib/models/Shop'; // New admin shop model (shopsfromimage collection)
-import AgentShop from '@/lib/models/AgentShop'; // Agent shops
+import AgentShop from '@/lib/models/AgentShop'; // सिर्फ AgentShop - homepage के लिए
 import { PRICING_PLANS } from '@/app/utils/pricing';
 
 interface ShopWithDistance {
@@ -61,6 +59,8 @@ export async function GET(request: NextRequest) {
     const area = searchParams.get('area');
     const pincode = searchParams.get('pincode');
     const category = searchParams.get('category');
+    const planType = searchParams.get('planType');
+    const shopName = searchParams.get('shopName');
 
     // If city, area, pincode, or category is provided, we can search without coordinates
     // But if coordinates are provided, use them for distance calculation
@@ -161,6 +161,39 @@ export async function GET(request: NextRequest) {
           }
         }
         
+        // Add planType filter
+        if (planType) {
+          if (queryFilter.$and) {
+            queryFilter.$and.push({ planType: planType });
+          } else if (queryFilter.$or) {
+            const existingFilter = { ...queryFilter };
+            queryFilter.$and = [
+              existingFilter,
+              { planType: planType }
+            ];
+            delete queryFilter.$or;
+          } else {
+            queryFilter.planType = planType;
+          }
+        }
+        
+        // Add shopName filter (search)
+        if (shopName) {
+          const shopNameRegex = new RegExp(shopName, 'i');
+          if (queryFilter.$and) {
+            queryFilter.$and.push({ shopName: shopNameRegex });
+          } else if (queryFilter.$or) {
+            const existingFilter = { ...queryFilter };
+            queryFilter.$and = [
+              existingFilter,
+              { shopName: shopNameRegex }
+            ];
+            delete queryFilter.$or;
+          } else {
+            queryFilter.shopName = shopNameRegex;
+          }
+        }
+        
         // Also filter by coordinates if provided (for shops with valid coordinates)
         if (hasCoordinates) {
           // We'll filter by distance later, but ensure shops have coordinates
@@ -196,111 +229,42 @@ export async function GET(request: NextRequest) {
           ? { $and: allFilters }
           : allFilters[0];
         
-        // Fetch from all shop sources: old Shop model, new AdminShop model, and AgentShop model
-        // Apply filters to all queries - show all plan types
-        // On page load (no filters), fetch ALL shops from Shop.ts (AdminShop model)
+        // IMPORTANT: Homepage पर सिर्फ AgentShop से shops fetch करें
+        // Shop.ts (AdminShop) और old Shop model से नहीं
         // Check if limit parameter is provided in URL
         const limitParam = searchParams.get('limit');
-        const limitCount = limitParam ? parseInt(limitParam) : (Object.keys(finalQuery).length > 0 ? undefined : undefined); // No limit if no filters (fetch all shops)
+        const limitCount = limitParam ? parseInt(limitParam) : undefined;
         
         // Base filter for shops without query filters (payment + visibility)
         const baseFilter = {
           $and: [paymentFilter, visibilityFilter]
         };
         
-        const [oldShops, adminShops, agentShops] = await Promise.all([
-          (Object.keys(finalQuery).length > 0 
-            ? Shop.find(finalQuery).lean() 
-            : (limitCount ? Shop.find(baseFilter).limit(limitCount).lean() : Shop.find(baseFilter).lean())
-          ).catch(() => []), // Old shop model
-          (Object.keys(finalQuery).length > 0 
-            ? AdminShop.find(finalQuery).lean() 
-            : (limitCount ? AdminShop.find(baseFilter).limit(limitCount).lean() : AdminShop.find(baseFilter).lean())
-          ).catch(() => []), // New admin shop model (shopsfromimage) - Shop.ts - Fetch ALL on page load
-          (Object.keys(finalQuery).length > 0 
-            ? AgentShop.find(finalQuery).lean() 
-            : (limitCount ? AgentShop.find(baseFilter).limit(limitCount).lean() : AgentShop.find(baseFilter).lean())
-          ).catch(() => []), // Agent shops - only PAID shops
-        ]);
+        // सिर्फ AgentShop से fetch करें
+        const agentShops = await (Object.keys(finalQuery).length > 0 
+          ? AgentShop.find(finalQuery).lean() 
+          : (limitCount ? AgentShop.find(baseFilter).limit(limitCount).lean() : AgentShop.find(baseFilter).lean())
+        ).catch(() => []);
         
-        // Transform old shops
-        const transformedOldShops = oldShops.map((shop: any) => ({
-          id: shop._id.toString(),
-          name: shop.name,
-          category: shop.category,
-          imageUrl: shop.imageUrl,
-          rating: shop.rating || 4.5, // Default rating if not present
-          reviews: shop.reviews || 0,
-          city: shop.city || '',
-          state: shop.state || '',
-          address: shop.address || '',
-          area: shop.area || '',
-          pincode: shop.pincode || '', // Include pincode from database
-          phone: shop.phone || '',
-          email: shop.email || '',
-          website: shop.website || '',
-          latitude: shop.latitude,
-          longitude: shop.longitude,
-          description: shop.description || '',
-          offerPercent: shop.offerPercent || 0,
-          priceLevel: shop.priceLevel || '',
-          tags: shop.tags || [],
-          featured: shop.featured || false,
-          sponsored: shop.sponsored || false,
-          visitorCount: shop.visitorCount || 0,
-        }));
+        console.log(`📍 Fetching shops from AgentShop only: ${agentShops.length} shops found`);
         
-        // Transform admin shops (from shopsfromimage collection)
-        const transformedAdminShops = adminShops.map((shop: any) => ({
-          id: shop._id.toString(),
-          name: shop.shopName || shop.name,
-          category: shop.category,
-          imageUrl: shop.photoUrl || shop.iconUrl || shop.imageUrl,
-          rating: 4.5, // Default rating
-          reviews: 0,
-          city: shop.city || '',
-          state: '',
-          address: shop.fullAddress || shop.address || '',
-          area: shop.area || '',
-          pincode: shop.pincode || '', // Include pincode
-          phone: shop.mobile || '',
-          email: '',
-          website: '',
-          latitude: shop.latitude,
-          longitude: shop.longitude,
-          description: '',
-          offerPercent: 0,
-          priceLevel: '',
-          tags: [],
-          featured: shop.planType === 'FEATURED' || shop.isHomePageBanner || false,
-          sponsored: shop.planType === 'PREMIUM' || shop.planType === 'FEATURED' || false,
-          visitorCount: shop.visitorCount || 0,
-          planType: shop.planType || 'BASIC',
-          priorityRank: (() => {
-            const planType = (shop.planType || 'BASIC') as keyof typeof PRICING_PLANS;
-            const planDetails = PRICING_PLANS[planType] || PRICING_PLANS.BASIC;
-            return shop.priorityRank !== undefined && shop.priorityRank !== null 
-              ? shop.priorityRank 
-              : planDetails.priorityRank;
-          })(),
-          isLeftBar: shop.isLeftBar || shop.planType === 'LEFT_BAR' || false,
-          isRightBar: shop.isRightBar || shop.planType === 'RIGHT_BAR' || false,
-        }));
-        
-        // Transform agent shops
+        // Transform agent shops - सिर्फ AgentShop से
         const transformedAgentShops = agentShops.map((shop: any) => ({
           id: shop._id.toString(),
           name: shop.shopName,
+          shopName: shop.shopName, // Add shopName for compatibility
           category: shop.category,
           imageUrl: shop.photoUrl,
+          photoUrl: shop.photoUrl, // Add photoUrl for compatibility
           rating: 4.5, // Default rating
           reviews: 0,
-          city: shop.city || '', // Agent shops may not have city
+          city: shop.city || '',
           area: shop.area || '',
-          pincode: shop.pincode || '', // Include pincode from database
+          pincode: shop.pincode || '',
           state: '',
           address: shop.address,
           phone: shop.mobile || '',
+          mobile: shop.mobile || '', // Add mobile for compatibility
           email: '',
           website: '',
           latitude: shop.latitude,
@@ -319,13 +283,33 @@ export async function GET(request: NextRequest) {
             return planDetails.priorityRank;
           })(),
           isLeftBar: shop.planType === 'LEFT_BAR' || false,
-          isRightBar: shop.planType === 'RIGHT_BAR' || false,
+          isRightBar: shop.planType === 'RIGHT_SIDE' || false,
+          ownerName: shop.ownerName, // Add ownerName for compatibility
         }));
         
-        // Combine all shops
-        shops = [...transformedOldShops, ...transformedAdminShops, ...transformedAgentShops];
+        // Remove duplicates - same shopName + ownerName + mobile combination
+        const uniqueShopsMap = new Map<string, any>();
+        transformedAgentShops.forEach((shop: any) => {
+          // Create unique key from shopName + ownerName + mobile
+          const uniqueKey = `${(shop.name || shop.shopName || '').toLowerCase().trim()}_${(shop.ownerName || '').toLowerCase().trim()}_${(shop.phone || shop.mobile || '').trim()}`;
+          
+          // अगर पहले से नहीं है, तो add करें
+          // अगर है, तो latest (higher visitorCount) को keep करें
+          if (!uniqueShopsMap.has(uniqueKey)) {
+            uniqueShopsMap.set(uniqueKey, shop);
+          } else {
+            const existingShop = uniqueShopsMap.get(uniqueKey);
+            // Keep the one with higher visitorCount (more popular)
+            if (shop.visitorCount > (existingShop.visitorCount || 0)) {
+              uniqueShopsMap.set(uniqueKey, shop);
+            }
+          }
+        });
         
-        console.log(`Loaded ${oldShops.length} old shops, ${adminShops.length} admin shops, ${agentShops.length} agent shops`);
+        // Convert map back to array
+        shops = Array.from(uniqueShopsMap.values());
+        
+        console.log(`✅ After removing duplicates: ${shops.length} unique shops from AgentShop (removed ${transformedAgentShops.length - shops.length} duplicates)`);
       } catch (dbError) {
         console.error('MongoDB error:', dbError);
         // Return empty array if MongoDB fails
