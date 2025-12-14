@@ -269,8 +269,42 @@ export default function PagesManagement() {
 
       if (data?.success || data?.page) {
         toast.success(editingPage ? 'Page updated successfully!' : 'Page created successfully!');
-        resetForm();
-        fetchPages();
+        
+        // If editing, don't close the modal - just refresh the page list
+        // If creating new page, close the modal
+        if (editingPage) {
+          // Update the editing page data with the saved data
+          if (data?.page) {
+            setEditingPage(data.page);
+            // Update form data with saved page data
+            setFormData({
+              title: data.page.title,
+              slug: data.page.slug,
+              content: data.page.content || '',
+              seoTitle: data.page.seoTitle || '',
+              seoDescription: data.page.seoDescription || '',
+              isPublished: data.page.isPublished ?? true,
+              designSettings: data.page.designSettings || getDefaultDesignSettings(),
+            });
+            // Parse content to blocks if using builder
+            if (useBuilder && data.page.content) {
+              try {
+                const parsed = JSON.parse(data.page.content);
+                if (Array.isArray(parsed)) {
+                  setPageBlocks(parsed);
+                }
+              } catch {
+                // If not JSON, convert to blocks
+                setPageBlocks(parseContentToBlocks(data.page.content));
+              }
+            }
+          }
+          fetchPages(); // Refresh the list
+        } else {
+          // New page created - close modal
+          resetForm();
+          fetchPages();
+        }
       } else {
         throw new Error(data?.error || 'Failed to save page');
       }

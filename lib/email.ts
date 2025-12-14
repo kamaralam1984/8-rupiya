@@ -35,11 +35,12 @@ export interface SendOTPEmailOptions {
   email: string;
   otp: string;
   name?: string;
-  type?: 'signup' | 'login' | 'reset';
+  type?: 'signup' | 'login' | 'reset' | 'email-verification';
 }
 
 export async function sendOTPEmail({ email, otp, name, type = 'signup' }: SendOTPEmailOptions): Promise<void> {
   if (!EMAIL_ID || !EMAIL_PASSWORD) {
+    console.error('❌ Email service not configured. EMAIL_ID:', !!EMAIL_ID, 'EMAIL_PASSWORD:', !!EMAIL_PASSWORD);
     throw new Error('Email service not configured. Please set Email_id and Password in .env.local');
   }
 
@@ -47,6 +48,8 @@ export async function sendOTPEmail({ email, otp, name, type = 'signup' }: SendOT
     ? `Verify Your Email - ${EMAIL_NAME}`
     : type === 'login'
     ? `Login OTP - ${EMAIL_NAME}`
+    : type === 'email-verification'
+    ? `Email Verification OTP - ${EMAIL_NAME}`
     : `Reset Password OTP - ${EMAIL_NAME}`;
 
   const html = `
@@ -75,7 +78,7 @@ export async function sendOTPEmail({ email, otp, name, type = 'signup' }: SendOT
               <tr>
                 <td style="padding: 40px 30px;">
                   <h2 style="color: #1a202c; margin: 0 0 20px 0; font-size: 24px; font-weight: 600;">
-                    ${type === 'signup' ? '🎉 Welcome to ' + EMAIL_NAME + '!' : type === 'login' ? '🔐 Login Request' : '🔑 Password Reset'}
+                    ${type === 'signup' ? '🎉 Welcome to ' + EMAIL_NAME + '!' : type === 'login' ? '🔐 Login Request' : type === 'email-verification' ? '📧 Email Verification' : '🔑 Password Reset'}
                   </h2>
                   
                   ${name ? `<p style="color: #4a5568; margin: 0 0 20px 0; font-size: 16px;">Hello <strong>${name}</strong>,</p>` : '<p style="color: #4a5568; margin: 0 0 20px 0; font-size: 16px;">Hello,</p>'}
@@ -85,6 +88,8 @@ export async function sendOTPEmail({ email, otp, name, type = 'signup' }: SendOT
                       ? 'Thank you for joining us! Please use the verification code below to complete your registration:'
                       : type === 'login'
                       ? 'We received a login request for your account. Use the code below to complete your login:'
+                      : type === 'email-verification'
+                      ? 'Please use the verification code below to verify your email address:'
                       : 'We received a password reset request. Use the code below to reset your password:'}
                   </p>
                   
@@ -110,7 +115,7 @@ export async function sendOTPEmail({ email, otp, name, type = 'signup' }: SendOT
                   </div>
                   
                   <p style="color: #718096; margin: 30px 0 0 0; font-size: 14px; line-height: 1.6;">
-                    If you didn't request this ${type === 'signup' ? 'verification' : type === 'login' ? 'login' : 'password reset'}, you can safely ignore this email. Your account remains secure.
+                    If you didn't request this ${type === 'signup' ? 'verification' : type === 'login' ? 'login' : type === 'email-verification' ? 'email verification' : 'password reset'}, you can safely ignore this email. Your account remains secure.
                   </p>
                 </td>
               </tr>
@@ -137,7 +142,7 @@ export async function sendOTPEmail({ email, otp, name, type = 'signup' }: SendOT
   const text = `
 ${EMAIL_NAME}
 
-${type === 'signup' ? '🎉 Welcome!' : type === 'login' ? '🔐 Login Request' : '🔑 Password Reset'}
+${type === 'signup' ? '🎉 Welcome!' : type === 'login' ? '🔐 Login Request' : type === 'email-verification' ? '📧 Email Verification' : '🔑 Password Reset'}
 
 ${name ? `Hello ${name},` : 'Hello,'}
 
@@ -145,6 +150,8 @@ ${type === 'signup'
   ? 'Thank you for joining us! Please use the verification code below to complete your registration:'
   : type === 'login'
   ? 'We received a login request for your account. Use the code below to complete your login:'
+  : type === 'email-verification'
+  ? 'Please use the verification code below to verify your email address:'
   : 'We received a password reset request. Use the code below to reset your password:'}
 
 Your Verification Code: ${otp}
@@ -152,7 +159,7 @@ Your Verification Code: ${otp}
 ⏱️ This code will expire in 10 minutes.
 🔒 Please do not share this code with anyone.
 
-If you didn't request this ${type === 'signup' ? 'verification' : type === 'login' ? 'login' : 'password reset'}, you can safely ignore this email. Your account remains secure.
+If you didn't request this ${type === 'signup' ? 'verification' : type === 'login' ? 'login' : type === 'email-verification' ? 'email verification' : 'password reset'}, you can safely ignore this email. Your account remains secure.
 
 © ${new Date().getFullYear()} ${EMAIL_NAME}. All rights reserved.
 This is an automated email. Please do not reply to this message.

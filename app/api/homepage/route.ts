@@ -11,6 +11,13 @@ const defaultSettings = {
     featuredBusinesses: true,
     topRated: true,
     newBusinesses: true,
+    searchFilter: true,
+  },
+  heroSections: {
+    leftRail: true,
+    rightRail: true,
+    bottomRail: true,
+    bottomStrip: true,
   },
   layout: {
     theme: 'light',
@@ -78,7 +85,18 @@ export async function GET(request: NextRequest) {
       }, { status: 200 });
     }
 
-    return NextResponse.json({ success: true, settings }, { status: 200 });
+    // Ensure heroSections exists for backward compatibility
+    const settingsWithDefaults = {
+      ...settings,
+      heroSections: (settings as any).heroSections || {
+        leftRail: true,
+        rightRail: true,
+        bottomRail: true,
+        bottomStrip: true,
+      },
+    };
+
+    return NextResponse.json({ success: true, settings: settingsWithDefaults }, { status: 200 });
   } catch (error: any) {
     // Catch any other errors and return default settings
     console.error('Error fetching homepage settings:', error.message);

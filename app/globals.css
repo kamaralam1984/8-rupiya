@@ -35,6 +35,31 @@ body {
   display: none;
 }
 
+/* Custom scrollbar styling */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(209 213 219) rgb(243 244 246);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgb(243 244 246);
+  border-radius: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgb(209 213 219);
+  border-radius: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgb(156 163 175);
+}
+
 /* Line clamp utilities */
 .line-clamp-2 {
   display: -webkit-box;
@@ -732,4 +757,100 @@ input[type="range"].slider-golden::-moz-range-thumb:hover {
 
 .animate-fade-in-row {
   animation: fade-in-row 0.4s ease-out forwards;
+}
+
+/* Slogan Multi-Glow Animation */
+@keyframes sloganGlow {
+  0%, 100% {
+    text-shadow: 
+      0 0 5px rgba(255, 255, 255, 0.8),
+      0 0 10px rgba(59, 130, 246, 0.6),
+      0 0 15px rgba(139, 92, 246, 0.4),
+      0 0 20px rgba(59, 130, 246, 0.3);
+    filter: brightness(1);
+  }
+  25% {
+    text-shadow: 
+      0 0 8px rgba(255, 255, 255, 1),
+      0 0 15px rgba(59, 130, 246, 0.8),
+      0 0 20px rgba(139, 92, 246, 0.6),
+      0 0 25px rgba(59, 130, 246, 0.4),
+      0 0 30px rgba(139, 92, 246, 0.3);
+    filter: brightness(1.2);
+  }
+  50% {
+    text-shadow: 
+      0 0 10px rgba(255, 255, 255, 1),
+      0 0 20px rgba(59, 130, 246, 0.9),
+      0 0 25px rgba(139, 92, 246, 0.7),
+      0 0 30px rgba(59, 130, 246, 0.5),
+      0 0 35px rgba(139, 92, 246, 0.4);
+    filter: brightness(1.4);
+  }
+  75% {
+    text-shadow: 
+      0 0 8px rgba(255, 255, 255, 1),
+      0 0 15px rgba(59, 130, 246, 0.8),
+      0 0 20px rgba(139, 92, 246, 0.6),
+      0 0 25px rgba(59, 130, 246, 0.4),
+      0 0 30px rgba(139, 92, 246, 0.3);
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes sloganPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes sloganShimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.animate-slogan-glow {
+  animation: sloganGlow 3s ease-in-out infinite, sloganPulse 2s ease-in-out infinite;
+  color: #1e40af;
+  font-weight: 600;
+  text-shadow: 
+    0 0 5px rgba(59, 130, 246, 0.8),
+    0 0 10px rgba(59, 130, 246, 0.6),
+    0 0 15px rgba(139, 92, 246, 0.4),
+    0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+/* Search Pitara Multi-Color Animation */
+@keyframes searchPitaraColor {
+  0% {
+    color: #ef4444; /* Red */
+  }
+  20% {
+    color: #10b981; /* Green */
+  }
+  40% {
+    color: #3b82f6; /* Blue */
+  }
+  60% {
+    color: #ec4899; /* Pink */
+  }
+  80% {
+    color: #10b981; /* Green (again) */
+  }
+  100% {
+    color: #000000; /* Black */
+  }
+}
+
+.animate-search-pitara-color {
+  animation: searchPitaraColor 4s ease-in-out infinite;
+  font-weight: 800;
+  letter-spacing: 0.5px;
 }

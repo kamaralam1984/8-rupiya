@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar";
 import HeroSection from "./components/HeroSection";
+import HomepageSearchFilter from "./components/HomepageSearchFilter";
 import CategoryGrid from "./components/CategoryGrid";
 import OffersStrip from "./components/OffersStrip";
 import FeaturedBusinesses from "./components/FeaturedBusinesses";
@@ -19,6 +20,13 @@ interface HomepageSettings {
     featuredBusinesses: boolean;
     topRated: boolean;
     newBusinesses: boolean;
+    searchFilter?: boolean;
+  };
+  heroSections?: {
+    leftRail: boolean;
+    rightRail: boolean;
+    bottomRail: boolean;
+    bottomStrip: boolean;
   };
   layout: {
     theme: string;
@@ -80,6 +88,13 @@ export default function Home() {
           featuredBusinesses: true,
           topRated: true,
           newBusinesses: true,
+          searchFilter: true,
+        },
+        heroSections: {
+          leftRail: true,
+          rightRail: true,
+          bottomRail: true,
+          bottomStrip: true,
         },
         layout: {
           theme: 'light',
@@ -103,6 +118,13 @@ export default function Home() {
       featuredBusinesses: true,
       topRated: true,
       newBusinesses: true,
+      searchFilter: true,
+    },
+    heroSections: {
+      leftRail: true,
+      rightRail: true,
+      bottomRail: true,
+      bottomStrip: true,
     },
     layout: {
       theme: 'light',
@@ -156,12 +178,25 @@ export default function Home() {
         className="mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-4 sm:pb-6"
         style={{ maxWidth: containerWidth }}
       >
-        {/* Hero Section */}
-        {sections.hero && (
+        {/* Search & Filter Section - At the Top */}
+        {sections.searchFilter !== false && (
           <div style={{ marginBottom: sectionSpacing }}>
-            <HeroSection />
+            <HomepageSearchFilter />
           </div>
         )}
+
+        {/* Hero Section - Always render, but HeroBanner will be conditionally shown */}
+        <div style={{ marginBottom: sectionSpacing }} id="businesses-section">
+          <HeroSection 
+            showHeroBanner={sections.hero !== false}
+            heroSections={homepageSettings.heroSections || {
+              leftRail: true,
+              rightRail: true,
+              bottomRail: true,
+              bottomStrip: true,
+            }}
+          />
+        </div>
 
         {/* Categories Section */}
         {sections.categories && (

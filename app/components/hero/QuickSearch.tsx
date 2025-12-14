@@ -48,9 +48,9 @@ import { useLocation } from '../../contexts/LocationContext';
  * └─ Distance: From existing location
  * 
  * DATABASE SOURCE:
- * - All shop data from Admin Panel → Shops
- * - Model: AdminShop (lib/models/Shop.ts)
- * - Collection: shops (MongoDB)
+ * - All shop data from AgentShop collection ONLY
+ * - Model: AgentShop (lib/models/AgentShop.ts)
+ * - Collection: agentshops (MongoDB)
  */
 export default function QuickSearch() {
   const { setSearchParams } = useSearch();

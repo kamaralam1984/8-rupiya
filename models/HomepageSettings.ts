@@ -10,6 +10,13 @@ export interface IHomepageSettings extends Document {
     featuredBusinesses: boolean;
     topRated: boolean;
     newBusinesses: boolean;
+    searchFilter: boolean; // Search & Filter Shops section
+  };
+  heroSections: {
+    leftRail: boolean;
+    rightRail: boolean;
+    bottomRail: boolean; // Featured Shops (12 shops)
+    bottomStrip: boolean; // Nearby Shops (30 shops)
   };
   shopConfig: {
     enabled: boolean;
@@ -58,6 +65,13 @@ const HomepageSettingsSchema = new Schema<IHomepageSettings>(
       featuredBusinesses: { type: Boolean, default: true },
       topRated: { type: Boolean, default: true },
       newBusinesses: { type: Boolean, default: true },
+      searchFilter: { type: Boolean, default: true }, // Search & Filter Shops section
+    },
+    heroSections: {
+      leftRail: { type: Boolean, default: true },
+      rightRail: { type: Boolean, default: true },
+      bottomRail: { type: Boolean, default: true }, // Featured Shops (12 shops)
+      bottomStrip: { type: Boolean, default: true }, // Nearby Shops (30 shops)
     },
     shopConfig: {
       enabled: { type: Boolean, default: false },

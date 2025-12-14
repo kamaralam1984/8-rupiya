@@ -6,6 +6,7 @@ import AgentRouteGuard from '@/app/components/AgentRouteGuard';
 import Image from 'next/image';
 import { PRICING_PLANS, PlanType } from '@/app/utils/pricing';
 import UPIQRCode from '@/app/components/UPIQRCode';
+import SEOModal from '@/app/components/SEOModal';
 import toast from 'react-hot-toast';
 
 interface FormData {
@@ -13,8 +14,10 @@ interface FormData {
   shopName: string;
   ownerName: string;
   mobile: string;
+  email: string;
   category: string;
   pincode: string;
+  area: string;
   address: string;
   // Step 2
   photoUrl: string; // Main photo (required)
@@ -39,13 +42,21 @@ export default function AddNewShopPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [locationError, setLocationError] = useState('');
   const [showUploadOptions, setShowUploadOptions] = useState(false);
+  const [emailOTP, setEmailOTP] = useState('');
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [sendingOTP, setSendingOTP] = useState(false);
+  const [verifyingOTP, setVerifyingOTP] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [showSEOModal, setShowSEOModal] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
     shopName: '',
     ownerName: '',
     mobile: '',
+    email: '',
     category: '',
     pincode: '',
+    area: '',
     address: '',
     photoUrl: '', // Main photo (required)
     additionalPhotos: [], // Additional photos (optional, max 9 more = total 10)
@@ -112,10 +123,129 @@ export default function AddNewShopPage() {
     setStep(2); // Ab Step 2: Basic Info
   };
 
+  // Send OTP to email
+  const handleSendOTP = async () => {
+    if (!formData.email) {
+      setError('Please enter email address');
+      return;
+    }
+
+    const emailRegex = /^\S+@\S+\.\S+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setError('');
+    setSendingOTP(true);
+
+    try {
+      const response = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          type: 'email-verification',
+        }),
+      });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        const text = await response.text();
+        throw new Error(`Server returned invalid response: ${text.substring(0, 200)}`);
+      }
+
+      if (!response.ok) {
+        // Handle HTTP errors
+        const errorMessage = data?.error || data?.details || `Server error (${response.status})`;
+        console.error('OTP API Error:', {
+          status: response.status,
+          error: data?.error,
+          details: data?.details,
+          fullResponse: data
+        });
+        throw new Error(errorMessage);
+      }
+
+      if (data.success) {
+        setOtpSent(true);
+        setIsEmailVerified(false);
+        setEmailOTP('');
+        toast.success('OTP sent to your email!');
+      } else {
+        throw new Error(data.error || 'Failed to send OTP');
+      }
+    } catch (err: any) {
+      console.error('OTP send error:', err);
+      let errorMessage = err.message || 'Failed to send OTP.';
+      
+      // Provide more helpful error messages
+      if (errorMessage.includes('Email service not configured')) {
+        errorMessage = 'Email service is not configured. Please contact administrator.';
+      } else if (errorMessage.includes('Failed to send OTP email')) {
+        errorMessage = 'Failed to send email. Please check email configuration or try again later.';
+      } else if (errorMessage.includes('500') || errorMessage.includes('Internal server error')) {
+        errorMessage = 'Server error occurred. Please check server logs or try again later.';
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setSendingOTP(false);
+    }
+  };
+
+  // Verify OTP
+  const handleVerifyOTP = async () => {
+    if (!emailOTP || emailOTP.length !== 6) {
+      setError('Please enter 6-digit OTP');
+      return;
+    }
+
+    setError('');
+    setVerifyingOTP(true);
+
+    try {
+      const response = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          otp: emailOTP,
+          type: 'email-verification',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setIsEmailVerified(true);
+        toast.success('Email verified successfully!');
+      } else {
+        throw new Error(data.error || 'Invalid OTP');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Invalid OTP');
+      toast.error(err.message || 'Invalid OTP');
+    } finally {
+      setVerifyingOTP(false);
+    }
+  };
+
   // Step 2: Basic Info
   const handleStep2Next = () => {
-    if (!formData.shopName || !formData.ownerName || !formData.mobile || !formData.category || !formData.pincode || !formData.address) {
+    if (!formData.shopName || !formData.ownerName || !formData.mobile || !formData.email || !formData.category || !formData.pincode || !formData.area || !formData.address) {
       setError('Please fill all required fields');
+      return;
+    }
+    if (!isEmailVerified) {
+      setError('Please verify your email address with OTP');
       return;
     }
     setError('');
@@ -710,6 +840,71 @@ export default function AddNewShopPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email ID <span className="text-red-500">*</span>
+                  {isEmailVerified && (
+                    <span className="ml-2 text-green-600 text-xs">✓ Verified</span>
+                  )}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value });
+                      setIsEmailVerified(false);
+                      setOtpSent(false);
+                      setEmailOTP('');
+                    }}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter email address"
+                    disabled={isEmailVerified}
+                    required
+                  />
+                  {!isEmailVerified && (
+                    <button
+                      type="button"
+                      onClick={handleSendOTP}
+                      disabled={sendingOTP || !formData.email}
+                      className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {sendingOTP ? 'Sending...' : 'Send OTP'}
+                    </button>
+                  )}
+                </div>
+                {otpSent && !isEmailVerified && (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={emailOTP}
+                        onChange={(e) => setEmailOTP(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter 6-digit OTP"
+                        maxLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleVerifyOTP}
+                        disabled={verifyingOTP || emailOTP.length !== 6}
+                        className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      >
+                        {verifyingOTP ? 'Verifying...' : 'Verify OTP'}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSendOTP}
+                      disabled={sendingOTP}
+                      className="text-sm text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Resend OTP
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Category <span className="text-red-500">*</span>
                 </label>
                 {loadingCategories ? (
@@ -751,6 +946,20 @@ export default function AddNewShopPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Area <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.area}
+                  onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter area/locality"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Full Address <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -761,6 +970,32 @@ export default function AddNewShopPage() {
                   rows={3}
                   required
                 />
+              </div>
+
+              {/* SEO Button */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!formData.shopName || !formData.area || !formData.category || !formData.pincode || !formData.email) {
+                      toast.error('Please fill all required fields before adding SEO');
+                      return;
+                    }
+                    if (!isEmailVerified) {
+                      toast.error('Please verify your email address before adding SEO');
+                      return;
+                    }
+                    setShowSEOModal(true);
+                  }}
+                  disabled={!formData.shopName || !formData.area || !formData.category || !formData.pincode || !formData.email || !isEmailVerified}
+                  className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <span>🔍</span>
+                  <span>Add SEO</span>
+                </button>
+                <p className="text-xs text-gray-500 mt-1 text-center">
+                  Add SEO entry to improve search visibility (Shop Name, Area, Category, Pincode, Email)
+                </p>
               </div>
 
               <div className="flex gap-4">
@@ -1163,6 +1398,21 @@ export default function AddNewShopPage() {
             </div>
           )}
         </main>
+
+        {/* SEO Modal */}
+        <SEOModal
+          isOpen={showSEOModal}
+          onClose={() => setShowSEOModal(false)}
+          shopName={formData.shopName}
+          area={formData.area}
+          category={formData.category}
+          pincode={formData.pincode}
+          email={formData.email}
+          onSave={(seoData) => {
+            console.log('SEO saved:', seoData);
+            // SEO data is already saved via API, just close modal
+          }}
+        />
       </div>
     </AgentRouteGuard>
   );

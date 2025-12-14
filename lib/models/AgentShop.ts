@@ -4,8 +4,10 @@ export interface IAgentShop extends Document {
   shopName: string;
   ownerName: string;
   mobile: string;
+  email?: string;
   category: string;
   pincode: string;
+  area: string; // Area name (required for pincode system)
   address: string;
   photoUrl: string;
   additionalPhotos?: string[]; // Additional photos (optional, max 9 = total 10 with main photo)
@@ -27,6 +29,17 @@ export interface IAgentShop extends Document {
   district?: string; // District for revenue tracking
   agentCommission: number; // Commission earned by agent
   paymentScreenshot?: string; // UPI payment screenshot URL
+  // Google Business Profile
+  googleBusinessAccount?: {
+    accountId?: string; // Google Business Profile account ID
+    locationId?: string; // Google Business Profile location ID
+    status: 'NOT_CREATED' | 'PENDING' | 'CREATED' | 'VERIFIED' | 'FAILED';
+    verificationCode?: string; // Verification code if needed
+    verificationUrl?: string; // URL for verification
+    createdAt?: Date;
+    lastUpdated?: Date;
+    error?: string; // Error message if creation failed
+  };
   createdAt: Date;
 }
 
@@ -50,6 +63,12 @@ const AgentShopSchema = new Schema<IAgentShop>(
       trim: true,
       match: [/^(\+?\d{1,3}[-.\s]?)?(\d{10})$/, 'Please provide a valid 10-digit mobile number'],
     },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address'],
+    },
     category: {
       type: String,
       required: [true, 'Category is required'],
@@ -61,6 +80,12 @@ const AgentShopSchema = new Schema<IAgentShop>(
       required: [true, 'Pincode is required'],
       trim: true,
       match: [/^\d{6}$/, 'Pincode must be 6 digits'],
+    },
+    area: {
+      type: String,
+      required: [true, 'Area is required'],
+      trim: true,
+      maxlength: [100, 'Area cannot exceed 100 characters'],
     },
     address: {
       type: String,
@@ -176,18 +201,56 @@ const AgentShopSchema = new Schema<IAgentShop>(
       default: 20, // ₹20 for Basic plan (20% of ₹100)
       min: [0, 'Commission cannot be negative'],
     },
+    googleBusinessAccount: {
+      accountId: {
+        type: String,
+        trim: true,
+      },
+      locationId: {
+        type: String,
+        trim: true,
+      },
+      status: {
+        type: String,
+        enum: ['NOT_CREATED', 'PENDING', 'CREATED', 'VERIFIED', 'FAILED'],
+        default: 'NOT_CREATED',
+      },
+      verificationCode: {
+        type: String,
+        trim: true,
+      },
+      verificationUrl: {
+        type: String,
+        trim: true,
+      },
+      createdAt: {
+        type: Date,
+      },
+      lastUpdated: {
+        type: Date,
+      },
+      error: {
+        type: String,
+        trim: true,
+      },
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Indexes
+// Indexes for better query performance
 AgentShopSchema.index({ agentId: 1, createdAt: -1 });
 AgentShopSchema.index({ paymentStatus: 1 });
 AgentShopSchema.index({ category: 1 });
 AgentShopSchema.index({ pincode: 1 });
 AgentShopSchema.index({ createdAt: -1 });
+AgentShopSchema.index({ latitude: 1, longitude: 1 }); // For geospatial queries
+AgentShopSchema.index({ planType: 1, priorityRank: -1 }); // For plan-based sorting
+AgentShopSchema.index({ area: 1 }); // For area-based searches
+AgentShopSchema.index({ city: 1 }); // For city-based searches
+AgentShopSchema.index({ shopName: 'text', category: 'text', area: 'text' }); // Text search index
 
 const AgentShop: Model<IAgentShop> = mongoose.models.AgentShop || mongoose.model<IAgentShop>('AgentShop', AgentShopSchema);
 
