@@ -372,7 +372,7 @@ export default function BestDealsSlider({ category }: BestDealsSliderProps) {
     <div
       ref={sliderRef}
       className="relative w-full h-full bg-white rounded-xl overflow-hidden shadow-lg border border-gray-200 group"
-      style={{ minHeight: '300px' }}
+      style={{ minHeight: '90px' }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onMouseMove={(e) => {

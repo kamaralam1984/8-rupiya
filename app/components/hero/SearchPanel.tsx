@@ -164,13 +164,14 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
     <div className="w-full h-full bg-white rounded-xl shadow-md overflow-hidden flex flex-col">
       {/* Search Header */}
       <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-purple-50">
-        <h3 className="text-lg font-bold text-gray-800 mb-3">Find Shops</h3>
-        
-        {/* Filter Tabs */}
-        <div className="flex gap-2 mb-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <h3 className="text-sm sm:text-lg font-bold text-gray-800 whitespace-nowrap">Find Shops</h3>
+          
+          {/* Filter Tabs */}
+          <div className="flex gap-1 sm:gap-2">
           <button
             onClick={() => setFilterBy('category')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
               filterBy === 'category'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -180,7 +181,7 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
           </button>
           <button
             onClick={() => setFilterBy('pincode')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
               filterBy === 'pincode'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -190,7 +191,7 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
           </button>
           <button
             onClick={() => setFilterBy('search')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
               filterBy === 'search'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -198,6 +199,7 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
           >
             Search
           </button>
+          </div>
         </div>
 
         {/* Category Filter */}
@@ -232,17 +234,17 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
 
         {/* Search Input */}
         {filterBy === 'search' && (
-          <form onSubmit={handleSearch} className="flex gap-2">
+          <form onSubmit={handleSearch} className="flex gap-1 sm:gap-2">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search shop name..."
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex-1 px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+              className="hidden sm:inline-block px-3 sm:px-6 py-1 sm:py-2 text-xs sm:text-base bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
             >
               Search
             </button>

@@ -879,13 +879,13 @@ export default function HeroSection({ category }: HeroSectionProps) {
         {(heroSettings?.sections?.slider !== false && heroSettings?.slider?.enabled !== false) && (
           <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Slider - 50% */}
-            <div className="w-full h-[300px] md:h-[400px]">
+            <div className="w-full h-[144px] md:h-[240px]">
               <div className="h-full">
                 <BestDealsSlider category={category} />
               </div>
             </div>
             {/* Search Panel - 50% */}
-            <div className="w-full h-[300px] md:h-[400px]">
+            <div className="w-full h-[180px] md:h-[240px]">
               <SearchPanel 
                 onShopClick={(shopId) => {
                   window.location.href = `/shop/${shopId}`;
@@ -1046,7 +1046,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
           }
           
           return (
-            <div className={`md:hidden grid ${gridCols} gap-1.5 sm:gap-2 mb-4`}>
+            <div className={`md:hidden grid ${gridCols} gap-1.5 sm:gap-2 mb-4 mt-[25px]`}>
               {/* LEFT COLUMN */}
               {leftRailEnabled && (
                 <LeftRail 
