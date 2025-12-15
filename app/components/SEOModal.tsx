@@ -37,7 +37,7 @@ export default function SEOModal({ isOpen, onClose, shopName, area, category, pi
           shopName: shopName.trim(),
           area: area.trim(),
           category: category.trim(),
-          pincode: pincode.trim(),
+          pincode: pincode?.trim() || '', // Send empty string if pincode is empty
           emailId: email.trim(),
           ranking: ranking,
         }),

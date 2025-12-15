@@ -7,6 +7,7 @@ import type { BusinessSummary } from '../types';
 import { useLocation } from '../contexts/LocationContext';
 import { useSearch } from '../contexts/SearchContext';
 import { safeJsonParse } from '../utils/fetchHelpers';
+import { calculateTravelTime, formatTravelTime } from '../utils/distance';
 
 export default function TopRatedBusinesses() {
   const { location } = useLocation();
@@ -55,8 +56,12 @@ export default function TopRatedBusinesses() {
               imageUrl: shop.photoUrl || shop.iconUrl || shop.imageUrl || '/placeholder-shop.jpg',
               rating: shop.rating || 4.0,
               reviews: shop.reviews || 0,
-              city: shop.city || 'Unknown',
+              city: shop.city || shop.area || '',
               state: shop.state,
+              area: shop.area || '',
+              fullAddress: shop.fullAddress || shop.address || '',
+              address: shop.address || shop.fullAddress || '',
+              pincode: shop.pincode || '',
               distance: shop.distance,
               visitorCount: shop.visitorCount || 0,
             }));
@@ -156,7 +161,23 @@ export default function TopRatedBusinesses() {
         ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {businesses.map((biz: any, index) => {
-              const distance = biz.distance !== undefined ? biz.distance.toFixed(1) : 'N/A';
+              const distance = biz.distance !== undefined ? biz.distance : 0;
+              const travelTimeMinutes = distance > 0 ? calculateTravelTime(distance) : 0;
+              const travelTimeText = travelTimeMinutes > 0 ? formatTravelTime(travelTimeMinutes) : '';
+              
+              // Get address - prefer area, then address, then city
+              // Format: "Area, City" or "Address" or "City"
+              let displayAddress = '';
+              if (biz.area) {
+                displayAddress = biz.area;
+                if (biz.city && biz.city !== biz.area) {
+                  displayAddress += `, ${biz.city}`;
+                }
+              } else if (biz.address) {
+                displayAddress = biz.address;
+              } else if (biz.city) {
+                displayAddress = biz.city;
+              }
             
             return (
                 <Link key={biz.id} href={`/shop/${biz.id}`}>
@@ -187,14 +208,30 @@ export default function TopRatedBusinesses() {
                   <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-1.5 line-clamp-2 min-h-[2.5rem] group-hover:text-yellow-600 transition-colors">
                     {biz.name}
                   </h3>
-                  <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
-                    <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                        <span className="truncate">
-                          {distance !== 'N/A' && `${distance}km`} {biz.city}
-                        </span>
+                  {/* Distance, Time, Address */}
+                  <div className="space-y-1">
+                    {(distance > 0 || travelTimeText) && (
+                      <div className="flex items-center gap-1.5 text-xs">
+                        {distance > 0 && (
+                          <span className="font-semibold text-red-600">{distance.toFixed(1)}km</span>
+                        )}
+                        {distance > 0 && travelTimeText && (
+                          <span className="text-gray-400">|</span>
+                        )}
+                        {travelTimeText && (
+                          <span className="font-semibold text-yellow-600">{travelTimeText}</span>
+                        )}
+                      </div>
+                    )}
+                    {displayAddress && (
+                      <div className="flex items-start gap-1 text-xs sm:text-sm text-gray-600">
+                        <svg className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span className="truncate line-clamp-1">{displayAddress}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </article>

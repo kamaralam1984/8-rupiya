@@ -42,11 +42,11 @@ export default function OperatorDashboard() {
   useEffect(() => {
     fetchDashboardStats();
     fetchShops();
-    // Auto-refresh dashboard stats every 30 seconds
+    // Auto-refresh dashboard stats every 2 minutes (reduced from 30s for performance)
     const interval = setInterval(() => {
       fetchDashboardStats();
       fetchShops();
-    }, 30000);
+    }, 120000); // Refresh every 2 minutes
 
     return () => clearInterval(interval);
   }, []);

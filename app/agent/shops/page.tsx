@@ -97,11 +97,11 @@ export default function MyShopsPage() {
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
-  // Auto-refresh every 30 seconds to get latest payment status (silent refresh)
+  // Auto-refresh every 2 minutes to get latest payment status (silent refresh)
   useEffect(() => {
     const interval = setInterval(() => {
       fetchShops(false); // Silent refresh without loading indicator
-    }, 30000); // Refresh every 30 seconds
+    }, 120000); // Refresh every 2 minutes
 
     return () => clearInterval(interval);
   }, [dateFilter, paymentFilter]);
@@ -149,11 +149,11 @@ export default function MyShopsPage() {
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
-  // Auto-refresh every 30 seconds to get latest payment status (silent refresh)
+  // Auto-refresh every 2 minutes to get latest payment status (silent refresh)
   useEffect(() => {
     const interval = setInterval(() => {
       fetchShops(false); // Silent refresh without loading indicator
-    }, 30000); // Refresh every 30 seconds
+    }, 120000); // Refresh every 2 minutes
 
     return () => clearInterval(interval);
   }, [dateFilter, paymentFilter]);

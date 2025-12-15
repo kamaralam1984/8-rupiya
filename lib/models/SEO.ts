@@ -8,7 +8,7 @@ export interface ISEO extends Document {
   shopName: string;
   area: string;
   category: string;
-  pincode: string;
+  pincode?: string; // Optional pincode
   emailId: string;
   ranking: number; // SEO ranking (1, 2, 3, etc.)
   shopId?: Types.ObjectId; // Reference to shop (optional, can be linked later)
@@ -44,9 +44,19 @@ const SEOSchema = new Schema<ISEO>(
     },
     pincode: {
       type: String,
-      required: [true, 'Pincode is required'],
+      required: false, // Pincode is optional
       trim: true,
-      match: [/^\d{6}$/, 'Pincode must be 6 digits'],
+      validate: {
+        validator: function(v: string | null | undefined) {
+          // If pincode is not provided (null, undefined, or empty string), it's valid
+          if (!v || v === '' || v === null || v === undefined) {
+            return true;
+          }
+          // If pincode is provided, it must be 6 digits
+          return /^\d{6}$/.test(v.toString());
+        },
+        message: 'Pincode must be 6 digits if provided',
+      },
       index: true,
     },
     emailId: {

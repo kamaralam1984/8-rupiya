@@ -269,14 +269,45 @@ export default function HeroBanner({ hero, onBannerClick, height = 'h-[480px]', 
         </div>
       )}
       
-      {/* Distance, Time, Visitor - Simple text format */}
-      {(heroBanner.distance !== undefined || heroBanner.isBusiness || heroBanner.visitorCount !== undefined) && (
-        <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 z-20">
-          <div className="text-blue-700 text-sm sm:text-base font-bold text-center bg-white/90 px-3 py-2 rounded-lg shadow-lg">
-            {(heroBanner.distance || 0).toFixed(1).padStart(4, '0')}km / {Math.round((heroBanner.distance || 0) * 1.5).toString().padStart(2, '0')}min / {(heroBanner.visitorCount || 0).toString().padStart(2, '0')}visitor
+      {/* Distance, Time, Visitor - Transparent background with colored text */}
+      {(heroBanner.distance !== undefined || heroBanner.isBusiness || heroBanner.visitorCount !== undefined) && (() => {
+        const distance = heroBanner.distance || 0;
+        const estimatedTime = distance > 0 ? Math.round(distance * 1.5) : 0;
+        return (
+          <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 z-20">
+            <div className="flex flex-wrap items-center justify-center gap-2 px-3 py-2">
+              {/* Distance - Red */}
+              {distance > 0 && (
+                <>
+                  <span className="text-sm sm:text-base font-bold text-red-600 drop-shadow-lg">
+                    {distance.toFixed(1)}km
+                  </span>
+                  {(estimatedTime > 0 || heroBanner.visitorCount !== undefined) && (
+                    <span className="text-sm sm:text-base text-white/60">|</span>
+                  )}
+                </>
+              )}
+              {/* Time - Yellow */}
+              {estimatedTime > 0 && (
+                <>
+                  <span className="text-sm sm:text-base font-bold text-yellow-600 drop-shadow-lg">
+                    {estimatedTime}min
+                  </span>
+                  {heroBanner.visitorCount !== undefined && (
+                    <span className="text-sm sm:text-base text-white/60">|</span>
+                  )}
+                </>
+              )}
+              {/* Visitor - Blue */}
+              {heroBanner.visitorCount !== undefined && (
+                <span className="text-sm sm:text-base font-bold text-blue-600 drop-shadow-lg">
+                  {heroBanner.visitorCount || 0}visitor
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

@@ -7,7 +7,7 @@ export interface IAgentShop extends Document {
   email?: string;
   category: string;
   pincode: string;
-  area: string; // Area name (required for pincode system)
+  area?: string; // Area name (optional)
   address: string;
   photoUrl: string;
   additionalPhotos?: string[]; // Additional photos (optional, max 9 = total 10 with main photo)
@@ -83,7 +83,7 @@ const AgentShopSchema = new Schema<IAgentShop>(
     },
     area: {
       type: String,
-      required: [true, 'Area is required'],
+      required: false, // Area is now optional
       trim: true,
       maxlength: [100, 'Area cannot exceed 100 characters'],
     },

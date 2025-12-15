@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from '../contexts/LocationContext';
 import { useSearch } from '../contexts/SearchContext';
 import type { HeroSectionData } from '../types';
@@ -13,6 +13,7 @@ import BottomStrip from './hero/BottomStrip';
 import MobileRails from './hero/MobileRails';
 import BestDealsSlider from './hero/BestDealsSlider';
 import SearchPanel from './hero/SearchPanel';
+import ShopFullPageModal from './ShopFullPageModal';
 
 interface HeroSectionProps {
   category?: string;
@@ -24,6 +25,8 @@ export default function HeroSection({ category }: HeroSectionProps) {
   const [data, setData] = useState<HeroSectionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [heroSettings, setHeroSettings] = useState<any>(null);
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Fetch hero section settings
   useEffect(() => {
@@ -203,11 +206,18 @@ export default function HeroSection({ category }: HeroSectionProps) {
         }
 
         // Normal flow - Fetch banners and nearby shops
+        // Build query params safely
+        const bannerParams = new URLSearchParams();
+        if (location.id) bannerParams.append('loc', location.id);
+        if (location.area) bannerParams.append('area', location.area);
+        if (location.pincode) bannerParams.append('pincode', location.pincode.toString());
+        if (category) bannerParams.append('cat', category);
+        
         const bannerPromises = [
-          fetch(`/api/banners?section=hero&loc=${location.id}${category ? `&cat=${category}` : ''}&limit=1`),
-          fetch(`/api/banners?section=left&loc=${location.id}${category ? `&cat=${category}` : ''}&limit=4`),
-          fetch(`/api/banners?section=right&loc=${location.id}${category ? `&cat=${category}` : ''}&limit=4`),
-          fetch(`/api/banners?section=top&loc=${location.id}${category ? `&cat=${category}` : ''}&limit=20`),
+          fetch(`/api/banners?section=hero&${bannerParams.toString()}&limit=1`),
+          fetch(`/api/banners?section=left&${bannerParams.toString()}&limit=4`),
+          fetch(`/api/banners?section=right&${bannerParams.toString()}&limit=4`),
+          fetch(`/api/banners?section=top&${bannerParams.toString()}&limit=20`),
         ];
 
         // Fetch nearby shops - always try to fetch, with or without location
@@ -798,25 +808,42 @@ export default function HeroSection({ category }: HeroSectionProps) {
     fetchBanners();
   }, [location.id, location.latitude, location.longitude, category, isSearchActive, searchParams.pincode, searchParams.category, searchParams.area, searchParams.shopName, searchParams.planType]);
 
-  const handleBannerClick = async (
+  const handleBannerClick = useCallback(async (
     bannerId: string,
     section: 'hero' | 'left' | 'right' | 'bottom' | 'bottomrail',
     position: number,
     link: string
   ) => {
-    // Track analytics
-    try {
-      await fetch('/api/analytics/banner-click', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bannerId, section, position }),
-      });
-    } catch (error) {
-      console.error('Error tracking banner click:', error);
+    // Track analytics (fire and forget - don't block navigation)
+    fetch('/api/analytics/banner-click', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bannerId, section, position }),
+    }).catch(() => {
+      // Silently fail - analytics shouldn't block navigation
+    });
+
+    // Extract shop ID from link or use bannerId
+    let shopId: string | null = null;
+    
+    // If link contains /shop/ or /contact/, extract ID
+    const shopMatch = link.match(/\/(shop|contact)\/([^\/\?]+)/);
+    if (shopMatch) {
+      shopId = shopMatch[2];
+    } else if (bannerId) {
+      // Use bannerId as shop ID
+      shopId = bannerId;
     }
 
-    window.location.href = link;
-  };
+    // If it's a shop (has shopId), open modal instead of navigating
+    if (shopId && !link.startsWith('http') && !link.includes('www.')) {
+      setSelectedShopId(shopId);
+      setIsModalOpen(true);
+    } else {
+      // External links or banners - navigate normally
+      window.location.href = link;
+    }
+  }, []);
 
   if (isLoading) {
     return (
@@ -862,6 +889,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
   }
 
   return (
+    <>
     <section
       className="max-w-[98%] mx-auto px-2 sm:px-3 lg:px-4 pt-0 pb-4 sm:pb-6"
       role="region"
@@ -888,7 +916,8 @@ export default function HeroSection({ category }: HeroSectionProps) {
             <div className="w-full h-[180px] md:h-[240px]">
               <SearchPanel 
                 onShopClick={(shopId) => {
-                  window.location.href = `/shop/${shopId}`;
+                  setSelectedShopId(shopId);
+                  setIsModalOpen(true);
                 }}
               />
             </div>
@@ -1101,5 +1130,16 @@ export default function HeroSection({ category }: HeroSectionProps) {
         )}
       </div>
     </section>
+    
+    {/* Full Page Shop Modal */}
+    <ShopFullPageModal
+      shopId={selectedShopId}
+      isOpen={isModalOpen}
+      onClose={() => {
+        setIsModalOpen(false);
+        setSelectedShopId(null);
+      }}
+    />
+    </>
   );
 }

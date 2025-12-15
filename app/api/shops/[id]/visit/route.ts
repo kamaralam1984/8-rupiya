@@ -33,7 +33,7 @@ export async function POST(
 
     if (!shop) {
       return NextResponse.json(
-        { error: 'Shop not found' },
+        { success: false, error: 'Shop not found' },
         { status: 404 }
       );
     }
@@ -66,7 +66,7 @@ export async function POST(
   } catch (error: any) {
     console.error('Track visit error:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { success: false, error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }

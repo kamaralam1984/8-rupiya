@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useMemo } from 'react';
 import { sortBannersByDistance, getBannerDistance } from '../../utils/shopDistance';
+import { calculateTravelTime, formatTravelTime } from '../../utils/distance';
 
 interface Banner {
   bannerId: string;
@@ -127,27 +128,44 @@ export default function RightRail({ banners, onBannerClick, height = 'h-[480px]'
                     </div>
                   )}
 
-                  {/* Stats Row */}
-                  <div className="flex items-center justify-between pt-2.5 border-t-2 border-gray-200">
-                    {((distance !== null && distance !== undefined) || (banner.distance !== null && banner.distance !== undefined)) && (
-                      <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-md border border-blue-200">
-                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <span className="text-xs sm:text-sm font-bold text-blue-700">{((distance ?? banner.distance) ?? 0).toFixed(1)} km</span>
+                  {/* Stats Row - Km, Time, Visitor - Transparent background with colored text */}
+                  {(distance !== null || banner.visitorCount !== undefined) && (() => {
+                    const finalDistance = distance ?? banner.distance ?? null;
+                    const travelTimeMinutes = finalDistance && finalDistance > 0 ? calculateTravelTime(finalDistance) : 0;
+                    const travelTimeText = travelTimeMinutes > 0 ? formatTravelTime(travelTimeMinutes) : '';
+                    return (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-2.5 border-t-2 border-gray-200">
+                        {/* Distance - Red */}
+                        {finalDistance !== null && finalDistance > 0 && (
+                          <>
+                            <span className="text-xs sm:text-sm font-semibold text-red-600">
+                              {finalDistance.toFixed(1)}km
+                            </span>
+                            {(travelTimeText || banner.visitorCount !== undefined) && (
+                              <span className="text-xs sm:text-sm text-gray-400">|</span>
+                            )}
+                          </>
+                        )}
+                        {/* Time - Yellow */}
+                        {travelTimeText && (
+                          <>
+                            <span className="text-xs sm:text-sm font-semibold text-yellow-600">
+                              {travelTimeText}
+                            </span>
+                            {banner.visitorCount !== undefined && (
+                              <span className="text-xs sm:text-sm text-gray-400">|</span>
+                            )}
+                          </>
+                        )}
+                        {/* Visitor - Blue */}
+                        {banner.visitorCount !== undefined && (
+                          <span className="text-xs sm:text-sm font-semibold text-blue-600">
+                            {banner.visitorCount || 0}visitor
+                          </span>
+                        )}
                       </div>
-                    )}
-                    {banner.visitorCount !== undefined && (
-                      <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-md border border-gray-300">
-                        <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        <span className="text-xs sm:text-sm font-bold text-gray-800">{banner.visitorCount || 0}</span>
-                      </div>
-                    )}
-                  </div>
+                    );
+                  })()}
                 </div>
               </a>
             </div>

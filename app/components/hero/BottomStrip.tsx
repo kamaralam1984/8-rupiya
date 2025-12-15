@@ -2,6 +2,9 @@
 
 import Image from 'next/image';
 import { useMemo } from 'react';
+import { getBannerDistance } from '../../utils/shopDistance';
+import { calculateTravelTime, formatTravelTime } from '../../utils/distance';
+import { useLocation } from '../../contexts/LocationContext';
 
 interface Banner {
   bannerId: string;
@@ -33,6 +36,8 @@ interface BottomStripProps {
 // Fallback banners removed - only shops will be shown
 
 export default function BottomStrip({ banners, onBannerClick, maxCount = 10 }: BottomStripProps) {
+  const { location } = useLocation();
+  
   // Show shops based on maxCount setting
   const currentBanners = useMemo(() => {
     const count = Math.max(0, Math.min(maxCount || 10, 30)); // Limit between 0-30
@@ -64,13 +69,13 @@ export default function BottomStrip({ banners, onBannerClick, maxCount = 10 }: B
             {row.map((banner, index) => {
               const actualIndex = rowIndex * 10 + index;
               return (
-                <div key={`bottom-row${rowIndex}-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[112px] min-w-[94px]">
+                <div key={`bottom-row${rowIndex}-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[135px] min-w-[113px]">
                   <a
                     href={banner.website || banner.link || `/shop/${banner.bannerId}`}
                     target={banner.website ? '_blank' : undefined}
                     rel={banner.website ? 'noopener noreferrer' : undefined}
                     onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
-                    className="relative w-full inline-flex items-center justify-center h-20 px-2 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-lg transition-all duration-200 overflow-hidden"
+                    className="relative block w-full h-24 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-lg transition-all duration-200 overflow-hidden"
                     aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
                     style={{
                       animationDelay: `${actualIndex * 0.5}s`,
@@ -80,18 +85,52 @@ export default function BottomStrip({ banners, onBannerClick, maxCount = 10 }: B
                       <Image
                         src={banner.imageUrl}
                         alt={banner.advertiser || banner.alt}
-                        width={66}
-                        height={53}
-                        className="object-cover max-h-full max-w-full"
+                        fill
+                        className="object-cover"
                         loading="lazy"
+                        sizes="(max-width: 1024px) 10vw, 135px"
                       />
                     )}
-                    {/* Distance, Time, Visitor - Simple text format */}
-                    <div className="absolute bottom-1 left-1 right-1 z-10">
-                      <div className="text-blue-700 text-[8px] font-bold text-center bg-white/80 px-1 py-0.5 rounded">
-                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
-                      </div>
-                    </div>
+                    {/* Km, Time, Visitor - Transparent background with colored text */}
+                    {(() => {
+                      const distance = banner ? getBannerDistance(banner, location.latitude ?? null, location.longitude ?? null) : null;
+                      const travelTimeMinutes = distance && distance > 0 ? calculateTravelTime(distance) : 0;
+                      const travelTimeText = travelTimeMinutes > 0 ? formatTravelTime(travelTimeMinutes) : '';
+                      return (distance !== null || banner.visitorCount !== undefined) ? (
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                          <div className="flex flex-wrap items-center gap-0.5 justify-center">
+                            {/* Distance - Red */}
+                            {distance !== null && distance > 0 && (
+                              <>
+                                <span className="text-[6px] font-semibold text-red-400 drop-shadow-lg">
+                                  {distance.toFixed(1)}km
+                                </span>
+                                {(travelTimeText || banner.visitorCount !== undefined) && (
+                                  <span className="text-[6px] text-white/60">|</span>
+                                )}
+                              </>
+                            )}
+                            {/* Time - Yellow */}
+                            {travelTimeText && (
+                              <>
+                                <span className="text-[6px] font-semibold text-yellow-400 drop-shadow-lg">
+                                  {travelTimeText}
+                                </span>
+                                {banner.visitorCount !== undefined && (
+                                  <span className="text-[6px] text-white/60">|</span>
+                                )}
+                              </>
+                            )}
+                            {/* Visitor - Blue */}
+                            {banner.visitorCount !== undefined && (
+                              <span className="text-[6px] font-semibold text-blue-400 drop-shadow-lg">
+                                {banner.visitorCount || 0}v
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
                   </a>
                 </div>
               );
@@ -107,11 +146,11 @@ export default function BottomStrip({ banners, onBannerClick, maxCount = 10 }: B
             {row.map((banner, index) => {
               const actualIndex = rowIndex * 5 + index;
               return (
-                <div key={`bottom-mobile-row${rowIndex}-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[61px] sm:max-w-[70px] min-w-[48px] sm:min-w-[56px]">
+                <div key={`bottom-mobile-row${rowIndex}-${actualIndex}-${banner.bannerId || actualIndex}`} className="relative group flex-1 max-w-[73px] sm:max-w-[84px] min-w-[58px] sm:min-w-[67px]">
                   <a
                     href={banner.website || banner.link || `/shop/${banner.bannerId}`}
                     onClick={() => onBannerClick(banner.bannerId, 'bottom', actualIndex, banner.website || banner.link)}
-                    className="relative w-full inline-flex items-center justify-center h-12 sm:h-14 px-1 rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden"
+                    className="relative block w-full h-[58px] sm:h-[68px] rounded-md border-2 bg-white shadow-sm hover:scale-105 hover:shadow-md hover:border-blue-400 transition-all duration-150 overflow-hidden"
                     aria-label={`Shop: ${banner.advertiser || banner.alt} - Bottom slot ${actualIndex + 1}`}
                     style={{
                       animationDelay: `${actualIndex * 0.5}s`,
@@ -121,18 +160,52 @@ export default function BottomStrip({ banners, onBannerClick, maxCount = 10 }: B
                       <Image
                         src={banner.imageUrl}
                         alt={banner.advertiser || banner.alt}
-                        width={41}
-                        height={33}
-                        className="object-cover max-h-full max-w-full"
+                        fill
+                        className="object-cover"
                         loading="lazy"
+                        sizes="(max-width: 640px) 20vw, 84px"
                       />
                     )}
-                    {/* Distance, Time, Visitor - Simple text format */}
-                    <div className="absolute bottom-0.5 left-0.5 right-0.5 z-10">
-                      <div className="text-blue-700 text-[6px] font-bold text-center bg-white/80 px-0.5 py-0 rounded">
-                        {(banner.distance ? banner.distance.toFixed(1) : '0.0').padStart(4, '0')}km / {(banner.distance ? Math.round(banner.distance * 1.5) : 0).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
-                      </div>
-                    </div>
+                    {/* Km, Time, Visitor - Transparent background with colored text (Mobile) */}
+                    {(() => {
+                      const distance = banner ? getBannerDistance(banner, location.latitude ?? null, location.longitude ?? null) : null;
+                      const travelTimeMinutes = distance && distance > 0 ? calculateTravelTime(distance) : 0;
+                      const travelTimeText = travelTimeMinutes > 0 ? formatTravelTime(travelTimeMinutes) : '';
+                      return (distance !== null || banner.visitorCount !== undefined) ? (
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-0.5">
+                          <div className="flex flex-wrap items-center gap-0.5 justify-center">
+                            {/* Distance - Red */}
+                            {distance !== null && distance > 0 && (
+                              <>
+                                <span className="text-[5px] font-semibold text-red-400 drop-shadow-lg">
+                                  {distance.toFixed(1)}km
+                                </span>
+                                {(travelTimeText || banner.visitorCount !== undefined) && (
+                                  <span className="text-[5px] text-white/60">|</span>
+                                )}
+                              </>
+                            )}
+                            {/* Time - Yellow */}
+                            {travelTimeText && (
+                              <>
+                                <span className="text-[5px] font-semibold text-yellow-400 drop-shadow-lg">
+                                  {travelTimeText}
+                                </span>
+                                {banner.visitorCount !== undefined && (
+                                  <span className="text-[5px] text-white/60">|</span>
+                                )}
+                              </>
+                            )}
+                            {/* Visitor - Blue */}
+                            {banner.visitorCount !== undefined && (
+                              <span className="text-[5px] font-semibold text-blue-400 drop-shadow-lg">
+                                {banner.visitorCount || 0}v
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
                   </a>
                 </div>
               );

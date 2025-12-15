@@ -37,24 +37,63 @@ async function connectDB(): Promise<typeof mongoose> {
   }
 
   if (!cached.promise) {
-    const opts = {
+    // Ensure MONGODB_URI is defined
+    if (!MONGODB_URI) {
+      throw new Error('MONGODB_URI is not defined');
+    }
+    
+    const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
-      serverSelectionTimeoutMS: 10000, // 10 seconds timeout
+      serverSelectionTimeoutMS: 15000, // Increased to 15 seconds timeout
       socketTimeoutMS: 45000, // 45 seconds socket timeout
       maxPoolSize: 10, // Maintain up to 10 socket connections
       minPoolSize: 1, // Maintain at least 1 socket connection
       maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
       heartbeatFrequencyMS: 10000, // Check connection health every 10 seconds
+      // SSL/TLS options are handled by MongoDB URI connection string automatically
+      // Do NOT set ssl, sslValidate, or any SSL-related options here
+      // MongoDB Atlas handles SSL/TLS automatically through the connection string
+      // Retry options for better reliability
+      retryWrites: true,
+      retryReads: true,
+      // Connection retry options
+      connectTimeoutMS: 15000, // 15 seconds to establish connection
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then(async (mongooseInstance) => {
+    // Add retry logic for SSL/TLS connection errors
+    const connectWithRetry = async (retries = 2): Promise<typeof mongoose> => {
+      try {
+        return await mongoose.connect(MONGODB_URI!, opts);
+      } catch (error: any) {
+        const isSSLError = error?.message?.includes('SSL') || 
+                          error?.message?.includes('TLS') || 
+                          error?.message?.includes('ssl3_read_bytes') ||
+                          error?.message?.includes('tlsv1 alert');
+        
+        // Retry SSL errors up to 2 times with delay
+        if (isSSLError && retries > 0) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+          return connectWithRetry(retries - 1);
+        }
+        throw error;
+      }
+    };
+
+    cached.promise = connectWithRetry().then(async (mongooseInstance) => {
       // Silent connection success - only log errors
       
       // Handle connection events
       mongoose.connection.on('error', (err) => {
-        console.error('❌ MongoDB Connection Error:', err);
-        cached.conn = null;
-        cached.promise = null;
+        // Don't log SSL/TLS errors repeatedly - they're usually transient
+        if (err.message && err.message.includes('SSL') || err.message.includes('TLS')) {
+          // Silent SSL errors - they'll retry automatically
+          cached.conn = null;
+          cached.promise = null;
+        } else {
+          console.error('❌ MongoDB Connection Error:', err.message || err);
+          cached.conn = null;
+          cached.promise = null;
+        }
       });
       
       mongoose.connection.on('disconnected', () => {

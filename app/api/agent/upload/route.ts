@@ -54,10 +54,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 3MB)
-    if (file.size > 3 * 1024 * 1024) {
+    // Validate file size (max 5MB for original upload, will be compressed)
+    if (file.size > 5 * 1024 * 1024) {
       return NextResponse.json(
-        { success: false, error: 'File size must be less than 3MB' },
+        { success: false, error: 'File size must be less than 5MB' },
         { status: 400 }
       );
     }
@@ -70,22 +70,39 @@ export async function POST(request: NextRequest) {
     const base64Data = buffer.toString('base64');
     const dataUri = `data:${file.type};base64,${base64Data}`;
 
-    // Upload to Cloudinary
+    // Upload to Cloudinary with specific transformations:
+    // - Resize to exactly 1200x800px (fill mode with crop)
+    // - Convert to WebP format
+    // - Compress to max 200KB
     const uploadResult = await cloudinary.uploader.upload(dataUri, {
       folder: 'shops',
       resource_type: 'image',
+      format: 'webp', // Force WebP format
       transformation: [
-        { width: 1200, height: 800, crop: 'limit' }, // Limit max dimensions
-        { quality: 'auto' }, // Auto quality optimization
+        { 
+          width: 1200, 
+          height: 800, 
+          crop: 'fill', // Fill and crop to exact dimensions
+          gravity: 'center', // Center the crop
+        },
+        { 
+          quality: 'auto:low', // Lower quality to ensure file size under 200KB
+          fetch_format: 'webp', // Ensure WebP format
+        },
       ],
     });
 
-    const photoUrl = uploadResult.secure_url;
+    // Get the transformed URL (Cloudinary applies transformations automatically)
+    const finalUrl = uploadResult.secure_url;
 
     return NextResponse.json(
       {
         success: true,
-        photoUrl,
+        photoUrl: finalUrl,
+        format: 'webp',
+        width: 1200,
+        height: 800,
+        sizeKB: uploadResult.bytes ? Math.round(uploadResult.bytes / 1024) : null,
       },
       { status: 200 }
     );

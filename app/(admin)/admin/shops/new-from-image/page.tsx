@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -50,7 +50,54 @@ export default function NewShopFromImagePage() {
   // Step 3: Mobile (optional)
   const [mobile, setMobile] = useState('');
 
-  const categories = ['Grocery', 'Clothes', 'Electronics', 'Restaurant', 'Medical', 'Other'];
+  // Categories from API (linked to Category model)
+  const [categories, setCategories] = useState<Array<{ _id: string; name: string; slug: string }>>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch('/api/categories', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        if (data.success && data.categories) {
+          setCategories(data.categories);
+        } else {
+          // Fallback to default categories if API fails
+          setCategories([
+            { _id: '1', name: 'Grocery', slug: 'grocery' },
+            { _id: '2', name: 'Clothes', slug: 'clothes' },
+            { _id: '3', name: 'Electronics', slug: 'electronics' },
+            { _id: '4', name: 'Restaurant', slug: 'restaurant' },
+            { _id: '5', name: 'Medical', slug: 'medical' },
+            { _id: '6', name: 'Other', slug: 'other' },
+          ]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+        // Fallback to default categories
+        setCategories([
+          { _id: '1', name: 'Grocery', slug: 'grocery' },
+          { _id: '2', name: 'Clothes', slug: 'clothes' },
+          { _id: '3', name: 'Electronics', slug: 'electronics' },
+          { _id: '4', name: 'Restaurant', slug: 'restaurant' },
+          { _id: '5', name: 'Medical', slug: 'medical' },
+          { _id: '6', name: 'Other', slug: 'other' },
+        ]);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    if (token) {
+      fetchCategories();
+    }
+  }, [token]);
 
   // Helper function to parse coordinates and address from text (like image overlay text)
   const parseCoordinatesFromText = (text: string): { 
@@ -430,11 +477,15 @@ export default function NewShopFromImagePage() {
       return;
     }
 
-    const finalCategory = category === 'Other' ? customCategory.trim() : category;
+    const finalCategory = category === 'Other' || category.toLowerCase() === 'other' ? customCategory.trim() : category;
     if (!finalCategory) {
       toast.error('Category is required');
       return;
     }
+
+    // Get categoryRef if a category from the list was selected
+    const selectedCategory = categories.find(cat => cat._id === selectedCategoryId);
+    const categoryRef = selectedCategory ? selectedCategory._id : undefined;
 
     // Ensure we have a photo URL (either from extraction or need to upload)
     let finalPhotoUrl = extractedData?.photoUrl;
@@ -487,6 +538,7 @@ export default function NewShopFromImagePage() {
           shopName: shopName.trim(),
           ownerName: ownerName.trim(),
           category: finalCategory,
+          categoryRef: categoryRef, // Link to Category model
           mobile: mobile.trim() || undefined,
           area: area.trim() || undefined,
           fullAddress: fullAddress.trim(),
@@ -594,21 +646,37 @@ export default function NewShopFromImagePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Category <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                >
-                  <option value="">Select category</option>
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+                {loadingCategories ? (
+                  <div className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-50 flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    <span className="text-sm text-gray-500">Loading categories...</span>
+                  </div>
+                ) : (
+                  <select
+                    value={selectedCategoryId}
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      setSelectedCategoryId(selectedId);
+                      const selectedCat = categories.find(cat => cat._id === selectedId);
+                      if (selectedCat) {
+                        setCategory(selectedCat.name);
+                      } else {
+                        setCategory('');
+                      }
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="">Select category</option>
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
 
-                {category === 'Other' && (
+                {category && category.toLowerCase() === 'other' && (
                   <input
                     type="text"
                     value={customCategory}

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import { requireAdmin } from '@/lib/auth';
 import Category from '@/models/Category';
+import AdminShop from '@/lib/models/Shop';
+import AgentShop from '@/lib/models/AgentShop';
 
 // GET - Get single category
 export const GET = requireAdmin(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
@@ -82,14 +84,47 @@ export const DELETE = requireAdmin(async (request: NextRequest, context: { param
   try {
     await connectDB();
     const { id } = await context.params;
-    const category = await Category.findByIdAndDelete(id);
-
+    
+    // First, find the category to get its name
+    const category = await Category.findById(id);
+    
     if (!category) {
       return NextResponse.json(
         { error: 'Category not found' },
         { status: 404 }
       );
     }
+
+    // Check if category is being used by any shops
+    const categoryName = category.name;
+    const [adminShopCount, agentShopCount] = await Promise.all([
+      AdminShop.countDocuments({
+        $or: [
+          { category: categoryName },
+          { categoryRef: id }
+        ]
+      }),
+      AgentShop.countDocuments({
+        category: categoryName
+      })
+    ]);
+
+    const totalShopCount = adminShopCount + agentShopCount;
+
+    if (totalShopCount > 0) {
+      return NextResponse.json(
+        { 
+          error: `Cannot delete category. It is being used by ${totalShopCount} shop(s). Please remove or reassign shops from this category first.`,
+          shopCount: totalShopCount,
+          adminShopCount,
+          agentShopCount
+        },
+        { status: 400 }
+      );
+    }
+
+    // Safe to delete - no shops are using this category
+    await Category.findByIdAndDelete(id);
 
     return NextResponse.json(
       { success: true, message: 'Category deleted successfully' },

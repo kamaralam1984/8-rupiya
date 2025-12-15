@@ -43,16 +43,28 @@ export function requireAuth(
   handler: (request: NextRequest, user: JWTPayload) => Promise<NextResponse>
 ) {
   return async (request: NextRequest) => {
-    const { user, error } = authenticateRequest(request);
+    try {
+      const { user, error } = authenticateRequest(request);
 
-    if (!user || error) {
+      if (!user || error) {
+        return NextResponse.json(
+          { error: error || 'Authentication required' },
+          { status: 401 }
+        );
+      }
+
+      return await handler(request, user);
+    } catch (error: any) {
+      console.error('requireAuth wrapper error:', error);
       return NextResponse.json(
-        { error: error || 'Authentication required' },
-        { status: 401 }
+        { 
+          error: 'Authentication error', 
+          details: error?.message || 'Unknown error occurred',
+          errorName: error?.name || 'Unknown',
+        },
+        { status: 500 }
       );
     }
-
-    return handler(request, user);
   };
 }
 

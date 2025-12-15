@@ -36,6 +36,14 @@ interface FormData {
 
 export default function AddNewShopPage() {
   const router = useRouter();
+  
+  // OTP Disabled for 3 days - Automatically calculates 3 days from today
+  const today = new Date();
+  const OTP_DISABLE_END_DATE = new Date(today);
+  OTP_DISABLE_END_DATE.setDate(today.getDate() + 3); // 3 days from today
+  OTP_DISABLE_END_DATE.setHours(23, 59, 59, 999); // End of day
+  const isOTPDisabled = new Date() <= OTP_DISABLE_END_DATE;
+  
   const [step, setStep] = useState(1); // Step 1: Plan Selection (pehle plan select karo)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,7 +51,7 @@ export default function AddNewShopPage() {
   const [locationError, setLocationError] = useState('');
   const [showUploadOptions, setShowUploadOptions] = useState(false);
   const [emailOTP, setEmailOTP] = useState('');
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(isOTPDisabled); // Auto-verify if OTP is disabled
   const [sendingOTP, setSendingOTP] = useState(false);
   const [verifyingOTP, setVerifyingOTP] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
@@ -240,11 +248,13 @@ export default function AddNewShopPage() {
 
   // Step 2: Basic Info
   const handleStep2Next = () => {
-    if (!formData.shopName || !formData.ownerName || !formData.mobile || !formData.email || !formData.category || !formData.pincode || !formData.area || !formData.address) {
+    // Area is now optional - removed from required fields
+    if (!formData.shopName || !formData.ownerName || !formData.mobile || !formData.email || !formData.category || !formData.pincode || !formData.address) {
       setError('Please fill all required fields');
       return;
     }
-    if (!isEmailVerified) {
+    // Skip OTP verification if disabled
+    if (!isOTPDisabled && !isEmailVerified) {
       setError('Please verify your email address with OTP');
       return;
     }
@@ -252,8 +262,8 @@ export default function AddNewShopPage() {
     setStep(3); // Ab Step 3: Photo Upload
   };
 
-  // Compress image to ensure it's under 3MB
-  const compressImage = (file: File, maxSizeMB: number = 3): Promise<File> => {
+  // Compress and resize image: 1200x800px, WebP format, max 200KB
+  const compressImage = (file: File, targetWidth: number = 1200, targetHeight: number = 800, maxSizeKB: number = 200): Promise<File> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -262,36 +272,44 @@ export default function AddNewShopPage() {
         img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          let quality = 0.9;
-
-          // Calculate dimensions to keep aspect ratio
-          const maxDimension = 1920; // Max width/height
-          if (width > height) {
-            if (width > maxDimension) {
-              height = (height * maxDimension) / width;
-              width = maxDimension;
-            }
-          } else {
-            if (height > maxDimension) {
-              width = (width * maxDimension) / height;
-              height = maxDimension;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
           const ctx = canvas.getContext('2d');
           if (!ctx) {
             reject(new Error('Could not get canvas context'));
             return;
           }
 
-          ctx.drawImage(img, 0, 0, width, height);
+          // Calculate scaling to fill 1200x800 while maintaining aspect ratio (crop if needed)
+          const imgAspect = img.width / img.height;
+          const targetAspect = targetWidth / targetHeight;
+          
+          let drawWidth = targetWidth;
+          let drawHeight = targetHeight;
+          let drawX = 0;
+          let drawY = 0;
 
-          // Try to compress, reducing quality if needed
-          const tryCompress = (q: number): void => {
+          if (imgAspect > targetAspect) {
+            // Image is wider - fit height and crop width
+            drawHeight = targetHeight;
+            drawWidth = img.width * (targetHeight / img.height);
+            drawX = (targetWidth - drawWidth) / 2;
+          } else {
+            // Image is taller - fit width and crop height
+            drawWidth = targetWidth;
+            drawHeight = img.height * (targetWidth / img.width);
+            drawY = (targetHeight - drawHeight) / 2;
+          }
+
+          // Fill background with white (optional, can be transparent)
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+          // Draw image centered
+          ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+          // Try to compress to WebP format, reducing quality if needed
+          const tryCompress = (quality: number): void => {
             canvas.toBlob(
               (blob) => {
                 if (!blob) {
@@ -299,25 +317,27 @@ export default function AddNewShopPage() {
                   return;
                 }
 
-                const sizeInMB = blob.size / (1024 * 1024);
-                if (sizeInMB > maxSizeMB && q > 0.1) {
+                const sizeInKB = blob.size / 1024;
+                if (sizeInKB > maxSizeKB && quality > 0.1) {
                   // Reduce quality and try again
-                  tryCompress(q - 0.1);
+                  tryCompress(quality - 0.05);
                 } else {
-                  // Create a new File object with compressed blob
-                  const compressedFile = new File([blob], file.name, {
-                    type: file.type,
+                  // Create a new File object with WebP format
+                  const fileName = file.name.replace(/\.[^/.]+$/, '') + '.webp';
+                  const compressedFile = new File([blob], fileName, {
+                    type: 'image/webp',
                     lastModified: Date.now(),
                   });
                   resolve(compressedFile);
                 }
               },
-              file.type,
-              q
+              'image/webp', // Always convert to WebP
+              quality
             );
           };
 
-          tryCompress(quality);
+          // Start with quality 0.85 (85%)
+          tryCompress(0.85);
         };
         img.onerror = () => reject(new Error('Failed to load image'));
       };
@@ -346,13 +366,10 @@ export default function AddNewShopPage() {
     setLoading(true);
 
     try {
-      // Compress image if it's larger than 3MB
-      let fileToUpload = file;
-      if (file.size > 3 * 1024 * 1024) {
-        setError('Compressing image to reduce size...');
-        fileToUpload = await compressImage(file, 3);
-        setError(''); // Clear compression message
-      }
+      // Always compress and resize image: 1200x800px, WebP format, max 200KB
+      setError('Processing image (resizing to 1200x800px, converting to WebP)...');
+      const fileToUpload = await compressImage(file, 1200, 800, 200);
+      setError(''); // Clear compression message
 
       // Preview
       const reader = new FileReader();
@@ -418,11 +435,8 @@ export default function AddNewShopPage() {
         if (!file.type.startsWith('image/')) {
           throw new Error(`${file.name} is not an image file`);
         }
-        // Compress image if it's larger than 3MB
-        let fileToUpload = file;
-        if (file.size > 3 * 1024 * 1024) {
-          fileToUpload = await compressImage(file, 3);
-        }
+        // Always compress and resize image: 1200x800px, WebP format, max 200KB
+        const fileToUpload = await compressImage(file, 1200, 800, 200);
 
         const uploadFormData = new FormData();
         uploadFormData.append('file', fileToUpload);
@@ -557,6 +571,42 @@ export default function AddNewShopPage() {
   };
 
   const handleSubmit = async () => {
+    // Trim all fields first for validation
+    // Ensure area is always a string (handle null/undefined)
+    // IMPORTANT: Get area value directly from formData, don't use optional chaining that might return undefined
+    const areaValue = formData.area ? String(formData.area) : '';
+    const trimmedShopName = (formData.shopName || '').trim();
+    const trimmedOwnerName = (formData.ownerName || '').trim();
+    const trimmedMobile = (formData.mobile || '').trim();
+    const trimmedEmail = (formData.email || '').trim();
+    const trimmedCategory = (formData.category || '').trim();
+    const trimmedPincode = (formData.pincode || '').trim();
+    const trimmedArea = areaValue.trim(); // Trim the area value
+    const trimmedAddress = (formData.address || '').trim();
+    const trimmedPhotoUrl = (formData.photoUrl || '').trim();
+
+    // Validate all required fields before submission (Area is now optional)
+    if (!trimmedShopName || !trimmedOwnerName || !trimmedMobile || 
+        !trimmedEmail || !trimmedCategory || !trimmedPincode || 
+        !trimmedAddress || !trimmedPhotoUrl) {
+      // Show specific error for missing fields
+      let missingFields = [];
+      if (!trimmedShopName) missingFields.push('Shop Name');
+      if (!trimmedOwnerName) missingFields.push('Owner Name');
+      if (!trimmedMobile) missingFields.push('Mobile');
+      if (!trimmedEmail) missingFields.push('Email');
+      if (!trimmedCategory) missingFields.push('Category');
+      if (!trimmedPincode) missingFields.push('Pincode');
+      // Area is optional - removed from required fields
+      if (!trimmedAddress) missingFields.push('Address');
+      if (!trimmedPhotoUrl) missingFields.push('Photo');
+      
+      const errorMsg = `Please fill all required fields: ${missingFields.join(', ')}`;
+      setError(errorMsg);
+      toast.error(errorMsg);
+      return;
+    }
+
     if (formData.latitude === null || formData.longitude === null) {
       setError('Please capture location');
       return;
@@ -575,12 +625,37 @@ export default function AddNewShopPage() {
     try {
       const token = localStorage.getItem('agent_token');
       
-      // Log what we're sending
-      console.log('📤 Sending shop data:', {
-        ...formData,
-        photoUrl: formData.photoUrl ? '✅ Present' : '❌ Missing',
+      // Prepare data with trimmed values - area is now optional
+      const submitData = {
+        shopName: trimmedShopName,
+        ownerName: trimmedOwnerName,
+        mobile: trimmedMobile,
+        email: trimmedEmail,
+        category: trimmedCategory,
+        pincode: trimmedPincode,
+        area: trimmedArea, // Explicitly set area - CRITICAL - must be non-empty at this point
+        address: trimmedAddress,
+        photoUrl: trimmedPhotoUrl,
+        // Include other formData fields
+        additionalPhotos: formData.additionalPhotos || [],
         latitude: formData.latitude,
         longitude: formData.longitude,
+        paymentStatus: formData.paymentStatus,
+        paymentMode: formData.paymentMode,
+        receiptNo: formData.receiptNo,
+        amount: formData.amount,
+        planType: formData.planType,
+        paymentScreenshot: formData.paymentScreenshot,
+        sendSmsReceipt: formData.sendSmsReceipt,
+      };
+      
+      // Log what we're sending (area is optional)
+      console.log('📤 Sending shop data:', {
+        shopName: submitData.shopName,
+        area: submitData.area || '(Optional - not provided)',
+        photoUrl: submitData.photoUrl ? '✅ Present' : '❌ Missing',
+        latitude: submitData.latitude,
+        longitude: submitData.longitude,
       });
       
       const response = await fetch('/api/agent/shops', {
@@ -589,7 +664,7 @@ export default function AddNewShopPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submitData),
       });
 
       console.log('📥 Response status:', response.status);
@@ -617,11 +692,14 @@ export default function AddNewShopPage() {
               errorMessage = `Server error (HTTP ${response.status}): Empty error response`;
             } else {
               // Extract error message from various possible fields
-              const errorMsg = errorData.error || errorData.details || errorData.message;
+              const errorMsg = errorData.details || errorData.error || errorData.message;
               if (errorMsg) {
-                errorMessage = errorMsg;
+                // Make error message more user-friendly
                 if (errorData.field) {
-                  errorMessage += ` (Field: ${errorData.field})`;
+                  const fieldName = errorData.field.charAt(0).toUpperCase() + errorData.field.slice(1);
+                  errorMessage = `${fieldName} field is required. Please fill in the ${fieldName} field and try again.`;
+                } else {
+                  errorMessage = errorMsg;
                 }
               } else {
                 // If no standard error field, show the whole object
@@ -844,6 +922,9 @@ export default function AddNewShopPage() {
                   {isEmailVerified && (
                     <span className="ml-2 text-green-600 text-xs">✓ Verified</span>
                   )}
+                  {isOTPDisabled && (
+                    <span className="ml-2 text-orange-600 text-xs">(OTP Temporarily Disabled)</span>
+                  )}
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -851,16 +932,19 @@ export default function AddNewShopPage() {
                     value={formData.email}
                     onChange={(e) => {
                       setFormData({ ...formData, email: e.target.value });
-                      setIsEmailVerified(false);
-                      setOtpSent(false);
-                      setEmailOTP('');
+                      // Only reset verification if OTP is enabled
+                      if (!isOTPDisabled) {
+                        setIsEmailVerified(false);
+                        setOtpSent(false);
+                        setEmailOTP('');
+                      }
                     }}
                     className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter email address"
-                    disabled={isEmailVerified}
+                    disabled={!isOTPDisabled && isEmailVerified}
                     required
                   />
-                  {!isEmailVerified && (
+                  {!isOTPDisabled && !isEmailVerified && (
                     <button
                       type="button"
                       onClick={handleSendOTP}
@@ -871,7 +955,12 @@ export default function AddNewShopPage() {
                     </button>
                   )}
                 </div>
-                {otpSent && !isEmailVerified && (
+                {isOTPDisabled && (
+                  <p className="mt-2 text-sm text-orange-600">
+                    ⚠️ Email OTP verification is temporarily disabled. You can proceed without verification.
+                  </p>
+                )}
+                {!isOTPDisabled && otpSent && !isEmailVerified && (
                   <div className="mt-3 space-y-2">
                     <div className="flex gap-2">
                       <input
@@ -946,15 +1035,20 @@ export default function AddNewShopPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Area <span className="text-red-500">*</span>
+                  Area <span className="text-gray-500 text-xs">(Optional)</span>
                 </label>
                 <input
                   type="text"
                   value={formData.area}
-                  onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, area: e.target.value });
+                    // Clear error when user starts typing
+                    if (error && error.includes('Area')) {
+                      setError('');
+                    }
+                  }}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter area/locality"
-                  required
+                  placeholder="Enter area/locality (e.g., Kankarbagh, Patna) - Optional"
                 />
               </div>
 
@@ -977,24 +1071,26 @@ export default function AddNewShopPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!formData.shopName || !formData.area || !formData.category || !formData.pincode || !formData.email) {
+                    // Area is optional - removed from required fields
+                    if (!formData.shopName || !formData.category || !formData.pincode || !formData.email) {
                       toast.error('Please fill all required fields before adding SEO');
                       return;
                     }
-                    if (!isEmailVerified) {
+                    // Skip OTP verification if disabled
+                    if (!isOTPDisabled && !isEmailVerified) {
                       toast.error('Please verify your email address before adding SEO');
                       return;
                     }
                     setShowSEOModal(true);
                   }}
-                  disabled={!formData.shopName || !formData.area || !formData.category || !formData.pincode || !formData.email || !isEmailVerified}
+                  disabled={!formData.shopName || !formData.category || !formData.pincode || !formData.email || (!isOTPDisabled && !isEmailVerified)}
                   className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <span>🔍</span>
                   <span>Add SEO</span>
                 </button>
                 <p className="text-xs text-gray-500 mt-1 text-center">
-                  Add SEO entry to improve search visibility (Shop Name, Area, Category, Pincode, Email)
+                  Add SEO entry to improve search visibility (Shop Name, Category, Pincode, Email)
                 </p>
               </div>
 
@@ -1216,6 +1312,49 @@ export default function AddNewShopPage() {
                 <div className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
                   {PRICING_PLANS[formData.planType].name}
                 </div>
+              </div>
+
+              {/* Shop Details Summary */}
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Shop Details Summary</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-600">Shop Name:</span>
+                    <span className="ml-2 font-medium text-gray-900">{formData.shopName || 'Not filled'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Owner:</span>
+                    <span className="ml-2 font-medium text-gray-900">{formData.ownerName || 'Not filled'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Category:</span>
+                    <span className="ml-2 font-medium text-gray-900">{formData.category || 'Not filled'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Pincode:</span>
+                    <span className="ml-2 font-medium text-gray-900">{formData.pincode || 'Not filled'}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-600">Area:</span>
+                    <span className={`ml-2 font-medium ${formData.area?.trim() ? 'text-gray-900' : 'text-gray-500'}`}>
+                      {formData.area?.trim() || '(Optional - Not filled)'}
+                    </span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-600">Address:</span>
+                    <span className={`ml-2 font-medium ${formData.address?.trim() ? 'text-gray-900' : 'text-red-600'}`}>
+                      {formData.address?.trim() || 'Not filled'}
+                    </span>
+                  </div>
+                </div>
+                {!formData.address?.trim() && (
+                  <button
+                    onClick={() => setStep(2)}
+                    className="mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    ← Go back to Step 2 to fill missing fields
+                  </button>
+                )}
               </div>
 
               {/* Location Capture */}

@@ -137,8 +137,49 @@ export default function BusinessDetailPage() {
 
   const estimatedTime = business.distance ? Math.round(business.distance * 1.5) : null;
 
+  // Generate structured data for SEO
+  const structuredData = business ? {
+    '@context': 'https://schema.org',
+    '@type': 'LocalBusiness',
+    name: business.name,
+    image: business.imageUrl,
+    description: business.description || `${business.name} - ${business.category} in ${business.city || ''}`,
+    address: business.address ? {
+      '@type': 'PostalAddress',
+      streetAddress: business.address,
+      addressLocality: business.city || '',
+      addressRegion: business.state || '',
+      addressCountry: 'IN',
+    } : undefined,
+    geo: business.latitude && business.longitude ? {
+      '@type': 'GeoCoordinates',
+      latitude: business.latitude,
+      longitude: business.longitude,
+    } : undefined,
+    telephone: business.phone,
+    email: business.email,
+    url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://yourdomain.com'}/contact/${params.id}`,
+    priceRange: '$$',
+    servesCuisine: business.category,
+    areaServed: {
+      '@type': 'City',
+      name: business.city || 'Patna',
+    },
+    aggregateRating: business.rating ? {
+      '@type': 'AggregateRating',
+      ratingValue: business.rating,
+      reviewCount: business.reviews || 0,
+    } : undefined,
+  } : null;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">
+      {structuredData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
+      )}
       <Navbar />
       
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">

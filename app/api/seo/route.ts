@@ -10,10 +10,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { shopName, area, category, pincode, emailId, ranking, shopId, shopUrl } = body;
 
-    // Validation
-    if (!shopName || !area || !category || !pincode || !emailId) {
+    // Validation - pincode is optional
+    if (!shopName || !area || !category || !emailId) {
       return NextResponse.json(
-        { error: 'Missing required fields', details: 'Shop name, area, category, pincode, and email ID are required' },
+        { error: 'Missing required fields', details: 'Shop name, area, category, and email ID are required' },
         { status: 400 }
       );
     }
@@ -27,12 +27,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate pincode format
-    if (!/^\d{6}$/.test(pincode)) {
-      return NextResponse.json(
-        { error: 'Pincode must be 6 digits' },
-        { status: 400 }
-      );
+    // Normalize and validate pincode format
+    // Extract only digits from pincode
+    let normalizedPincode: string | undefined = undefined;
+    
+    if (pincode && typeof pincode === 'string' && pincode.trim()) {
+      normalizedPincode = pincode.trim().replace(/\D/g, '');
+      
+      // If pincode is provided and not empty after normalization, it should be 6 digits
+      if (normalizedPincode && normalizedPincode.length !== 6) {
+        return NextResponse.json(
+          { error: 'Pincode must be 6 digits if provided' },
+          { status: 400 }
+        );
+      }
+      
+      // If after normalization it's empty, treat as undefined
+      if (!normalizedPincode) {
+        normalizedPincode = undefined;
+      }
     }
 
     // Default ranking to 1 if not provided
@@ -49,7 +62,7 @@ export async function POST(request: NextRequest) {
       shopName: shopName.trim(),
       area: area.trim(),
       category: category.trim(),
-      pincode: pincode.trim(),
+      pincode: normalizedPincode || undefined, // Use normalized pincode or undefined (not empty string)
       emailId: emailId.trim().toLowerCase(),
       ranking: finalRanking,
       shopId: shopId || undefined,
@@ -73,6 +86,28 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error('Create SEO error:', error);
+    
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors || {}).map((err: any) => err.message);
+      return NextResponse.json(
+        { 
+          error: validationErrors[0] || 'Validation error',
+          details: validationErrors.join(', '),
+          validationErrors 
+        },
+        { status: 400 }
+      );
+    }
+    
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      return NextResponse.json(
+        { error: 'SEO entry already exists for this shop' },
+        { status: 409 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }

@@ -95,8 +95,8 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this category?')) return;
+  const handleDelete = async (id: string, categoryName: string) => {
+    if (!confirm(`Are you sure you want to delete "${categoryName}"?\n\nThis action cannot be undone.`)) return;
 
     try {
       const res = await fetch(`/api/admin/categories/${id}`, {
@@ -106,10 +106,18 @@ export default function CategoriesPage() {
 
       const data = await res.json();
       if (data.success) {
-        toast.success('Category deleted');
+        toast.success('Category deleted successfully');
         fetchCategories();
       } else {
-        toast.error(data.error || 'Delete failed');
+        // Show detailed error message if category is in use
+        if (data.shopCount) {
+          toast.error(
+            `Cannot delete category. It is being used by ${data.shopCount} shop(s). Please remove or reassign shops first.`,
+            { duration: 5000 }
+          );
+        } else {
+          toast.error(data.error || 'Delete failed');
+        }
       }
     } catch (error) {
       toast.error('Failed to delete category');
@@ -555,8 +563,9 @@ export default function CategoriesPage() {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(category._id)}
-                        className="text-red-600 hover:text-red-900"
+                        onClick={() => handleDelete(category._id, category.name)}
+                        className="text-red-600 hover:text-red-900 font-medium"
+                        title="Delete category"
                       >
                         Delete
                       </button>

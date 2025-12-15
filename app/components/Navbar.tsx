@@ -371,6 +371,21 @@ export default function Navbar({ hideSearch = false }: NavbarProps) {
 
           {/* Right: CTAs */}
            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
+            {/* Mobile CTAs */}
+            <div className="flex lg:hidden items-center gap-1.5">
+              {/* Shop Directory - Mobile */}
+              <Link
+                href="/shop-directory"
+                className="flex items-center gap-1 px-1.5 py-1 text-[9px] sm:text-[10px] font-semibold text-white bg-indigo-600 rounded-md sm:rounded-lg shadow-md transition-all hover:shadow-lg hover:opacity-90 group"
+                title="Shop Directory"
+              >
+                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <span className="hidden sm:inline font-medium">Shop</span>
+              </Link>
+            </div>
+
             {/* Desktop CTAs */}
             <div className="hidden lg:flex items-center gap-2">
               {/* Shop Directory */}

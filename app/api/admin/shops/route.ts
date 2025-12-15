@@ -4,6 +4,7 @@ import { requireAdmin, authenticateRequest } from '@/lib/auth';
 import Shop from '@/models/Shop'; // Old model (for backward compatibility)
 import NewShop from '@/lib/models/Shop'; // New model for image-based shop creation
 import Category from '@/models/Category'; // Category model
+import SEO from '@/lib/models/SEO'; // SEO model for auto-SEO creation
 import { reverseGeocode, reverseGeocodeGoogle } from '@/lib/extractMeta';
 import { generateShopUrl } from '@/lib/utils/slugGenerator';
 
@@ -153,6 +154,26 @@ export const POST = requireAdmin(async (request: NextRequest) => {
     await tempShop.save();
     
     const shop = tempShop;
+
+    // Auto-create SEO entry for ranking #1
+    try {
+      if (finalArea && finalPincode && categoryName) {
+        await SEO.create({
+          shopName: shop.shopName,
+          area: finalArea,
+          category: categoryName,
+          pincode: finalPincode,
+          emailId: shop.mobile ? `${shop.mobile}@shop.local` : 'contact@8rupiya.com', // Use mobile as email if no email
+          ranking: 1, // Always rank #1 for new shops
+          shopId: shop._id,
+          shopUrl: shopUrl,
+        });
+        console.log(`✅ Auto-created SEO entry for shop: ${shop.shopName} with ranking 1`);
+      }
+    } catch (seoError: any) {
+      // Don't fail shop creation if SEO creation fails
+      console.error('⚠️ Failed to create SEO entry (non-critical):', seoError.message);
+    }
 
     // Convert shop document to plain object for response
     const shopResponse = {

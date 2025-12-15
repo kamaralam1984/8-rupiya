@@ -21,8 +21,66 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KVL Business - Find Local Businesses",
-  description: "Discover and connect with local businesses, shops, and services in your area",
+  title: {
+    default: "8 Rupiya - Find Best Local Shops & Businesses Near You | Patna Business Directory",
+    template: "%s | 8 Rupiya - Local Business Directory",
+  },
+  description: "Find the best local shops, businesses, and services near you in Patna. Search by category, pincode, or area. Contact details, addresses, and directions for thousands of local businesses.",
+  keywords: [
+    "local businesses",
+    "shops near me",
+    "Patna business directory",
+    "find shops",
+    "local services",
+    "business directory",
+    "shop search",
+    "nearby shops",
+    "Patna shops",
+    "local directory",
+  ],
+  authors: [{ name: "8 Rupiya" }],
+  creator: "8 Rupiya",
+  publisher: "8 Rupiya",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://yourdomain.com'),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_IN',
+    url: '/',
+    siteName: '8 Rupiya - Local Business Directory',
+    title: '8 Rupiya - Find Best Local Shops & Businesses Near You',
+    description: 'Find the best local shops, businesses, and services near you in Patna. Search by category, pincode, or area.',
+    images: [
+      {
+        url: '/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: '8 Rupiya - Local Business Directory',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '8 Rupiya - Find Best Local Shops & Businesses Near You',
+    description: 'Find the best local shops, businesses, and services near you in Patna.',
+    images: ['/og-image.jpg'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  verification: {
+    google: process.env.GOOGLE_VERIFICATION_CODE,
+  },
 };
 
 export default function RootLayout({

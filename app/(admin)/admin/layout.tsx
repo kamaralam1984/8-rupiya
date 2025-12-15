@@ -89,9 +89,21 @@ export default function AdminLayout({
             return;
           }
           // Only log unexpected errors, don't show toast
-          const errorData = await res.json().catch(() => ({}));
+          let errorData: any = {};
+          try {
+            const text = await res.text();
+            if (text) {
+              errorData = JSON.parse(text);
+            }
+          } catch (parseError) {
+            console.error('Failed to parse error response:', parseError);
+            errorData = { error: `Server error (${res.status})`, details: 'Unable to parse error response' };
+          }
+          
           console.error('Auth check failed:', res.status, errorData);
-          setError(errorData.error || 'Failed to verify admin access');
+          console.error('Response headers:', Object.fromEntries(res.headers.entries()));
+          
+          setError(errorData.error || errorData.message || `Failed to verify admin access (${res.status})`);
           setIsLoading(false);
           return;
         }

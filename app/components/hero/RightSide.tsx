@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useMemo } from 'react';
 import { sortBannersByDistance, getBannerDistance } from '../../utils/shopDistance';
+import { calculateTravelTime, formatTravelTime } from '../../utils/distance';
 
 interface Banner {
   bannerId: string;
@@ -83,26 +84,46 @@ export default function RightSide({ banners, onBannerClick, height = 'h-[480px]'
                   <h3 className="text-[10px] sm:text-xs font-bold text-white mb-0.5 line-clamp-2 drop-shadow-lg">
                     {banner.advertiser || banner.alt}
                   </h3>
+                  {/* Km, Time, Visitor - Transparent background with colored text */}
+                  {(distance !== null || banner.visitorCount !== undefined) && (() => {
+                    const travelTimeMinutes = distance && distance > 0 ? calculateTravelTime(distance) : 0;
+                    const travelTimeText = travelTimeMinutes > 0 ? formatTravelTime(travelTimeMinutes) : '';
+                    return (
+                      <div className="flex flex-wrap items-center gap-1 mb-1">
+                        {/* Distance - Red */}
+                        {distance !== null && distance > 0 && (
+                          <>
+                            <span className="text-[7px] sm:text-[9px] font-semibold text-red-400 drop-shadow-lg">
+                              {distance.toFixed(1)}km
+                            </span>
+                            {(travelTimeText || banner.visitorCount !== undefined) && (
+                              <span className="text-[7px] sm:text-[9px] text-white/60">|</span>
+                            )}
+                          </>
+                        )}
+                        {/* Time - Yellow */}
+                        {travelTimeText && (
+                          <>
+                            <span className="text-[7px] sm:text-[9px] font-semibold text-yellow-400 drop-shadow-lg">
+                              {travelTimeText}
+                            </span>
+                            {banner.visitorCount !== undefined && (
+                              <span className="text-[7px] sm:text-[9px] text-white/60">|</span>
+                            )}
+                          </>
+                        )}
+                        {/* Visitor - Blue */}
+                        {banner.visitorCount !== undefined && (
+                          <span className="text-[7px] sm:text-[9px] font-semibold text-blue-400 drop-shadow-lg">
+                            {banner.visitorCount || 0}visitor
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {(banner.area || banner.city) && (
                     <p className="text-[8px] sm:text-[10px] text-white/90 mb-1 line-clamp-1 drop-shadow">
                       📍 {banner.area || banner.city}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                    {(distance !== null || banner.distance !== undefined) && (
-                      <p className="text-[8px] sm:text-[10px] text-blue-300 font-semibold drop-shadow">
-                        {((distance ?? banner.distance) || 0).toFixed(1)} km
-                      </p>
-                    )}
-                    {banner.visitorCount !== undefined && (
-                      <p className="text-[8px] sm:text-[10px] text-white/80 font-semibold drop-shadow">
-                        👁️ {banner.visitorCount || 0}
-                      </p>
-                    )}
-                  </div>
-                  {(distance !== null || banner.distance !== undefined) && (
-                    <p className="text-[7px] sm:text-[9px] text-amber-300 font-semibold drop-shadow">
-                      ⏱️ {Math.round(((distance ?? banner.distance) || 0) * 1.5)} min
                     </p>
                   )}
                   {banner.website && (
@@ -112,27 +133,6 @@ export default function RightSide({ banners, onBannerClick, height = 'h-[480px]'
                   )}
                 </div>
               </a>
-              {/* Distance and Call Button Overlay */}
-              {(distance !== null || banner.isBusiness) && (
-                <>
-                  {/* Mobile: Distance, Time, Visitor - Simple text format */}
-                  {(distance !== null || banner.distance || banner.visitorCount !== undefined) && (
-                    <div className="absolute bottom-1 left-1 right-1 sm:hidden z-10">
-                      <div className="text-blue-700 text-[8px] font-bold text-center bg-white/90 px-1 py-0.5 rounded">
-                        {((distance ?? banner.distance) || 0).toFixed(1).padStart(4, '0')}km / {Math.round(((distance ?? banner.distance) || 0) * 1.5).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
-                      </div>
-                    </div>
-                  )}
-                  {/* Desktop: Distance, Time, Visitor - Simple text format (always visible) */}
-                  {(distance !== null || banner.distance || banner.visitorCount !== undefined) && (
-                    <div className="hidden sm:block absolute bottom-1 left-1 right-1 z-10">
-                      <div className="text-blue-700 text-xs font-bold text-center bg-white/90 px-2 py-1 rounded">
-                        {((distance ?? banner.distance) || 0).toFixed(1).padStart(4, '0')}km / {Math.round(((distance ?? banner.distance) || 0) * 1.5).toString().padStart(2, '0')}min / {(banner.visitorCount || 0).toString().padStart(2, '0')}visitor
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
             </div>
           ) : null;
         })}

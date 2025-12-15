@@ -506,39 +506,6 @@ export default function CategoryGrid() {
                           <CategoryIcon categorySlug={category.slug} className="w-16 h-16 md:w-20 md:h-20" />
                         </div>
                       )}
-                      {/* Distance, Time, and Visitor Count Badge */}
-                      {(category.distance !== undefined || category.visitorCount !== undefined) && (
-                        <div className="absolute -top-1 -right-1 z-10">
-                          <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[8px] font-bold shadow-lg flex flex-col items-center gap-0.5">
-                            {category.distance !== undefined && category.distance > 0 && (
-                              <>
-                                <div className="flex items-center gap-0.5">
-                                  <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  </svg>
-                                  <span>{category.distance.toFixed(1)}km</span>
-                                </div>
-                                <div className="flex items-center gap-0.5">
-                                  <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  <span>{Math.round(category.distance * 1.5)}min</span>
-                                </div>
-                              </>
-                            )}
-                            {category.visitorCount !== undefined && (
-                              <div className="flex items-center gap-0.5">
-                                <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                <span>{category.visitorCount || 0}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
                       {category.sponsored && (
                         <span className="absolute -top-1 -left-1 bg-yellow-400 text-yellow-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
                           Ad
@@ -609,39 +576,6 @@ export default function CategoryGrid() {
                       ) : (
                         <div className="w-full h-full rounded-full bg-white border-2 border-gray-100 shadow-sm flex items-center justify-center overflow-hidden">
                           <CategoryIcon categorySlug={category.slug} className="w-16 h-16" />
-                        </div>
-                      )}
-                      {/* Distance, Time, and Visitor Count Badge */}
-                      {(category.distance !== undefined || category.visitorCount !== undefined) && (
-                        <div className="absolute -top-1 -right-1 z-10">
-                          <div className="bg-blue-600 text-white px-1 py-0.5 rounded text-[7px] font-bold shadow-lg flex flex-col items-center gap-0.5">
-                            {category.distance !== undefined && category.distance > 0 && (
-                              <>
-                                <div className="flex items-center gap-0.5">
-                                  <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  </svg>
-                                  <span>{category.distance.toFixed(1)}km</span>
-                                </div>
-                                <div className="flex items-center gap-0.5">
-                                  <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  <span>{Math.round(category.distance * 1.5)}min</span>
-                                </div>
-                              </>
-                            )}
-                            {category.visitorCount !== undefined && (
-                              <div className="flex items-center gap-0.5">
-                                <svg className="w-1.5 h-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                </svg>
-                                <span>{category.visitorCount || 0}</span>
-                              </div>
-                            )}
-                          </div>
                         </div>
                       )}
                       {category.sponsored && (

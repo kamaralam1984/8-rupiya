@@ -51,6 +51,7 @@ export default function ShopDirectoryPage() {
   // Bulk operations
   const [selectedShops, setSelectedShops] = useState<Set<string>>(new Set());
   const [updatingVisibility, setUpdatingVisibility] = useState(false);
+  const [updatingVisitors, setUpdatingVisitors] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -216,6 +217,37 @@ export default function ShopDirectoryPage() {
     }
   };
 
+  const bulkUpdateVisitors = async () => {
+    if (!confirm('Are you sure you want to update all shops\' visitor counts to random values (200-999)? This will affect all shops in the database.')) {
+      return;
+    }
+
+    try {
+      setUpdatingVisitors(true);
+      const response = await fetch('/api/admin/shops/bulk-update-visitors', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(`Updated visitor counts for ${data.totalUpdated} shops`);
+        // Refresh shops to show updated visitor counts
+        await fetchShops();
+      } else {
+        toast.error(data.error || 'Failed to update visitor counts');
+      }
+    } catch (error) {
+      console.error('Error bulk updating visitors:', error);
+      toast.error('Error updating visitor counts');
+    } finally {
+      setUpdatingVisitors(false);
+    }
+  };
+
   const toggleShopSelection = (shopId: string) => {
     const newSelected = new Set(selectedShops);
     if (newSelected.has(shopId)) {
@@ -265,7 +297,7 @@ export default function ShopDirectoryPage() {
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Shop Directory</h1>
               <p className="text-gray-600 mt-1">Search, filter, and control shop visibility</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
                 className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
@@ -277,6 +309,13 @@ export default function ShopDirectoryPage() {
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
               >
                 🔄 Refresh
+              </button>
+              <button
+                onClick={bulkUpdateVisitors}
+                disabled={updatingVisitors}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white rounded-lg transition-colors"
+              >
+                {updatingVisitors ? '⏳ Updating...' : '📊 Update All Visitors (200+)'}
               </button>
             </div>
           </div>

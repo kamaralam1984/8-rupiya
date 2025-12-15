@@ -36,9 +36,19 @@ export default function ShopCard({
   // Track visit when shop card is viewed
   useEffect(() => {
     if (id) {
-      fetch(`/api/shops/${id}/visit`, { method: 'POST' }).catch(() => {
-        // Silently fail if tracking doesn't work
-      });
+      fetch(`/api/shops/${id}/visit`, { method: 'POST' })
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .catch(error => {
+          // Silently fail if tracking doesn't work - this is expected in some cases
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Visit tracking failed (non-critical):', error.message);
+          }
+        });
     }
   }, [id]);
 
@@ -79,39 +89,37 @@ export default function ShopCard({
       <div className="p-4 sm:p-5">
         <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-green-600 transition-colors">{name}</h3>
         
-        {/* Visitor Count, Distance, and Travel Time */}
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          {/* Visitor Count */}
-          {visitorCount !== undefined && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1 rounded-full">
-              <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              <span className="font-semibold text-gray-700">{visitorCount || 0}</span>
-              <span className="text-gray-500">visitors</span>
-            </div>
-          )}
-          
-          {/* Distance */}
+        {/* Km, Time, Visitor - Transparent background with colored text */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          {/* Distance - Red */}
           {distance > 0 && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1 rounded-full">
-              <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="font-semibold text-gray-700">{distance.toFixed(1)} km</span>
-            </div>
+            <span className="text-xs font-semibold text-red-600">
+              {distance.toFixed(1)}km
+            </span>
           )}
           
-          {/* Travel Time */}
+          {/* Separator */}
+          {distance > 0 && (travelTimeText || visitorCount !== undefined) && (
+            <span className="text-xs text-gray-400">|</span>
+          )}
+          
+          {/* Time - Yellow */}
           {travelTimeText && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1 rounded-full">
-              <svg className="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="font-semibold text-gray-700">{travelTimeText}</span>
-            </div>
+            <span className="text-xs font-semibold text-yellow-600">
+              {travelTimeText}
+            </span>
+          )}
+          
+          {/* Separator */}
+          {travelTimeText && visitorCount !== undefined && (
+            <span className="text-xs text-gray-400">|</span>
+          )}
+          
+          {/* Visitor - Blue */}
+          {visitorCount !== undefined && (
+            <span className="text-xs font-semibold text-blue-600">
+              {visitorCount || 0}visitor
+            </span>
           )}
         </div>
 

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { useLocation } from '../../contexts/LocationContext';
-import { calculateDistance } from '../../utils/distance';
+import { calculateDistance, calculateTravelTime, formatTravelTime } from '../../utils/distance';
 
 interface Shop {
   _id?: string;
@@ -67,29 +67,31 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
     fetchCategories();
   }, []);
 
-  // Fetch shops based on filter
-  useEffect(() => {
-    const fetchShops = async () => {
-      setLoading(true);
-      try {
-        let url = '/api/shops/nearby?useMongoDB=true&limit=20';
-        
-        if (location.latitude && location.longitude) {
-          url += `&userLat=${location.latitude}&userLng=${location.longitude}&radiusKm=1000`;
-        } else if (location.city) {
-          url += `&city=${encodeURIComponent(location.city)}`;
-        }
+  // Debounce search query to reduce API calls
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Fetch shops based on filter with debouncing for search
+  const fetchShops = useCallback(async () => {
+    setLoading(true);
+    try {
+      let url = '/api/shops/nearby?useMongoDB=true&limit=20';
+      
+      if (location.latitude && location.longitude) {
+        url += `&userLat=${location.latitude}&userLng=${location.longitude}&radiusKm=1000`;
+      } else if (location.city) {
+        url += `&city=${encodeURIComponent(location.city)}`;
+      }
 
-        if (filterBy === 'category' && selectedCategory) {
-          url += `&category=${encodeURIComponent(selectedCategory)}`;
-        } else if (filterBy === 'pincode' && pincode.trim()) {
-          url += `&pincode=${encodeURIComponent(pincode.trim())}`;
-        } else if (filterBy === 'search' && searchQuery.trim()) {
-          url += `&shopName=${encodeURIComponent(searchQuery.trim())}`;
-        }
+      if (filterBy === 'category' && selectedCategory) {
+        url += `&category=${encodeURIComponent(selectedCategory)}`;
+      } else if (filterBy === 'pincode' && pincode.trim()) {
+        url += `&pincode=${encodeURIComponent(pincode.trim())}`;
+      } else if (filterBy === 'search' && searchQuery.trim()) {
+        url += `&shopName=${encodeURIComponent(searchQuery.trim())}`;
+      }
 
-        const res = await fetch(url);
-        const data = await res.json();
+      const res = await fetch(url);
+      const data = await res.json();
         
         if (data.success && data.shops) {
           // Calculate distances and sort
@@ -150,10 +152,32 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
       } finally {
         setLoading(false);
       }
-    };
+    }, [filterBy, selectedCategory, pincode, searchQuery, location.latitude, location.longitude, location.city]);
 
-    fetchShops();
-  }, [filterBy, selectedCategory, pincode, searchQuery, location.latitude, location.longitude, location.city]);
+  // Use debouncing for search query, immediate for others
+  useEffect(() => {
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // For search query, debounce by 500ms
+    if (filterBy === 'search' && searchQuery.trim()) {
+      debounceTimerRef.current = setTimeout(() => {
+        fetchShops();
+      }, 500);
+    } else {
+      // For category and pincode, fetch immediately
+      fetchShops();
+    }
+
+    // Cleanup
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [filterBy, selectedCategory, pincode, searchQuery, location.latitude, location.longitude, location.city, fetchShops]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -299,23 +323,52 @@ export default function SearchPanel({ onShopClick }: SearchPanelProps) {
                 <div className="flex-1 min-w-0">
                   <h4 className="font-semibold text-gray-900 truncate">{shop.shopName || shop.name || 'Shop'}</h4>
                   <p className="text-sm text-gray-600 truncate">{shop.ownerName || ''}</p>
-                  <div className="flex items-center gap-3 mt-1">
-                    {shop.distance !== undefined && (
-                      <span className="text-xs text-blue-600 font-medium">
-                        {(shop.distance || 0).toFixed(1)} km
-                      </span>
-                    )}
-                    {shop.planType && (
+                  {/* Km, Time, Visitor - Transparent background with colored text */}
+                  {(shop.distance !== undefined || shop.visitorCount !== undefined) && (() => {
+                    const travelTimeMinutes = shop.distance && shop.distance > 0 ? calculateTravelTime(shop.distance) : 0;
+                    const travelTimeText = travelTimeMinutes > 0 ? formatTravelTime(travelTimeMinutes) : '';
+                    return (
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        {/* Distance - Red */}
+                        {shop.distance !== undefined && shop.distance > 0 && (
+                          <>
+                            <span className="text-xs font-semibold text-red-600">
+                              {(shop.distance || 0).toFixed(1)}km
+                            </span>
+                            {(travelTimeText || shop.visitorCount !== undefined) && (
+                              <span className="text-xs text-gray-400">|</span>
+                            )}
+                          </>
+                        )}
+                        
+                        {/* Time - Yellow */}
+                        {travelTimeText && (
+                          <>
+                            <span className="text-xs font-semibold text-yellow-600">
+                              {travelTimeText}
+                            </span>
+                            {shop.visitorCount !== undefined && (
+                              <span className="text-xs text-gray-400">|</span>
+                            )}
+                          </>
+                        )}
+                        
+                        {/* Visitor - Blue */}
+                        {shop.visitorCount !== undefined && (
+                          <span className="text-xs font-semibold text-blue-600">
+                            {shop.visitorCount || 0}visitor
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  {shop.planType && (
+                    <div className="mt-1">
                       <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
                         {shop.planType}
                       </span>
-                    )}
-                    {shop.visitorCount !== undefined && (
-                      <span className="text-xs text-gray-500">
-                        👁️ {shop.visitorCount}
-                      </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   {(shop.area || shop.city) && (
                     <p className="text-xs text-gray-500 mt-1 truncate">
                       📍 {shop.area || shop.city}

@@ -47,6 +47,7 @@ interface ShopWithDistance {
  * Returns shops sorted by distance, filtered by radius
  */
 export const dynamic = 'force-dynamic';
+export const revalidate = 60; // Revalidate every 60 seconds
 
 export async function GET(request: NextRequest) {
   try {
@@ -240,10 +241,27 @@ export async function GET(request: NextRequest) {
           $and: [paymentFilter, visibilityFilter]
         };
         
-        // सिर्फ AgentShop से fetch करें
+        // सिर्फ AgentShop से fetch करें - Only select needed fields for performance
+        const projection = {
+          _id: 1,
+          shopName: 1,
+          category: 1,
+          photoUrl: 1,
+          city: 1,
+          area: 1,
+          pincode: 1,
+          address: 1,
+          mobile: 1,
+          latitude: 1,
+          longitude: 1,
+          visitorCount: 1,
+          planType: 1,
+          ownerName: 1,
+        };
+        
         const agentShops = await (Object.keys(finalQuery).length > 0 
-          ? AgentShop.find(finalQuery).lean() 
-          : (limitCount ? AgentShop.find(baseFilter).limit(limitCount).lean() : AgentShop.find(baseFilter).lean())
+          ? AgentShop.find(finalQuery).select(projection).lean() 
+          : (limitCount ? AgentShop.find(baseFilter).select(projection).limit(limitCount).lean() : AgentShop.find(baseFilter).select(projection).limit(100).lean())
         ).catch(() => []);
         
         console.log(`📍 Fetching shops from AgentShop only: ${agentShops.length} shops found`);
@@ -415,7 +433,12 @@ export async function GET(request: NextRequest) {
           pincode: pincode || null,
         } : null,
       },
-      { status: 200 }
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+        },
+      }
     );
   } catch (error: any) {
     console.error('Error in /api/shops/nearby:', error);

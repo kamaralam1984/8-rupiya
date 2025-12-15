@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
       website: shop.website || '',
       area: shop.area || '',
       city: shop.city || '',
+      visitorCount: shop.visitorCount || 0, // Include visitor count
       distance: 0, // Will be calculated on frontend if location available
     }));
 

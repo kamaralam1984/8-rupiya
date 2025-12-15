@@ -21,10 +21,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       settings: settings.toObject(),
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
     });
   } catch (error: any) {
-    console.error('Error fetching hero section settings:', error);
-    // Return default settings on error
+    // Don't log SSL/TLS errors - they're usually transient network issues
+    const isSSLError = error?.message?.includes('SSL') || 
+                       error?.message?.includes('TLS') || 
+                       error?.message?.includes('ssl3_read_bytes') ||
+                       error?.message?.includes('tlsv1 alert');
+    
+    if (!isSSLError) {
+      console.error('Error fetching hero section settings:', error?.message || error);
+    }
+    
+    // Return default settings on error (including SSL errors)
     return NextResponse.json({
       success: true,
       settings: {

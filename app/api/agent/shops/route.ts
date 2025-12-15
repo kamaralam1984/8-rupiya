@@ -4,6 +4,7 @@ import AgentShop from '@/lib/models/AgentShop';
 import Agent from '@/lib/models/Agent';
 import AdminShop from '@/lib/models/Shop'; // Admin shop model
 import Category from '@/models/Category'; // Category model
+import SEO from '@/lib/models/SEO'; // SEO model for auto-SEO creation
 import { verifyAgentToken, getAgentTokenFromRequest } from '@/lib/utils/agentAuth';
 import { calculateAgentCommission, PRICING_PLANS, PlanType } from '@/app/utils/pricing';
 import { generateShopUrl } from '@/lib/utils/slugGenerator';
@@ -119,6 +120,10 @@ export async function POST(request: NextRequest) {
       console.log('📦 Plan type:', body.planType);
       console.log('📦 Photo URL:', body.photoUrl ? '✅ Present' : '❌ Missing');
       console.log('📦 Location:', body.latitude, body.longitude);
+      console.log('📦 Area value:', body.area);
+      console.log('📦 Area type:', typeof body.area);
+      console.log('📦 Area length:', body.area?.length);
+      console.log('📦 Area trimmed:', body.area?.trim());
     } catch (jsonError: any) {
       console.error('JSON parse error:', jsonError);
       return NextResponse.json(
@@ -133,7 +138,7 @@ export async function POST(request: NextRequest) {
       email,
       category,
       pincode,
-      area,
+      area, // CRITICAL: Area field must be present
       address,
       photoUrl,
       additionalPhotos, // Additional photos (optional, max 9)
@@ -148,21 +153,67 @@ export async function POST(request: NextRequest) {
       sendSmsReceipt,
     } = body;
 
-    // Validation
-    if (!shopName || !ownerName || !mobile || !email || !category || !pincode || !area || !address || !photoUrl) {
-      console.error('❌ Missing required fields:', {
-        shopName: !!shopName,
-        ownerName: !!ownerName,
-        mobile: !!mobile,
-        email: !!email,
-        category: !!category,
-        pincode: !!pincode,
-        area: !!area,
-        address: !!address,
-        photoUrl: !!photoUrl,
-      });
+    // Area is optional - no need for extensive logging
+
+    // Validation - trim and check for empty strings
+    // Area is now optional - no validation required
+    const trimmedShopName = (shopName || '').trim();
+    const trimmedOwnerName = (ownerName || '').trim();
+    const trimmedMobile = (mobile || '').trim();
+    const trimmedEmail = (email || '').trim();
+    const trimmedCategory = (category || '').trim();
+    const trimmedPincode = (pincode || '').trim();
+    const trimmedArea = area ? String(area).trim() : ''; // Area is optional - trim if present
+    const trimmedAddress = (address || '').trim();
+    const trimmedPhotoUrl = (photoUrl || '').trim();
+
+    // Check each required field individually for better error messages
+    if (!trimmedShopName) {
       return NextResponse.json(
-        { error: 'Missing required fields', details: 'Please fill all required fields' },
+        { error: 'Validation error', details: 'Shop name is required', field: 'shopName' },
+        { status: 400 }
+      );
+    }
+    if (!trimmedOwnerName) {
+      return NextResponse.json(
+        { error: 'Validation error', details: 'Owner name is required', field: 'ownerName' },
+        { status: 400 }
+      );
+    }
+    if (!trimmedMobile) {
+      return NextResponse.json(
+        { error: 'Validation error', details: 'Mobile number is required', field: 'mobile' },
+        { status: 400 }
+      );
+    }
+    if (!trimmedEmail) {
+      return NextResponse.json(
+        { error: 'Validation error', details: 'Email is required', field: 'email' },
+        { status: 400 }
+      );
+    }
+    if (!trimmedCategory) {
+      return NextResponse.json(
+        { error: 'Validation error', details: 'Category is required', field: 'category' },
+        { status: 400 }
+      );
+    }
+    if (!trimmedPincode) {
+      return NextResponse.json(
+        { error: 'Validation error', details: 'Pincode is required', field: 'pincode' },
+        { status: 400 }
+      );
+    }
+    // Area is optional - no validation needed
+    if (!trimmedAddress) {
+      return NextResponse.json(
+        { error: 'Validation error', details: 'Address is required', field: 'address' },
+        { status: 400 }
+      );
+    }
+    if (!trimmedPhotoUrl) {
+      return NextResponse.json(
+        { error: 'Validation error', details: 'Photo URL is required', field: 'photoUrl' },
         { status: 400 }
       );
     }
@@ -210,7 +261,7 @@ export async function POST(request: NextRequest) {
 
     // Link category to Category model if it exists
     let categoryRef = null;
-    const categoryName = category.trim();
+    const categoryName = trimmedCategory;
     
     // Try to find category by name or slug
     const foundCategory = await Category.findOne({
@@ -241,7 +292,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Photo validation: BASIC plan mein sirf 1 photo allowed
-    if (planFeatures.maxPhotos === 1 && !photoUrl) {
+    if (planFeatures.maxPhotos === 1 && !trimmedPhotoUrl) {
       return NextResponse.json(
         { error: 'Photo is required for this plan' },
         { status: 400 }
@@ -257,14 +308,15 @@ export async function POST(request: NextRequest) {
       console.log('📝 Creating AgentShop document...');
       // First create with temp URL, then update with actual URL based on shop ID
       const tempShop = await AgentShop.create({
-        shopName: shopName.trim(),
-        ownerName: ownerName.trim(),
-        mobile: mobile.trim(),
-        email: email?.trim() || undefined,
+        shopName: trimmedShopName,
+        ownerName: trimmedOwnerName,
+        mobile: trimmedMobile,
+        email: trimmedEmail || undefined,
         category: categoryName, // Keep category name for backward compatibility
-        pincode: pincode.trim(),
-        address: address.trim(),
-        photoUrl: photoUrl.trim(),
+        pincode: trimmedPincode,
+        area: trimmedArea || undefined, // Area is optional - use undefined if empty
+        address: trimmedAddress,
+        photoUrl: trimmedPhotoUrl,
         shopUrl: 'temp', // Temporary value, will be updated
         latitude: Number(latitude),
         longitude: Number(longitude),
@@ -330,10 +382,10 @@ export async function POST(request: NextRequest) {
       // Get agent info for admin shop creation
       const agent = await Agent.findById(payload.agentId);
       
-      // Use provided area or extract from address if not provided
-      const addressParts = address.split(',');
-      const extractedArea = area || addressParts[0]?.trim() || '';
-      const extractedCity = addressParts[addressParts.length - 1]?.trim() || '';
+      // Area is optional - use provided area or extract from address if not provided
+      const addressParts = trimmedAddress.split(',');
+      const extractedArea = trimmedArea || addressParts[0]?.trim() || undefined; // Optional - can be undefined
+      const extractedCity = addressParts[addressParts.length - 1]?.trim() || undefined;
       // Try to extract district from address (usually second last part)
       const extractedDistrict = addressParts.length > 2 ? addressParts[addressParts.length - 2]?.trim() : undefined;
       
@@ -346,21 +398,21 @@ export async function POST(request: NextRequest) {
       // Prepare admin shop data with ALL details - exactly like admin panel me show hota hai
       // Use the same shop URL for consistency
       const adminShopData: any = {
-        shopName: shopName.trim(),
-        ownerName: ownerName.trim(),
+        shopName: trimmedShopName,
+        ownerName: trimmedOwnerName,
         category: categoryName, // Use category name
         categoryRef: categoryRef || undefined, // Link to Category model
-        mobile: mobile?.trim() || undefined,
-        email: email?.trim() || undefined, // Email ID for SEO and contact
+        mobile: trimmedMobile || undefined,
+        email: trimmedEmail || undefined, // Email ID for SEO and contact
         area: extractedArea || undefined,
-        fullAddress: address.trim(),
+        fullAddress: trimmedAddress,
         city: extractedCity || undefined,
-        pincode: pincode?.trim() || undefined,
+        pincode: trimmedPincode || undefined,
         district: extractedDistrict || undefined, // District for revenue tracking
         latitude: Number(latitude),
         longitude: Number(longitude),
-        photoUrl: photoUrl.trim(),
-        iconUrl: photoUrl.trim(), // Same as photoUrl
+        photoUrl: trimmedPhotoUrl,
+        iconUrl: trimmedPhotoUrl, // Same as photoUrl
         shopUrl: shop.shopUrl, // Use the same shop URL generated for AgentShop
         // Agent information - kaun agent ne shop add kiya
         createdByAgent: agent ? new mongoose.Types.ObjectId(payload.agentId) : undefined,
@@ -398,7 +450,7 @@ export async function POST(request: NextRequest) {
           : [],
         shopLogo: planFeatures.hasLogo ? undefined : undefined, // Logo upload later
         offers: planFeatures.hasOffers ? [] : [], // Offers section ke liye empty array
-        whatsappNumber: planFeatures.hasWhatsApp ? mobile?.trim() : undefined, // WhatsApp number set karo agar plan allow karta hai
+        whatsappNumber: planFeatures.hasWhatsApp ? trimmedMobile : undefined, // WhatsApp number set karo agar plan allow karta hai
         createdAt: new Date(), // Explicit creation date
       };
       
@@ -443,6 +495,29 @@ export async function POST(request: NextRequest) {
     } catch (agentError: any) {
       console.error('Error updating agent stats:', agentError);
       // Don't fail the shop creation if agent update fails
+    }
+
+    // Auto-create SEO entry for ranking #1 (Area is optional)
+    try {
+      const addressParts = trimmedAddress.split(',');
+      const extractedArea = trimmedArea || addressParts[0]?.trim() || undefined; // Area is optional
+      // Create SEO entry even if area is not provided
+      if (trimmedPincode && categoryName) {
+        await SEO.create({
+          shopName: shop.shopName,
+          area: extractedArea || shop.shopName, // Use shop name as fallback if area not provided
+          category: categoryName,
+          pincode: trimmedPincode,
+          emailId: trimmedEmail || trimmedMobile ? `${trimmedMobile}@shop.local` : 'contact@8rupiya.com',
+          ranking: 1, // Always rank #1 for new shops
+          shopId: shop._id,
+          shopUrl: shop.shopUrl,
+        });
+        console.log(`✅ Auto-created SEO entry for shop: ${shop.shopName} with ranking 1`);
+      }
+    } catch (seoError: any) {
+      // Don't fail shop creation if SEO creation fails
+      console.error('⚠️ Failed to create SEO entry (non-critical):', seoError.message);
     }
 
     console.log(`🎉 Shop creation complete! Returning success response for shop: ${shop._id}`);

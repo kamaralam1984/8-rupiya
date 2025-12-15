@@ -331,9 +331,19 @@ export async function GET(request: NextRequest) {
     // Build query
     const query: any = { isActive: true };
     if (section) query.section = section;
-    if (loc) query.locationId = loc;
-    if (area) query.area = area;
-    if (pincode) query.pincode = parseInt(pincode);
+    // Only add locationId if loc exists and is not 'undefined' (string)
+    if (loc && loc !== 'undefined' && loc.trim() !== '') {
+      query.locationId = loc;
+    }
+    if (area && area !== 'undefined' && area.trim() !== '') {
+      query.area = area;
+    }
+    if (pincode) {
+      const pincodeNum = parseInt(pincode);
+      if (!isNaN(pincodeNum)) {
+        query.pincode = pincodeNum;
+      }
+    }
 
     // Fetch from database
     let dbBanners = await Banner.find(query)
@@ -342,7 +352,12 @@ export async function GET(request: NextRequest) {
       .lean();
 
     // If no banners found in DB, use mock data as fallback
-    if (dbBanners.length === 0 && !section && !loc && !area && !pincode) {
+    // Only use mock data if no specific filters were applied
+    const hasFilters = (loc && loc !== 'undefined' && loc.trim() !== '') || 
+                       (area && area !== 'undefined' && area.trim() !== '') || 
+                       (pincode && !isNaN(parseInt(pincode)));
+    
+    if (dbBanners.length === 0 && !hasFilters) {
       let banners = mockBanners;
       if (section) {
         banners = banners.filter((b) => b.section === section);
