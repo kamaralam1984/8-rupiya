@@ -42,7 +42,10 @@ export default function FeaturedBusinesses() {
           url += `&shopName=${encodeURIComponent(searchParams.shopName)}`;
         }
         
-        const res = await fetch(url);
+        // Add cache-busting and disable browser caching for fresh visitor counts
+        const res = await fetch(`${url}&_t=${Date.now()}`, {
+          cache: 'no-store',
+        });
         const data = await safeJsonParse<{ success?: boolean; shops?: any[] }>(res);
         
         if (data?.success && data?.shops) {

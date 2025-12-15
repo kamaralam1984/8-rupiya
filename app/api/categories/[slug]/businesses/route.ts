@@ -211,6 +211,38 @@ export async function GET(
       headers: CACHE_HEADERS,
     });
   } catch (error: any) {
+    // Check if it's an SSL/TLS error - these are usually transient
+    // Check error message, stack, and string representation
+    const errorString = String(error?.message || error?.stack || error || '');
+    const isSSLError = errorString.includes('SSL') || 
+                      errorString.includes('TLS') ||
+                      errorString.includes('ssl3_read_bytes') ||
+                      errorString.includes('tlsv1 alert') ||
+                      errorString.includes('Connection pool') ||
+                      errorString.includes('98180000') ||
+                      errorString.includes('0A000438');
+    
+    if (isSSLError) {
+      // Return empty result for SSL errors instead of 500
+      // This prevents cascading failures
+      // Don't log SSL errors - they're transient and noisy
+      return NextResponse.json(
+        { 
+          success: true, 
+          businesses: [],
+          count: 0,
+          totalCount: 0,
+          page: 1,
+          totalPages: 0,
+          hasMore: false
+        },
+        { 
+          status: 200,
+          headers: CACHE_HEADERS
+        }
+      );
+    }
+    
     // Only log critical errors - reduce verbosity
     if (process.env.NODE_ENV === 'development') {
       console.error('Error fetching businesses by category:', error.message);

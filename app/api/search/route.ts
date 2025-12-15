@@ -522,8 +522,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Add caching headers for better performance (60s cache, 2min stale-while-revalidate)
-    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    // No caching - always fetch fresh visitor counts
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     
     return response;
   } catch (error: any) {

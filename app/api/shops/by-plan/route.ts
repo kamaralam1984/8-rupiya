@@ -3,9 +3,9 @@ import connectDB from '@/lib/mongodb';
 import AdminShop from '@/lib/models/Shop';
 import AgentShop from '@/lib/models/AgentShop';
 
-// Cache-Control headers - cache for 2 minutes
+// Cache-Control headers - no caching for visitor counts
 const CACHE_HEADERS = {
-  'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=240',
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
 };
 
 /**

@@ -89,7 +89,8 @@ const categoryImageMap: Record<string, string> = {
 };
 
 const getCategoryImageUrl = (categorySlug: string, fallbackIconUrl?: string): string | undefined => {
-  return categoryImageMap[categorySlug] || fallbackIconUrl;
+  // Prioritize database imageUrl over hardcoded map
+  return fallbackIconUrl || categoryImageMap[categorySlug];
 };
 
 const CategoryIcon = ({ categorySlug, className }: { categorySlug: string; className?: string }) => {

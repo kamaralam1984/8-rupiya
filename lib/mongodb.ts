@@ -24,6 +24,11 @@ if (!global.mongoose) {
 }
 
 async function connectDB(): Promise<typeof mongoose> {
+  // Increase MaxListeners to prevent warnings
+  if (mongoose.connection.setMaxListeners) {
+    mongoose.connection.setMaxListeners(20);
+  }
+  
   // Check if connection is ready and connected
   if (cached.conn) {
     // Check connection state
@@ -44,10 +49,10 @@ async function connectDB(): Promise<typeof mongoose> {
     
     const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
-      serverSelectionTimeoutMS: 15000, // Increased to 15 seconds timeout
-      socketTimeoutMS: 45000, // 45 seconds socket timeout
+      serverSelectionTimeoutMS: 20000, // Increased to 20 seconds timeout
+      socketTimeoutMS: 60000, // 60 seconds socket timeout
       maxPoolSize: 10, // Maintain up to 10 socket connections
-      minPoolSize: 1, // Maintain at least 1 socket connection
+      minPoolSize: 2, // Maintain at least 2 socket connections for better reliability
       maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
       heartbeatFrequencyMS: 10000, // Check connection health every 10 seconds
       // SSL/TLS options are handled by MongoDB URI connection string automatically
@@ -57,7 +62,7 @@ async function connectDB(): Promise<typeof mongoose> {
       retryWrites: true,
       retryReads: true,
       // Connection retry options
-      connectTimeoutMS: 15000, // 15 seconds to establish connection
+      connectTimeoutMS: 20000, // 20 seconds to establish connection
     };
 
     // Add retry logic for SSL/TLS connection errors
@@ -82,11 +87,26 @@ async function connectDB(): Promise<typeof mongoose> {
     cached.promise = connectWithRetry().then(async (mongooseInstance) => {
       // Silent connection success - only log errors
       
-      // Handle connection events
-      mongoose.connection.on('error', (err) => {
+      // Remove existing listeners to prevent duplicates
+      mongoose.connection.removeAllListeners('error');
+      mongoose.connection.removeAllListeners('disconnected');
+      mongoose.connection.removeAllListeners('reconnected');
+      
+      // Handle connection events (only add once)
+      mongoose.connection.once('error', (err) => {
         // Don't log SSL/TLS errors repeatedly - they're usually transient
-        if (err.message && err.message.includes('SSL') || err.message.includes('TLS')) {
+        const errorString = String(err?.message || err?.stack || err || '');
+        const isSSLError = errorString.includes('SSL') || 
+                          errorString.includes('TLS') ||
+                          errorString.includes('ssl3_read_bytes') ||
+                          errorString.includes('tlsv1 alert') ||
+                          errorString.includes('98180000') ||
+                          errorString.includes('0A000438') ||
+                          errorString.includes('Connection pool');
+        
+        if (isSSLError) {
           // Silent SSL errors - they'll retry automatically
+          // Reset connection to allow retry
           cached.conn = null;
           cached.promise = null;
         } else {
@@ -96,13 +116,13 @@ async function connectDB(): Promise<typeof mongoose> {
         }
       });
       
-      mongoose.connection.on('disconnected', () => {
+      mongoose.connection.once('disconnected', () => {
         // Silent disconnection - only log errors
         cached.conn = null;
         cached.promise = null;
       });
       
-      mongoose.connection.on('reconnected', () => {
+      mongoose.connection.once('reconnected', () => {
         // Silent reconnection - only log errors
       });
       

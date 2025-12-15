@@ -58,10 +58,12 @@ export default function HeroSection({ category }: HeroSectionProps) {
           if (location.latitude) searchParamsObj.append('userLat', location.latitude.toString());
           if (location.longitude) searchParamsObj.append('userLng', location.longitude.toString());
 
-          const searchUrl = `/api/search?${searchParamsObj.toString()}`;
+          const searchUrl = `/api/search?${searchParamsObj.toString()}&_t=${Date.now()}`;
           console.log(`🔍 Fetching search results from: ${searchUrl}`);
           
-          const searchRes = await fetch(searchUrl);
+          const searchRes = await fetch(searchUrl, {
+            cache: 'no-store', // Disable browser caching for fresh visitor counts
+          });
           const searchData = await safeJsonParse<{
             success: boolean;
             mainResults: any[];
@@ -234,7 +236,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
           if (location.area) url += `&area=${encodeURIComponent(location.area)}`;
           if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
           if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
-          nearbyShopsPromise = fetch(url);
+          nearbyShopsPromise = fetch(`${url}&_t=${Date.now()}`, { cache: 'no-store' });
         } else if (location.city || location.area || pincodeFilter) {
           // Fetch with location filters (city/area/pincode)
           const cityFilter = location.city || 'Patna';
@@ -242,13 +244,13 @@ export default function HeroSection({ category }: HeroSectionProps) {
           if (location.area) url += `&area=${encodeURIComponent(location.area)}`;
           if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
           if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
-          nearbyShopsPromise = fetch(url);
+          nearbyShopsPromise = fetch(`${url}&_t=${Date.now()}`, { cache: 'no-store' });
         } else {
           // No location at all - fetch all shops (will be limited to 100 by API)
           let url = `/api/shops/nearby?radiusKm=1000&useMongoDB=true&limit=50`;
           if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
           if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
-          nearbyShopsPromise = fetch(url);
+          nearbyShopsPromise = fetch(`${url}&_t=${Date.now()}`, { cache: 'no-store' });
         }
 
         // Use Promise.allSettled to handle individual fetch failures gracefully
@@ -297,7 +299,10 @@ export default function HeroSection({ category }: HeroSectionProps) {
             let url = `/api/shops/nearby?city=${encodeURIComponent(cityFilter)}&radiusKm=1000&useMongoDB=true&limit=50`;
             if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
             if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
-            const allShopsRes = await fetch(url).catch(() => null);
+            url += `&_t=${Date.now()}`; // Cache-busting
+            const allShopsRes = await fetch(url, {
+              cache: 'no-store', // Disable browser caching
+            }).catch(() => null);
             if (allShopsRes) {
               const parsed = await safeJsonParse(allShopsRes);
               if (parsed?.shops && parsed.shops.length > 0) {
@@ -316,8 +321,12 @@ export default function HeroSection({ category }: HeroSectionProps) {
             if (location.latitude && location.longitude) {
               allLocationsUrl += `&userLat=${location.latitude}&userLng=${location.longitude}`;
             }
+            // Add cache-busting timestamp to ensure fresh data
+            allLocationsUrl += `&_t=${Date.now()}`;
             // Don't apply filters on page load - show all shops from AgentShop
-            const allLocationsRes = await fetch(allLocationsUrl).catch(() => null);
+            const allLocationsRes = await fetch(allLocationsUrl, {
+              cache: 'no-store', // Disable browser caching
+            }).catch(() => null);
             if (allLocationsRes) {
               const parsed = await safeJsonParse(allLocationsRes);
               if (parsed?.shops && parsed.shops.length > 0) {
@@ -330,13 +339,14 @@ export default function HeroSection({ category }: HeroSectionProps) {
           // If still no shops, try fetching by plan types
           if (!nearbyShopsData?.shops || nearbyShopsData.shops.length === 0) {
             console.log('📍 Trying to fetch shops by plan types for left/right rails...');
-            const leftBarUrl = `/api/shops/by-plan?planType=LEFT_BAR&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}`;
-            const rightBarUrl = `/api/shops/by-plan?planType=RIGHT_SIDE&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}`;
-            const heroUrl = `/api/shops/by-plan?planType=HERO&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}`;
+            const timestamp = Date.now();
+            const leftBarUrl = `/api/shops/by-plan?planType=LEFT_BAR&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}&_t=${timestamp}`;
+            const rightBarUrl = `/api/shops/by-plan?planType=RIGHT_SIDE&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}&_t=${timestamp}`;
+            const heroUrl = `/api/shops/by-plan?planType=HERO&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}&_t=${timestamp}`;
             const [leftBarRes, rightBarRes, heroRes] = await Promise.all([
-              fetch(leftBarUrl).catch(() => null),
-              fetch(rightBarUrl).catch(() => null),
-              fetch(heroUrl).catch(() => null),
+              fetch(leftBarUrl, { cache: 'no-store' }).catch(() => null),
+              fetch(rightBarUrl, { cache: 'no-store' }).catch(() => null),
+              fetch(heroUrl, { cache: 'no-store' }).catch(() => null),
             ]);
             
             const leftBarData = leftBarRes ? await safeJsonParse(leftBarRes) : null;
@@ -392,7 +402,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
               let url = `/api/shops/nearby?city=Patna&area=${encodeURIComponent(area)}&radiusKm=1000&useMongoDB=true&limit=5`;
               if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
               if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
-              return fetch(url);
+              return fetch(`${url}&_t=${Date.now()}`, { cache: 'no-store' });
             });
             const areaResponses = await Promise.all(areaPromises);
             const areaData = await Promise.all(areaResponses.map(res => safeJsonParse(res)));
@@ -486,7 +496,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
           }
         }
         
-        // Step 2: Hero - Prioritize HERO plan shops, but if filters are active and no HERO shops found, show any shop
+        // Step 2: Hero - Get ALL HERO plan shops for rotation (prioritize HERO plan, then by popularity/distance)
         const heroShopCandidates = uniqueShopsArray
           .filter((shop) => {
             return shop && shop.id && (shop.name || shop.shopName) &&
@@ -513,10 +523,35 @@ export default function HeroSection({ category }: HeroSectionProps) {
             return (a.distance || 999999) - (b.distance || 999999);
           });
         
+        // Get multiple HERO plan shops (up to 10) for rotation
+        const heroShops = heroShopCandidates
+          .filter((shop) => shop.planType === 'HERO')
+          .slice(0, 10)
+          .map((shop) => ({
+            bannerId: shop.id,
+            imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
+            alt: shop.name || shop.shopName || 'Shop',
+            link: shop.website || shop.shopUrl || `/shop/${shop.id}` || `/contact/${shop.id}`,
+            title: shop.name || shop.shopName || 'Shop',
+            ctaText: 'View Shop',
+            advertiser: shop.name || shop.shopName || 'Shop',
+            distance: shop.distance || 0,
+            isBusiness: true,
+            lat: shop.latitude,
+            lng: shop.longitude,
+            area: shop.area || '',
+            city: shop.city || '',
+            visitorCount: shop.visitorCount || 0,
+          }));
+        
+        // Fallback: if no HERO shops, use first shop (for backward compatibility)
         const heroShop = heroShopCandidates[0];
         
-        // Mark hero shop as used (but it will also appear in bottom strip)
-        if (heroShop) {
+        // Log hero shops for rotation
+        if (heroShops.length > 0) {
+          console.log(`🎯 Hero shops for rotation: ${heroShops.length} shops`);
+          heroShops.forEach((s, idx) => console.log(`  ${idx + 1}. ${s.title} (ID: ${s.bannerId}, Visitors: ${s.visitorCount || 0})`));
+        } else if (heroShop) {
           console.log(`🎯 Hero shop selected: ${heroShop.name || heroShop.shopName} (ID: ${heroShop.id}, Visitors: ${heroShop.visitorCount || 0})`);
         }
         
@@ -764,36 +799,41 @@ export default function HeroSection({ category }: HeroSectionProps) {
         
         console.log(`✅ Combined bottom shops: ${combinedBottom.length}`, combinedBottom.map(s => s.advertiser));
 
+        // Prepare hero data - use first shop if multiple shops available, otherwise use single shop or banner
+        const heroDataForDisplay = heroShops.length > 0 
+          ? heroShops[0] // First shop for initial display
+          : heroShop && heroShop.planType === 'HERO'
+          ? {
+              bannerId: heroShop.id,
+              imageUrl: heroShop.imageUrl || '/placeholder-shop.jpg',
+              alt: heroShop.name || 'Shop',
+              link: heroShop.website || `/shop/${heroShop.id}` || `/contact/${heroShop.id}`,
+              title: heroShop.name,
+              ctaText: 'View Shop',
+              advertiser: heroShop.name,
+              distance: heroShop.distance || 0,
+              isBusiness: true,
+              lat: heroShop.latitude,
+              lng: heroShop.longitude,
+              area: heroShop.area || '',
+              city: heroShop.city || '',
+              visitorCount: heroShop.visitorCount || 0,
+            } as any
+          : heroData?.banners?.[0]
+          ? {
+              bannerId: heroData.banners[0].id,
+              imageUrl: heroData.banners[0].imageUrl,
+              alt: heroData.banners[0].title || 'Hero banner',
+              link: heroData.banners[0].linkUrl,
+              title: heroData.banners[0].title,
+              ctaText: heroData.banners[0].cta || heroData.banners[0].ctaText || 'Explore',
+              advertiser: heroData.banners[0].advertiser || heroData.banners[0].title,
+            }
+          : undefined;
+
         setData({
-          // Hero: Only show if planType is 'HERO', otherwise show banner or undefined
-          hero: heroShop && heroShop.planType === 'HERO'
-            ? {
-                bannerId: heroShop.id,
-                imageUrl: heroShop.imageUrl || '/placeholder-shop.jpg',
-                alt: heroShop.name || 'Shop',
-                link: heroShop.website || `/shop/${heroShop.id}` || `/contact/${heroShop.id}`,
-                title: heroShop.name,
-                ctaText: 'View Shop',
-                advertiser: heroShop.name,
-                distance: heroShop.distance || 0,
-                isBusiness: true,
-                lat: heroShop.latitude,
-                lng: heroShop.longitude,
-                area: heroShop.area || '',
-                city: heroShop.city || '',
-                visitorCount: heroShop.visitorCount || 0,
-              } as any
-            : heroData?.banners?.[0]
-            ? {
-                bannerId: heroData.banners[0].id,
-                imageUrl: heroData.banners[0].imageUrl,
-                alt: heroData.banners[0].title || 'Hero banner',
-                link: heroData.banners[0].linkUrl,
-                title: heroData.banners[0].title,
-                ctaText: heroData.banners[0].cta || heroData.banners[0].ctaText || 'Explore',
-                advertiser: heroData.banners[0].advertiser || heroData.banners[0].title,
-              }
-            : undefined,
+          hero: heroDataForDisplay,
+          heroShops: heroShops.length > 0 ? heroShops : undefined, // Pass multiple shops for rotation
           left: combinedLeft,
           right: combinedRight,
           bottom: combinedBottom,
@@ -967,7 +1007,13 @@ export default function HeroSection({ category }: HeroSectionProps) {
               {/* CENTER COLUMN - Hero */}
               {heroEnabled && (
                 <div className="flex items-center justify-center">
-                  <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height={heroSettings?.hero?.height || "h-[391px]"} />
+                  <HeroBanner 
+                    hero={data.hero} 
+                    heroShops={data.heroShops}
+                    onBannerClick={handleBannerClick} 
+                    height={heroSettings?.hero?.height || "h-[391px]"}
+                    rotationInterval={10000}
+                  />
                 </div>
               )}
 
@@ -1029,7 +1075,13 @@ export default function HeroSection({ category }: HeroSectionProps) {
               {/* CENTER COLUMN */}
               {heroEnabled && (
                 <div className="flex items-center justify-center">
-                  <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[293px]" />
+                  <HeroBanner 
+                    hero={data.hero} 
+                    heroShops={data.heroShops}
+                    onBannerClick={handleBannerClick} 
+                    height="h-[293px]"
+                    rotationInterval={10000}
+                  />
                 </div>
               )}
 
@@ -1091,7 +1143,13 @@ export default function HeroSection({ category }: HeroSectionProps) {
               {/* CENTER COLUMN - Hero */}
               {heroEnabled && (
                 <div className="flex items-center justify-center">
-                  <HeroBanner hero={data.hero} onBannerClick={handleBannerClick} height="h-[176px] sm:h-[240px]" />
+                  <HeroBanner 
+                    hero={data.hero} 
+                    heroShops={data.heroShops}
+                    onBannerClick={handleBannerClick} 
+                    height="h-[176px] sm:h-[240px]"
+                    rotationInterval={10000}
+                  />
                 </div>
               )}
 

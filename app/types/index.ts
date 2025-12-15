@@ -19,6 +19,7 @@ export interface Offer {
   expiresAt?: string;
   cta: string;
   sponsored: boolean;
+  linkUrl?: string;
 }
 
 export interface Banner {
@@ -48,6 +49,22 @@ export interface HeroSectionData {
     ctaText?: string;
     advertiser?: string;
   };
+  heroShops?: Array<{
+    bannerId: string;
+    imageUrl: string;
+    alt: string;
+    link: string;
+    title?: string;
+    ctaText?: string;
+    advertiser?: string;
+    distance?: number;
+    isBusiness?: boolean;
+    lat?: number;
+    lng?: number;
+    area?: string;
+    city?: string;
+    visitorCount?: number;
+  }>;
   left: Array<{
     bannerId: string;
     imageUrl: string;

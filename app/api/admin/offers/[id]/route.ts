@@ -21,15 +21,42 @@ export const PUT = requireAdmin(async (request: NextRequest, { params }: { param
     await connectDB();
     const { id } = await params;
     const body = await request.json();
-    const { title, description, businessId, isActive, startDate, endDate } = body;
+    const { 
+      headline, 
+      description, 
+      shopId, 
+      shopName, 
+      shopLogo, 
+      imageUrl, 
+      discount, 
+      cta, 
+      sponsored, 
+      businessId, 
+      isActive, 
+      startDate, 
+      endDate, 
+      expiresAt,
+      linkUrl,
+      position
+    } = body;
 
     const updateData: any = {};
-    if (title !== undefined) updateData.title = title;
+    if (headline !== undefined) updateData.headline = headline;
     if (description !== undefined) updateData.description = description;
+    if (shopId !== undefined) updateData.shopId = shopId;
+    if (shopName !== undefined) updateData.shopName = shopName;
+    if (shopLogo !== undefined) updateData.shopLogo = shopLogo;
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    if (discount !== undefined) updateData.discount = discount;
+    if (cta !== undefined) updateData.cta = cta;
+    if (sponsored !== undefined) updateData.sponsored = sponsored;
     if (businessId !== undefined) updateData.businessId = businessId || null;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (startDate !== undefined) updateData.startDate = startDate ? new Date(startDate) : null;
     if (endDate !== undefined) updateData.endDate = endDate ? new Date(endDate) : null;
+    if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : null;
+    if (linkUrl !== undefined) updateData.linkUrl = linkUrl;
+    if (position !== undefined) updateData.position = position;
 
     const offer = await Offer.findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
       .populate('businessId', 'name slug');

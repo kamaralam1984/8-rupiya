@@ -63,6 +63,58 @@ export default function ShopsPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'pending'>('all');
   const [processingPayment, setProcessingPayment] = useState<string | null>(null);
   const [deletingAllShops, setDeletingAllShops] = useState(false);
+  const [incrementingVisitors, setIncrementingVisitors] = useState<string | null>(null);
+  const [visitorStats, setVisitorStats] = useState<any>(null);
+  const [showVisitorStats, setShowVisitorStats] = useState(false);
+
+  // Fetch visitor statistics
+  const fetchVisitorStats = async () => {
+    try {
+      const response = await fetch('/api/admin/shops/visitor-stats', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setVisitorStats(data);
+        setShowVisitorStats(true);
+      } else {
+        toast.error(data.error || 'Failed to fetch visitor statistics');
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch visitor stats:', error);
+      toast.error(error.message || 'Failed to fetch visitor statistics');
+    }
+  };
+
+  // Manual increment visitor count
+  const handleIncrementVisitors = async (shopId: string, incrementBy: number = 1) => {
+    try {
+      setIncrementingVisitors(shopId);
+      const response = await fetch(`/api/admin/shops/${shopId}/increment-visitors`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ incrementBy }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(`Visitor count incremented by ${incrementBy} (${data.previousCount} → ${data.visitorCount})`);
+        fetchShops(); // Refresh the list
+      } else {
+        toast.error(data.error || 'Failed to increment visitor count');
+      }
+    } catch (error: any) {
+      console.error('Failed to increment visitors:', error);
+      toast.error(error.message || 'Failed to increment visitor count');
+    } finally {
+      setIncrementingVisitors(null);
+    }
+  };
 
   useEffect(() => {
     if (token) {
@@ -441,7 +493,7 @@ export default function ShopsPage() {
 
   const handleSavePlan = async (shopId: string) => {
     try {
-      const response = await fetch(`/api/admin/shops/${shopId}`, {
+      const response = await fetch(`/api/admin/shops/${shopId}/update-plan`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -463,7 +515,7 @@ export default function ShopsPage() {
         toast.success('Plan updated successfully!');
         setEditingPlan(null);
         setEditPlanValue('BASIC');
-        fetchShops();
+        fetchShops(); // Refresh the list to show updated plan
       } else {
         toast.error(data.error || 'Failed to update plan');
       }
@@ -674,8 +726,97 @@ export default function ShopsPage() {
             >
               + Create New Shop
             </Link>
+            <button
+              onClick={fetchVisitorStats}
+              className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2"
+            >
+              📊 Visitor Stats
+            </button>
           </div>
         </div>
+
+        {/* Visitor Statistics Modal */}
+        {showVisitorStats && visitorStats && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowVisitorStats(false)}>
+            <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">Visitor Statistics</h2>
+                <button
+                  onClick={() => setShowVisitorStats(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-600">Total Shops</div>
+                  <div className="text-2xl font-bold text-blue-600">{visitorStats.statistics.totalShops}</div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-600">With Visitors</div>
+                  <div className="text-2xl font-bold text-green-600">{visitorStats.statistics.shopsWithVisitors}</div>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-600">Total Visitors</div>
+                  <div className="text-2xl font-bold text-purple-600">{visitorStats.statistics.totalVisitors.toLocaleString()}</div>
+                </div>
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-600">Avg Visitors</div>
+                  <div className="text-2xl font-bold text-orange-600">{visitorStats.statistics.avgVisitors}</div>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">Statistics by Model</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  {Object.entries(visitorStats.statsByModel).map(([model, stats]: [string, any]) => (
+                    <div key={model} className="border rounded-lg p-4">
+                      <div className="font-semibold text-gray-700 capitalize mb-2">{model} Model</div>
+                      <div className="text-sm space-y-1">
+                        <div>Total: <span className="font-semibold">{stats.total}</span></div>
+                        <div>With Visitors: <span className="font-semibold text-green-600">{stats.withVisitors}</span></div>
+                        <div>Total Visitors: <span className="font-semibold text-blue-600">{stats.totalVisitors.toLocaleString()}</span></div>
+                        <div>Avg: <span className="font-semibold text-purple-600">{stats.avgVisitors}</span></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Top 10 Shops by Visitors</h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Rank</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Shop Name</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Model</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Visitors</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {visitorStats.topShops.map((shop: any, index: number) => (
+                        <tr key={shop.id}>
+                          <td className="px-4 py-2 text-sm font-semibold">#{index + 1}</td>
+                          <td className="px-4 py-2 text-sm">{shop.name}</td>
+                          <td className="px-4 py-2 text-sm capitalize">{shop.model}</td>
+                          <td className="px-4 py-2 text-sm font-bold text-blue-600">{shop.visitorCount.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="mt-4 text-xs text-gray-500">
+                Last updated: {new Date(visitorStats.timestamp).toLocaleString()}
+              </div>
+            </div>
+          </div>
+        )}
 
         {shops.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
@@ -765,6 +906,9 @@ export default function ShopsPage() {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Days Remaining
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Visitors
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
@@ -1021,6 +1165,36 @@ export default function ShopsPage() {
                               {daysRemaining} days left
                             </span>
                           )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-700">
+                              {(shop as any).visitorCount || 0}
+                            </span>
+                            <button
+                              onClick={() => handleIncrementVisitors(shop._id, 1)}
+                              disabled={incrementingVisitors === shop._id}
+                              className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Increment visitor count by 1"
+                            >
+                              {incrementingVisitors === shop._id ? '...' : '+1'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                const amount = prompt('Enter increment amount (1-1000):', '10');
+                                if (amount && !isNaN(Number(amount)) && Number(amount) >= 1 && Number(amount) <= 1000) {
+                                  handleIncrementVisitors(shop._id, Number(amount));
+                                } else if (amount) {
+                                  toast.error('Please enter a valid number between 1 and 1000');
+                                }
+                              }}
+                              disabled={incrementingVisitors === shop._id}
+                              className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Increment by custom amount"
+                            >
+                              +N
+                            </button>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <div className="flex items-center gap-2">

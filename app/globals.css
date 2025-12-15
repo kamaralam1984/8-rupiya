@@ -355,10 +355,134 @@ input[type="range"].slider-golden::-moz-range-thumb:hover {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
 }
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 @keyframes slide-in-out {
   0%, 100% { transform: translateX(-20px); opacity: 0.5; }
   50% { transform: translateX(0); opacity: 1; }
 }
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes zoom-in {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes scale-in {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes flip-in {
+  from { transform: rotateY(90deg); opacity: 0; }
+  to { transform: rotateY(0deg); opacity: 1; }
+}
+
+/* Modern Hero Shop Glow Background Animations */
+@keyframes glow-blue {
+  0%, 100% {
+    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.3), rgba(59, 130, 246, 0.1), transparent);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4), 0 0 40px rgba(59, 130, 246, 0.2), inset 0 0 30px rgba(59, 130, 246, 0.1);
+  }
+  50% {
+    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.5), rgba(59, 130, 246, 0.2), transparent);
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.6), 0 0 60px rgba(59, 130, 246, 0.3), inset 0 0 40px rgba(59, 130, 246, 0.2);
+  }
+}
+
+@keyframes glow-purple {
+  0%, 100% {
+    background: radial-gradient(circle at center, rgba(139, 92, 246, 0.3), rgba(139, 92, 246, 0.1), transparent);
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.4), 0 0 40px rgba(139, 92, 246, 0.2), inset 0 0 30px rgba(139, 92, 246, 0.1);
+  }
+  50% {
+    background: radial-gradient(circle at center, rgba(139, 92, 246, 0.5), rgba(139, 92, 246, 0.2), transparent);
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.6), 0 0 60px rgba(139, 92, 246, 0.3), inset 0 0 40px rgba(139, 92, 246, 0.2);
+  }
+}
+
+@keyframes glow-pink {
+  0%, 100% {
+    background: radial-gradient(circle at center, rgba(236, 72, 153, 0.3), rgba(236, 72, 153, 0.1), transparent);
+    box-shadow: 0 0 20px rgba(236, 72, 153, 0.4), 0 0 40px rgba(236, 72, 153, 0.2), inset 0 0 30px rgba(236, 72, 153, 0.1);
+  }
+  50% {
+    background: radial-gradient(circle at center, rgba(236, 72, 153, 0.5), rgba(236, 72, 153, 0.2), transparent);
+    box-shadow: 0 0 30px rgba(236, 72, 153, 0.6), 0 0 60px rgba(236, 72, 153, 0.3), inset 0 0 40px rgba(236, 72, 153, 0.2);
+  }
+}
+
+@keyframes glow-cyan {
+  0%, 100% {
+    background: radial-gradient(circle at center, rgba(6, 182, 212, 0.3), rgba(6, 182, 212, 0.1), transparent);
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.4), 0 0 40px rgba(6, 182, 212, 0.2), inset 0 0 30px rgba(6, 182, 212, 0.1);
+  }
+  50% {
+    background: radial-gradient(circle at center, rgba(6, 182, 212, 0.5), rgba(6, 182, 212, 0.2), transparent);
+    box-shadow: 0 0 30px rgba(6, 182, 212, 0.6), 0 0 60px rgba(6, 182, 212, 0.3), inset 0 0 40px rgba(6, 182, 212, 0.2);
+  }
+}
+
+@keyframes glow-green {
+  0%, 100% {
+    background: radial-gradient(circle at center, rgba(16, 185, 129, 0.3), rgba(16, 185, 129, 0.1), transparent);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4), 0 0 40px rgba(16, 185, 129, 0.2), inset 0 0 30px rgba(16, 185, 129, 0.1);
+  }
+  50% {
+    background: radial-gradient(circle at center, rgba(16, 185, 129, 0.5), rgba(16, 185, 129, 0.2), transparent);
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.6), 0 0 60px rgba(16, 185, 129, 0.3), inset 0 0 40px rgba(16, 185, 129, 0.2);
+  }
+}
+
+@keyframes glow-orange {
+  0%, 100% {
+    background: radial-gradient(circle at center, rgba(245, 158, 11, 0.3), rgba(245, 158, 11, 0.1), transparent);
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.4), 0 0 40px rgba(245, 158, 11, 0.2), inset 0 0 30px rgba(245, 158, 11, 0.1);
+  }
+  50% {
+    background: radial-gradient(circle at center, rgba(245, 158, 11, 0.5), rgba(245, 158, 11, 0.2), transparent);
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.6), 0 0 60px rgba(245, 158, 11, 0.3), inset 0 0 40px rgba(245, 158, 11, 0.2);
+  }
+}
+
+@keyframes glow-red {
+  0%, 100% {
+    background: radial-gradient(circle at center, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.1), transparent);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.4), 0 0 40px rgba(239, 68, 68, 0.2), inset 0 0 30px rgba(239, 68, 68, 0.1);
+  }
+  50% {
+    background: radial-gradient(circle at center, rgba(239, 68, 68, 0.5), rgba(239, 68, 68, 0.2), transparent);
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.6), 0 0 60px rgba(239, 68, 68, 0.3), inset 0 0 40px rgba(239, 68, 68, 0.2);
+  }
+}
+
+@keyframes glow-yellow {
+  0%, 100% {
+    background: radial-gradient(circle at center, rgba(234, 179, 8, 0.3), rgba(234, 179, 8, 0.1), transparent);
+    box-shadow: 0 0 20px rgba(234, 179, 8, 0.4), 0 0 40px rgba(234, 179, 8, 0.2), inset 0 0 30px rgba(234, 179, 8, 0.1);
+  }
+  50% {
+    background: radial-gradient(circle at center, rgba(234, 179, 8, 0.5), rgba(234, 179, 8, 0.2), transparent);
+    box-shadow: 0 0 30px rgba(234, 179, 8, 0.6), 0 0 60px rgba(234, 179, 8, 0.3), inset 0 0 40px rgba(234, 179, 8, 0.2);
+  }
+}
+
+.hero-glow-blue { animation: glow-blue 3s ease-in-out infinite; }
+.hero-glow-purple { animation: glow-purple 3s ease-in-out infinite; }
+.hero-glow-pink { animation: glow-pink 3s ease-in-out infinite; }
+.hero-glow-cyan { animation: glow-cyan 3s ease-in-out infinite; }
+.hero-glow-green { animation: glow-green 3s ease-in-out infinite; }
+.hero-glow-orange { animation: glow-orange 3s ease-in-out infinite; }
+.hero-glow-red { animation: glow-red 3s ease-in-out infinite; }
+.hero-glow-yellow { animation: glow-yellow 3s ease-in-out infinite; }
+
+/* BeautiPlus Image Enhancement System - REMOVED */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
@@ -436,7 +560,13 @@ input[type="range"].slider-golden::-moz-range-thumb:hover {
 }
 
 .animate-fade-in-out { animation: fade-in-out 2s ease-in-out infinite; }
+.animate-fade-in { animation: fade-in 0.5s ease-in-out; }
 .animate-slide-in-out { animation: slide-in-out 2s ease-in-out infinite; }
+.animate-slide-in-right { animation: slide-in-right 0.5s ease-out; }
+.animate-slide-in-left { animation: slide-in-left 0.5s ease-out; }
+.animate-zoom-in { animation: zoom-in 0.5s ease-out; }
+.animate-scale-in { animation: scale-in 0.5s ease-out; }
+.animate-flip-in { animation: flip-in 0.6s ease-out; }
 .animate-shake { animation: shake 0.5s ease-in-out infinite; }
 .animate-rotate-slow { animation: rotate-slow 3s linear infinite; }
 .animate-scale-pulse { animation: scale-pulse 1.5s ease-in-out infinite; }
@@ -757,6 +887,21 @@ input[type="range"].slider-golden::-moz-range-thumb:hover {
 
 .animate-fade-in-row {
   animation: fade-in-row 0.4s ease-out forwards;
+}
+
+/* Fix for Next.js Portal positioning issues */
+nextjs-portal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 9999 !important;
+  pointer-events: none;
+}
+
+nextjs-portal > * {
+  pointer-events: auto;
 }
 
 /* Slogan Multi-Glow Animation */

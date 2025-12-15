@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { calculateTravelTime, formatTravelTime } from '../utils/distance';
 
@@ -29,27 +29,64 @@ export default function ShopCard({
   city,
   state,
   distance,
-  visitorCount,
+  visitorCount: initialVisitorCount,
   planType = 'BASIC',
   onCall,
 }: ShopCardProps) {
-  // Track visit when shop card is viewed
+  // Local state for visitor count that updates after tracking
+  const [visitorCount, setVisitorCount] = useState(initialVisitorCount || 0);
+  
+  // Update visitor count when prop changes
   useEffect(() => {
-    if (id) {
-      fetch(`/api/shops/${id}/visit`, { method: 'POST' })
+    setVisitorCount(initialVisitorCount || 0);
+  }, [initialVisitorCount]);
+
+  // Track visit when shop card is viewed and update count
+  // Use ref to prevent multiple calls
+  const hasTrackedVisit = useRef(false);
+  
+  useEffect(() => {
+    if (id && !hasTrackedVisit.current) {
+      hasTrackedVisit.current = true;
+      
+      fetch(`/api/shops/${id}/visit`, { 
+        method: 'POST',
+        cache: 'no-store', // Disable caching
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      })
         .then(res => {
           if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);
           }
           return res.json();
         })
+        .then(data => {
+          // Update visitor count with the new count from API
+          if (data.success && data.visitorCount !== undefined) {
+            setVisitorCount(data.visitorCount);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[ShopCard] ✅ Visitor count updated: ${data.previousCount} → ${data.visitorCount} for shop ${id}`);
+            }
+          }
+        })
         .catch(error => {
+          // Reset flag on error so it can retry
+          hasTrackedVisit.current = false;
           // Silently fail if tracking doesn't work - this is expected in some cases
           if (process.env.NODE_ENV === 'development') {
             console.log('Visit tracking failed (non-critical):', error.message);
           }
         });
     }
+    
+    // Reset tracking flag when id changes
+    return () => {
+      if (id) {
+        hasTrackedVisit.current = false;
+      }
+    };
   }, [id]);
 
   // Calculate travel time

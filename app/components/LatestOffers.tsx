@@ -7,11 +7,31 @@ import type { Offer } from '../types';
 export default function LatestOffers() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [settings, setSettings] = useState<{
+    displayLimits?: { latestOffers?: number };
+    iconSizes?: { latestOffers?: number };
+  }>({});
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.success) {
+          setSettings(data);
+        }
+      } catch (e) {
+        console.error('Failed to load settings', e);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('/api/offers');
+        const limit = settings.displayLimits?.latestOffers || 10;
+        const res = await fetch(`/api/offers?limit=${limit}`);
         const data = await res.json();
         setOffers(data.offers || []);
       } catch (e) {
@@ -20,8 +40,10 @@ export default function LatestOffers() {
         setIsLoading(false);
       }
     };
-    fetchData();
-  }, []);
+    if (settings.displayLimits) {
+      fetchData();
+    }
+  }, [settings]);
 
   const formatTimeRemaining = (expiresAt?: string) => {
     if (!expiresAt) return null;
@@ -65,7 +87,7 @@ export default function LatestOffers() {
       <div className="max-w-[98%] mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-3 sm:gap-0">
           <div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Latest Offers Patna</h2>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Latest Offers</h2>
             <p className="text-sm sm:text-base text-gray-600 mt-1">Don't miss out on exclusive deals and discounts</p>
           </div>
         </div>
@@ -79,7 +101,14 @@ export default function LatestOffers() {
             
             return (
               <article key={offer.id} className="group rounded-xl bg-white shadow-md border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-lg hover:border-orange-300 cursor-pointer">
-                <div className="relative h-40 sm:h-48 overflow-hidden">
+                <div 
+                  className="relative overflow-hidden"
+                  style={{ 
+                    height: settings.iconSizes?.latestOffers 
+                      ? `${settings.iconSizes.latestOffers}px` 
+                      : '192px' // Default h-48 = 192px
+                  }}
+                >
                   {offer.imageUrl ? (
                     <Image 
                       src={offer.imageUrl} 
@@ -98,6 +127,11 @@ export default function LatestOffers() {
                       {offer.discount}
                     </span>
                   )}
+                  {offer.sponsored && (
+                    <span className="absolute top-2 left-2 z-20 inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-yellow-400 text-yellow-900 shadow-md">
+                      Sponsored
+                    </span>
+                  )}
                 </div>
 
                 <div className="p-3 sm:p-4">
@@ -108,13 +142,37 @@ export default function LatestOffers() {
                   <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-1.5 line-clamp-2 min-h-[2.5rem] group-hover:text-orange-600 transition-colors">
                     {offer.headline}
                   </h3>
-                  <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
-                    <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span className="truncate">{distance}km, {area}</span>
+                  {offer.description && (
+                    <p className="text-xs text-gray-600 mb-2 line-clamp-2">{offer.description}</p>
+                  )}
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
+                      <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span className="truncate">{offer.shopName}</span>
+                    </div>
+                    {offer.expiresAt && (
+                      <span className="text-xs text-orange-600 font-semibold">
+                        {formatTimeRemaining(offer.expiresAt)}
+                      </span>
+                    )}
                   </div>
+                  {offer.linkUrl && (
+                    <a
+                      href={offer.linkUrl}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (offer.shopId) {
+                          window.location.href = `/shop/${offer.shopId}?offer=${offer.id}`;
+                        }
+                      }}
+                      className="mt-3 block w-full px-4 py-2 bg-orange-500 text-white text-sm font-semibold rounded-lg hover:bg-orange-600 transition-colors text-center"
+                    >
+                      {offer.cta || 'View Offer'}
+                    </a>
+                  )}
                 </div>
               </article>
             );

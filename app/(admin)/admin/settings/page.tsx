@@ -159,7 +159,7 @@ export default function DisplayLimitsPage() {
     },
     {
       key: 'latestOffers' as keyof DisplayLimits,
-      label: 'Latest Offers Patna',
+      label: 'Latest Offers',
       description: 'Number of offers to display in the Latest Offers section',
       min: 1,
       max: 50,

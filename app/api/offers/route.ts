@@ -1,98 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
-import type { Offer } from '@/app/types';
+import connectDB from '@/lib/mongodb';
+import Offer from '@/models/Offer';
+import type { Offer as OfferType } from '@/app/types';
 
 // Revalidate every 2 minutes (offers change more frequently)
 export const revalidate = 120;
 
-// Mock data - replace with actual database query
-const mockOffers: Offer[] = [
-  {
-    id: '1',
-    shopId: 'shop1',
-    shopName: 'Urban Outfitters',
-    headline: 'Last Chance Summer Sale',
-    description: 'Limited time summer styles with up to 30% off on all apparel.',
-    discount: '30% OFF',
-    expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-    cta: 'Shop Now',
-    imageUrl: '/Assets/icons/Screenshot 2025-11-13 124054.png',
-    sponsored: true,
-  },
-  {
-    id: '2',
-    shopId: 'shop2',
-    shopName: 'Glow Beauty Studio',
-    headline: 'Festive Glam Packages',
-    description: 'Bridal & party makeovers starting at ₹1,999. Book a slot today.',
-    discount: 'Save ₹500',
-    expiresAt: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
-    cta: 'Book Appointment',
-    imageUrl: '/Assets/icons/Screenshot 2025-11-13 124022.png',
-    sponsored: false,
-  },
-  {
-    id: '3',
-    shopId: 'shop3',
-    shopName: 'TechBazaar',
-    headline: 'Mega Gadget Weekend',
-    description: 'Smartphones, laptops & accessories with huge exchange bonus.',
-    discount: 'Up to ₹7000 Exchange',
-    expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    cta: 'Upgrade Now',
-    imageUrl: '/Assets/icons/Screenshot 2025-11-13 124000.png',
-    sponsored: true,
-  },
-  {
-    id: '4',
-    shopId: 'shop4',
-    shopName: 'FitCore Gym',
-    headline: 'New Year Fitness Plans',
-    description: 'Annual membership bundled with diet consultation & personal training.',
-    discount: 'Flat 25% OFF',
-    expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-    cta: 'Join Today',
-    imageUrl: '/Assets/icons/Screenshot 2025-11-13 123834.png',
-    sponsored: false,
-  },
-  {
-    id: '5',
-    shopId: 'shop5',
-    shopName: 'Bliss Travel Co.',
-    headline: 'Discover Bali Packages',
-    description: 'Flight + hotel + activities starting at ₹59,999 per person.',
-    discount: 'Bundle Savings',
-    expiresAt: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString(),
-    cta: 'Plan Trip',
-    imageUrl: '/Assets/icons/Screenshot 2025-11-13 123743.png',
-    sponsored: false,
-  },
-  {
-    id: '6',
-    shopId: 'shop6',
-    shopName: 'CityCare Diagnostics',
-    headline: 'Comprehensive Health Check',
-    description: 'Full body health packages with same-day reports and doctor review.',
-    discount: 'Save 35%',
-    expiresAt: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
-    cta: 'Schedule Test',
-    imageUrl: '/Assets/icons/Screenshot 2025-11-13 123626.png',
-    sponsored: true,
-  },
-];
-
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const loc = searchParams.get('loc');
-  const cat = searchParams.get('cat');
+  try {
+    await connectDB();
 
-  // In a real app, filter by location and category
-  // For now, return all offers
-  const offers = mockOffers;
+    const searchParams = request.nextUrl.searchParams;
+    const loc = searchParams.get('loc');
+    const cat = searchParams.get('cat');
+    const limit = parseInt(searchParams.get('limit') || '50');
 
-  return NextResponse.json({ offers }, {
-    headers: {
-      'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300'
-    }
-  });
+    // Build query - only active offers
+    const query: any = { isActive: true };
+
+    // Filter expired offers
+    query.$or = [
+      { expiresAt: { $exists: false } },
+      { expiresAt: null },
+      { expiresAt: { $gte: new Date() } },
+    ];
+
+    // Get offers from database, sorted by position and sponsored status
+    const offers = await Offer.find(query)
+      .sort({ position: 1, sponsored: -1, createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    // Transform to frontend format
+    const transformedOffers: OfferType[] = offers.map((offer: any) => ({
+      id: offer._id.toString(),
+      shopId: offer.shopId,
+      shopName: offer.shopName,
+      shopLogo: offer.shopLogo,
+      imageUrl: offer.imageUrl,
+      headline: offer.headline,
+      description: offer.description,
+      discount: offer.discount,
+      expiresAt: offer.expiresAt ? new Date(offer.expiresAt).toISOString() : undefined,
+      cta: offer.cta || 'View Offer',
+      sponsored: offer.sponsored || false,
+    }));
+
+    return NextResponse.json({ offers: transformedOffers }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300'
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching offers:', error);
+    // Return empty array on error to prevent frontend breaking
+    return NextResponse.json({ offers: [] }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300'
+      }
+    });
+  }
 }
 

@@ -39,20 +39,86 @@ interface HeroBannerData {
 
 interface HeroBannerProps {
   hero?: HeroBannerData;
+  heroShops?: HeroBannerData[]; // Multiple hero shops for rotation
   onBannerClick: (bannerId: string, section: 'hero', position: number, link: string) => void;
   height?: string;
   category?: string;
+  rotationInterval?: number; // Rotation interval in milliseconds (default: 10000 = 10 seconds)
 }
 
-export default function HeroBanner({ hero, onBannerClick, height = 'h-[480px]', category }: HeroBannerProps) {
+export default function HeroBanner({ hero, heroShops, onBannerClick, height = 'h-[480px]', category, rotationInterval = 10000 }: HeroBannerProps) {
   const pathname = usePathname();
   const [heroBanner, setHeroBanner] = useState<HeroBannerData | null>(hero || null);
+  const [currentShopIndex, setCurrentShopIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  
+  // Animation effects array for different transitions
+  const animationEffects = [
+    'fade',
+    'slide',
+    'zoom',
+    'scale',
+    'flip',
+    'shimmer',
+    'glow-pulse',
+    'gradient-shift',
+  ];
+  
+  // Glow background colors for different shops
+  const glowColors = [
+    'hero-glow-blue',
+    'hero-glow-purple',
+    'hero-glow-pink',
+    'hero-glow-cyan',
+    'hero-glow-green',
+    'hero-glow-orange',
+    'hero-glow-red',
+    'hero-glow-yellow',
+  ];
+
+  // Auto-rotate hero shops if multiple shops provided
+  useEffect(() => {
+    if (heroShops && heroShops.length > 1) {
+      const interval = setInterval(() => {
+        setIsTransitioning(true);
+        
+        // Wait for transition animation to start
+        setTimeout(() => {
+          setCurrentShopIndex((prev) => {
+            const nextIndex = (prev + 1) % heroShops.length;
+            setHeroBanner(heroShops[nextIndex]);
+            return nextIndex;
+          });
+          
+          // Reset transition after animation completes
+          setTimeout(() => {
+            setIsTransitioning(false);
+          }, 500); // Half second for transition
+        }, 100);
+      }, rotationInterval);
+
+      return () => clearInterval(interval);
+    } else if (hero) {
+      setHeroBanner(hero);
+    }
+  }, [heroShops, hero, rotationInterval]);
+
+  // Initialize with first shop if heroShops provided
+  useEffect(() => {
+    if (heroShops && heroShops.length > 0) {
+      if (!heroBanner || heroBanner.bannerId !== heroShops[0].bannerId) {
+        setHeroBanner(heroShops[0]);
+        setCurrentShopIndex(0);
+      }
+    } else if (hero && !heroBanner) {
+      setHeroBanner(hero);
+    }
+  }, [heroShops, hero]);
 
   // Fetch hero banner from API if not provided
   useEffect(() => {
-    if (hero) {
-      setHeroBanner(hero);
-      return;
+    if (hero || heroShops) {
+      return; // Don't fetch if hero or heroShops are provided
     }
 
     const fetchHeroBanner = async () => {
@@ -176,8 +242,42 @@ export default function HeroBanner({ hero, onBannerClick, height = 'h-[480px]', 
     animationDelay: heroBanner.animationDelay ? `${heroBanner.animationDelay}s` : '0s',
   };
 
-  // If it's a shop (isBusiness), show ONLY shop image (no text, no details)
+  // Get current animation effect based on shop index
+  const getCurrentAnimation = () => {
+    if (!heroShops || heroShops.length <= 1) return 'fade-in';
+    const effectIndex = currentShopIndex % animationEffects.length;
+    const effect = animationEffects[effectIndex];
+    
+    // Map animation names to CSS classes
+    const animationMap: Record<string, string> = {
+      'fade': 'animate-fade-in',
+      'slide': 'animate-slide-in-right',
+      'zoom': 'animate-zoom-in',
+      'scale': 'animate-scale-in',
+      'flip': 'animate-flip-in',
+      'shimmer': 'animate-shimmer',
+      'glow-pulse': 'animate-glow-pulse',
+      'gradient-shift': 'animate-gradient-shift',
+    };
+    
+    return animationMap[effect] || 'animate-fade-in';
+  };
+  
+  // Get current glow background color based on shop index
+  const getCurrentGlowColor = () => {
+    if (!heroShops || heroShops.length <= 1) return 'hero-glow-blue';
+    const glowIndex = currentShopIndex % glowColors.length;
+    return glowColors[glowIndex];
+  };
+
+  // If it's a shop (isBusiness), show modern animated style with glow background
   if (heroBanner.isBusiness) {
+    const currentAnimation = getCurrentAnimation();
+    const currentGlow = getCurrentGlowColor();
+    const transitionClass = isTransitioning 
+      ? 'opacity-0 scale-95' 
+      : `${currentAnimation} opacity-100 scale-100`;
+    
     return (
       <Link
         href={heroBanner.link}
@@ -185,28 +285,81 @@ export default function HeroBanner({ hero, onBannerClick, height = 'h-[480px]', 
           if (heroBanner.link === '#') {
             e.preventDefault();
           }
-          onBannerClick(heroBanner.bannerId, 'hero', 0, heroBanner.link);
+          onBannerClick(heroBanner.bannerId, 'hero', currentShopIndex, heroBanner.link);
         }}
-        className={`relative w-full ${height} rounded-xl overflow-hidden shadow-lg border-2 border-blue-300 hover:border-blue-500 group transition-all duration-300 hover:scale-[1.02]`}
+        className={`relative w-full ${height} rounded-xl overflow-hidden shadow-2xl border-2 border-white/30 hover:border-white/60 group transition-all duration-500 ${transitionClass}`}
         aria-label={`Shop: ${heroBanner.title || heroBanner.advertiser}`}
+        style={{ position: 'relative' }}
       >
-        {/* Shop Image Only - No Text, No Details */}
+        {/* Modern Glow Background - Light Color Animated */}
+        <div className={`absolute inset-0 ${currentGlow} rounded-xl z-0`} />
+        
+        {/* Shop Image */}
         {heroBanner.imageUrl ? (
-          <Image
-            src={heroBanner.imageUrl}
-            alt={heroBanner.title || heroBanner.advertiser || 'Shop'}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-            priority
-            sizes="(max-width: 1024px) 100vw, 60vw"
-          />
+          <>
+            {/* Main Image */}
+            <Image
+              src={heroBanner.imageUrl}
+              alt={heroBanner.title || heroBanner.advertiser || 'Shop'}
+              fill
+              className="object-cover group-hover:scale-110 transition-transform duration-700 rounded-xl"
+              priority={currentShopIndex === 0}
+              sizes="(max-width: 1024px) 100vw, 60vw"
+            />
+            
+            {/* Image Overlay for better visibility */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/20 z-[12] rounded-xl" />
+          </>
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+          <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center z-10">
             <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
         )}
+        
+        {/* Modern Shop Info Overlay - Enhanced Visibility */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-4 sm:p-6 z-20 backdrop-blur-sm">
+          <h3 className="text-white text-xl sm:text-2xl font-bold mb-2 drop-shadow-lg">
+            {heroBanner.title || heroBanner.advertiser}
+          </h3>
+          <div className="flex flex-wrap items-center gap-3 text-sm sm:text-base">
+            {heroBanner.distance !== undefined && heroBanner.distance > 0 && (
+              <span className="bg-red-500/80 text-white px-3 py-1 rounded-full font-semibold shadow-lg">
+                {heroBanner.distance.toFixed(1)}km
+              </span>
+            )}
+            {heroBanner.visitorCount !== undefined && (
+              <span className="bg-blue-500/80 text-white px-3 py-1 rounded-full font-semibold shadow-lg">
+                {heroBanner.visitorCount} visitors
+              </span>
+            )}
+            {heroBanner.area && (
+              <span className="bg-white/20 text-white px-3 py-1 rounded-full font-medium backdrop-blur-sm">
+                {heroBanner.area}
+              </span>
+            )}
+          </div>
+        </div>
+        
+        {/* Modern Rotation Indicator Dots with Glow */}
+        {heroShops && heroShops.length > 1 && (
+          <div className="absolute top-4 right-4 flex gap-2 z-30">
+            {heroShops.map((_, index) => (
+              <div
+                key={index}
+                className={`w-3 h-3 rounded-full transition-all duration-300 shadow-lg ${
+                  index === currentShopIndex 
+                    ? 'bg-white scale-125 shadow-white/50 ring-2 ring-white/50' 
+                    : 'bg-white/40 scale-100'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+        
+        {/* Additional Modern Glow Effect on Hover */}
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-transparent via-white/10 to-transparent rounded-xl z-5" />
       </Link>
     );
   }

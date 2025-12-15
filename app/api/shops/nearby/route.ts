@@ -47,7 +47,7 @@ interface ShopWithDistance {
  * Returns shops sorted by distance, filtered by radius
  */
 export const dynamic = 'force-dynamic';
-export const revalidate = 60; // Revalidate every 60 seconds
+export const revalidate = 0; // No caching - always fetch fresh data for visitor counts
 
 export async function GET(request: NextRequest) {
   try {
@@ -436,7 +436,7 @@ export async function GET(request: NextRequest) {
       {
         status: 200,
         headers: {
-          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate', // No caching - always fetch fresh visitor counts
         },
       }
     );

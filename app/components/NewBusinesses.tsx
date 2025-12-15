@@ -42,7 +42,10 @@ export default function NewBusinesses() {
           url += `&shopName=${encodeURIComponent(searchParams.shopName)}`;
         }
         
-        const res = await fetch(url);
+        // Add cache-busting and disable browser caching for fresh visitor counts
+        const res = await fetch(`${url}&_t=${Date.now()}`, {
+          cache: 'no-store',
+        });
         const data = await safeJsonParse<{ success?: boolean; shops?: any[] }>(res);
         
         if (data?.success && data?.shops) {
@@ -76,20 +79,26 @@ export default function NewBusinesses() {
             );
           }
           
-          // Sort by creation date (newest first), then by distance
+          // Sort by popularity: visitor count first, then rating, then distance
           filteredShops.sort((a: any, b: any) => {
-            const dateA = new Date(a.createdAt || 0).getTime();
-            const dateB = new Date(b.createdAt || 0).getTime();
-            if (dateB !== dateA) {
-              return dateB - dateA;
+            // Primary: Sort by visitor count (highest first)
+            const visitorDiff = (b.visitorCount || 0) - (a.visitorCount || 0);
+            if (visitorDiff !== 0) {
+              return visitorDiff;
             }
+            // Secondary: Sort by rating (highest first)
+            const ratingDiff = (b.rating || 0) - (a.rating || 0);
+            if (ratingDiff !== 0) {
+              return ratingDiff;
+            }
+            // Tertiary: Sort by distance (closest first)
             if (a.distance !== undefined && b.distance !== undefined) {
               return a.distance - b.distance;
             }
-            return (b.visitorCount || 0) - (a.visitorCount || 0);
+            return 0;
           });
           
-          // Take top 6 newest
+          // Take top 6 most popular
           setBusinesses(filteredShops.slice(0, 6));
         } else {
           // Fallback to featured API if no shops found
@@ -143,8 +152,8 @@ export default function NewBusinesses() {
       <div className="max-w-[98%] mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-3 sm:gap-0">
           <div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">New Businesses {location.city || 'Patna'}</h2>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">Recently added businesses in your area</p>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Popular Shop</h2>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">Most popular shops in your area</p>
           </div>
         </div>
 
@@ -154,7 +163,7 @@ export default function NewBusinesses() {
             <p className="text-gray-500 text-sm">
               {isSearchActive 
                 ? 'Try adjusting your search filters'
-                : 'No new shops available at the moment'}
+                : 'No popular shops available at the moment'}
             </p>
           </div>
         ) : (
@@ -191,7 +200,7 @@ export default function NewBusinesses() {
                   />
                       {!isSearchActive && (
                   <span className="absolute top-2 left-2 z-20 inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-purple-500 text-white shadow-md">
-                    New
+                    Popular
                     </span>
                   )}
                 </div>

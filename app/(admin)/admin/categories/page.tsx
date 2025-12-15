@@ -33,6 +33,7 @@ export default function CategoriesPage() {
   const [uploading, setUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [updatingIcons, setUpdatingIcons] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -87,11 +88,16 @@ export default function CategoriesPage() {
         resetForm();
         fetchCategories();
       } else {
-        toast.error(data.error || data.details || 'Operation failed');
+        // Show detailed error message
+        const errorMsg = data.details 
+          ? `${data.error}: ${data.details}` 
+          : data.error || 'Operation failed';
+        toast.error(errorMsg, { duration: 5000 });
+        console.error('Category operation failed:', data);
       }
     } catch (error: any) {
       console.error('Error saving category:', error);
-      toast.error(error.message || 'Failed to save category');
+      toast.error(error.message || 'Failed to save category. Please check your connection and try again.');
     }
   };
 
@@ -192,6 +198,33 @@ export default function CategoriesPage() {
     }
   };
 
+  const handleUpdateIcons = async () => {
+    if (!confirm('This will automatically match and update all category icons from the catagory-icon folder. Continue?')) return;
+    
+    setUpdatingIcons(true);
+    try {
+      const res = await fetch('/api/admin/categories/update-icons', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success(
+          `Icons updated! Matched: ${data.stats.matched}/${data.stats.totalCategories} categories. Updated: ${data.stats.updated}`,
+          { duration: 5000 }
+        );
+        fetchCategories();
+      } else {
+        toast.error(data.error || 'Failed to update icons');
+      }
+    } catch (error) {
+      toast.error('Failed to update icons');
+    } finally {
+      setUpdatingIcons(false);
+    }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -261,7 +294,26 @@ export default function CategoriesPage() {
           <h1 className="text-3xl font-bold text-gray-900">Categories</h1>
           <p className="text-gray-600 mt-1">Manage business categories</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          <button
+            onClick={handleUpdateIcons}
+            disabled={updatingIcons}
+            className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-md hover:shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {updatingIcons ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <span>Updating Icons...</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>Update Icons</span>
+              </>
+            )}
+          </button>
           <button
             onClick={handleSeedCategories}
             disabled={seeding}

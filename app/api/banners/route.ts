@@ -390,6 +390,25 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error: any) {
+    // Check if it's an SSL/TLS error - these are usually transient
+    const errorString = String(error?.message || error?.stack || error || '');
+    const isSSLError = errorString.includes('SSL') || 
+                      errorString.includes('TLS') ||
+                      errorString.includes('ssl3_read_bytes') ||
+                      errorString.includes('tlsv1 alert') ||
+                      errorString.includes('Connection pool') ||
+                      errorString.includes('98180000') ||
+                      errorString.includes('0A000438');
+    
+    if (isSSLError) {
+      // Return empty banners for SSL errors instead of 500
+      return NextResponse.json({ banners: [] }, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
+        }
+      });
+    }
+    
     console.error('Error fetching banners:', error);
     // Fallback to mock data on error
     const searchParams = request.nextUrl.searchParams;

@@ -37,22 +37,56 @@ export const POST = requireAdmin(async (request: NextRequest) => {
     await connectDB();
 
     const body = await request.json();
-    const { title, description, businessId, isActive, startDate, endDate } = body;
+    const { 
+      headline, 
+      description, 
+      shopId, 
+      shopName, 
+      shopLogo, 
+      imageUrl, 
+      discount, 
+      cta, 
+      sponsored, 
+      businessId, 
+      isActive, 
+      startDate, 
+      endDate, 
+      expiresAt,
+      linkUrl,
+      position
+    } = body;
 
-    if (!title) {
+    if (!headline) {
       return NextResponse.json(
-        { error: 'Offer title is required' },
+        { error: 'Offer headline is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!shopName) {
+      return NextResponse.json(
+        { error: 'Shop name is required' },
         { status: 400 }
       );
     }
 
     const offer = await Offer.create({
-      title,
+      headline,
       description,
+      shopId,
+      shopName,
+      shopLogo,
+      imageUrl,
+      discount,
+      cta: cta || 'View Offer',
+      sponsored: sponsored || false,
       businessId: businessId || undefined,
       isActive: isActive !== undefined ? isActive : true,
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
+      expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+      linkUrl,
+      position: position || 0,
     });
 
     const populated = await Offer.findById(offer._id).populate('businessId', 'name slug').lean();

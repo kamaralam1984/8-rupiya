@@ -42,7 +42,10 @@ export default function TopRatedBusinesses() {
           url += `&shopName=${encodeURIComponent(searchParams.shopName)}`;
         }
         
-        const res = await fetch(url);
+        // Add cache-busting and disable browser caching for fresh visitor counts
+        const res = await fetch(`${url}&_t=${Date.now()}`, {
+          cache: 'no-store',
+        });
         const data = await safeJsonParse<{ success?: boolean; shops?: any[] }>(res);
         
         if (data?.success && data?.shops) {
@@ -144,7 +147,7 @@ export default function TopRatedBusinesses() {
       <div className="max-w-[98%] mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 gap-3 sm:gap-0">
           <div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Top Rated Businesses {location.city || 'Patna'}</h2>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">Top Rated Businesses</h2>
             <p className="text-sm sm:text-base text-gray-600 mt-1">Highest rated businesses loved by customers</p>
           </div>
         </div>

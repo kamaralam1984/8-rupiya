@@ -187,6 +187,7 @@ export default function AdminLayout({
     { name: 'Homepage', href: '/admin/homepage', icon: '🏠', color: 'orange', allowedRoles: ['admin', 'editor'] },
     { name: 'Banners', href: '/admin/banners', icon: '🖼️', color: 'amber', allowedRoles: ['admin', 'editor'] },
     { name: 'Categories', href: '/admin/categories', icon: '📁', color: 'purple', allowedRoles: ['admin', 'editor'] },
+    { name: 'Offers', href: '/admin/offers', icon: '🎁', color: 'rose', allowedRoles: ['admin', 'editor'] },
     { name: 'Businesses', href: '/admin/businesses', icon: '🏪', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
     { name: 'Shops', href: '/admin/shops', icon: '🏬', color: 'emerald', allowedRoles: ['admin', 'editor', 'operator'] },
     { name: 'Shop Directory', href: '/admin/shops/directory', icon: '📂', color: 'teal', allowedRoles: ['admin', 'editor', 'operator'] },
@@ -271,6 +272,7 @@ export default function AdminLayout({
               teal: active ? 'bg-teal-50 text-teal-700 border-l-4 border-teal-600' : 'text-gray-700 hover:bg-teal-50 hover:text-teal-600',
               violet: active ? 'bg-violet-50 text-violet-700 border-l-4 border-violet-600' : 'text-gray-700 hover:bg-violet-50 hover:text-violet-600',
               slate: active ? 'bg-slate-50 text-slate-700 border-l-4 border-slate-600' : 'text-gray-700 hover:bg-slate-50 hover:text-slate-600',
+              rose: active ? 'bg-rose-50 text-rose-700 border-l-4 border-rose-600' : 'text-gray-700 hover:bg-rose-50 hover:text-rose-600',
             };
             return (
               <Link

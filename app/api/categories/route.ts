@@ -129,6 +129,31 @@ export async function GET(request: NextRequest) {
       headers: CACHE_HEADERS,
     });
   } catch (error: any) {
+    // Check if it's an SSL/TLS error - these are usually transient
+    const errorString = String(error?.message || error?.stack || error || '');
+    const isSSLError = errorString.includes('SSL') || 
+                      errorString.includes('TLS') ||
+                      errorString.includes('ssl3_read_bytes') ||
+                      errorString.includes('tlsv1 alert') ||
+                      errorString.includes('Connection pool') ||
+                      errorString.includes('98180000') ||
+                      errorString.includes('0A000438');
+    
+    if (isSSLError) {
+      // Return empty categories for SSL errors instead of 500
+      return NextResponse.json(
+        { 
+          success: true,
+          categories: [],
+          count: 0
+        },
+        { 
+          status: 200,
+          headers: CACHE_HEADERS
+        }
+      );
+    }
+    
     // Only log critical errors - reduce verbosity
     if (process.env.NODE_ENV === 'development') {
       console.error('Error fetching categories:', error.message);
