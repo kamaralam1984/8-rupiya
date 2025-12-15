@@ -96,7 +96,12 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    return NextResponse.json({ success: true, settings: settingsWithDefaults }, { status: 200 });
+    return NextResponse.json({ success: true, settings: settingsWithDefaults }, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200', // Cache for 10 minutes
+      }
+    });
   } catch (error: any) {
     // Catch any other errors and return default settings
     console.error('Error fetching homepage settings:', error.message);

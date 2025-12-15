@@ -87,11 +87,12 @@ export async function GET(
     const agentFields = 'shopName category photoUrl latitude longitude address area mobile planType visitorCount';
 
     // Fetch shops from all collections with pagination
-    const maxLimit = limit * 3; // Fetch more to account for sorting/merging
+    // Limit to prevent loading too much data
+    const maxLimit = Math.min(limit * 2, 100); // Reduced multiplier, max 100 shops
     const [oldShops, adminShops, agentShops] = await Promise.all([
-      Shop.find(categoryQuery).select(oldFields).limit(maxLimit).lean().catch(() => []),
-      AdminShop.find(categoryQuery).select(adminFields).populate('categoryRef', 'name slug').limit(maxLimit).lean().catch(() => []),
-      AgentShop.find(categoryQuery).select(agentFields).limit(maxLimit).lean().catch(() => []),
+      Shop.find(categoryQuery).select(oldFields).limit(maxLimit).lean().hint({ category: 1 }).catch(() => []),
+      AdminShop.find(categoryQuery).select(adminFields).populate('categoryRef', 'name slug').limit(maxLimit).lean().hint({ category: 1, paymentStatus: 1 }).catch(() => []),
+      AgentShop.find(categoryQuery).select(agentFields).limit(maxLimit).lean().hint({ category: 1, paymentStatus: 1 }).catch(() => []),
     ]);
 
     // Transform shops to BusinessSummary format

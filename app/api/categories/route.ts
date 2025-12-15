@@ -4,9 +4,9 @@ import Category from '@/models/Category';
 import AdminShop from '@/lib/models/Shop';
 import AgentShop from '@/lib/models/AgentShop';
 
-// Cache-Control headers - cache for 5 minutes
+// Cache-Control headers - aggressive caching for 10 minutes
 const CACHE_HEADERS = {
-  'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+  'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200',
 };
 
 /**

@@ -99,13 +99,16 @@ const OfferSchema = new Schema<IOffer>(
   }
 );
 
-// Indexes
+// Indexes - optimized for common queries
 OfferSchema.index({ businessId: 1 });
 OfferSchema.index({ isActive: 1 });
 OfferSchema.index({ startDate: 1, endDate: 1 });
 OfferSchema.index({ expiresAt: 1 });
 OfferSchema.index({ position: 1 });
 OfferSchema.index({ sponsored: 1 });
+// Combined indexes for better performance
+OfferSchema.index({ isActive: 1, position: 1, sponsored: -1 }); // For listing active offers
+OfferSchema.index({ isActive: 1, expiresAt: 1 }); // For filtering active and non-expired offers
 
 const Offer: Model<IOffer> = mongoose.models.Offer || mongoose.model<IOffer>('Offer', OfferSchema);
 

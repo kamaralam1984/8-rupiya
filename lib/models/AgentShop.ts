@@ -240,13 +240,20 @@ const AgentShopSchema = new Schema<IAgentShop>(
   }
 );
 
-// Indexes for better query performance
+// Indexes for better query performance - optimized for common queries
 AgentShopSchema.index({ agentId: 1, createdAt: -1 });
-AgentShopSchema.index({ paymentStatus: 1 });
+AgentShopSchema.index({ paymentStatus: 1, isVisible: 1 }); // Combined index for payment + visibility filter
+AgentShopSchema.index({ paymentStatus: 1, planType: 1 }); // Combined index for payment + plan filter
+AgentShopSchema.index({ category: 1, paymentStatus: 1 }); // Combined index for category + payment filter
+AgentShopSchema.index({ pincode: 1, paymentStatus: 1 }); // Combined index for pincode + payment filter
+AgentShopSchema.index({ planType: 1, paymentStatus: 1 }); // Combined index for plan + payment filter
 AgentShopSchema.index({ category: 1 });
 AgentShopSchema.index({ pincode: 1 });
+AgentShopSchema.index({ planType: 1 }); // Index for plan type queries
 AgentShopSchema.index({ createdAt: -1 });
 AgentShopSchema.index({ latitude: 1, longitude: 1 }); // For geospatial queries
+AgentShopSchema.index({ shopName: 'text' }); // Text index for search
+AgentShopSchema.index({ visitorCount: -1 }); // Index for sorting by visitor count
 AgentShopSchema.index({ planType: 1, priorityRank: -1 }); // For plan-based sorting
 AgentShopSchema.index({ area: 1 }); // For area-based searches
 AgentShopSchema.index({ city: 1 }); // For city-based searches

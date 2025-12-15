@@ -42,9 +42,9 @@ export default function NewBusinesses() {
           url += `&shopName=${encodeURIComponent(searchParams.shopName)}`;
         }
         
-        // Add cache-busting and disable browser caching for fresh visitor counts
-        const res = await fetch(`${url}&_t=${Date.now()}`, {
-          cache: 'no-store',
+        // Use Next.js caching for better performance
+        const res = await fetch(url, {
+          next: { revalidate: 60 }, // Cache for 60 seconds
         });
         const data = await safeJsonParse<{ success?: boolean; shops?: any[] }>(res);
         

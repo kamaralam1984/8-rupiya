@@ -49,11 +49,11 @@ async function connectDB(): Promise<typeof mongoose> {
     
     const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
-      serverSelectionTimeoutMS: 20000, // Increased to 20 seconds timeout
-      socketTimeoutMS: 60000, // 60 seconds socket timeout
-      maxPoolSize: 10, // Maintain up to 10 socket connections
-      minPoolSize: 2, // Maintain at least 2 socket connections for better reliability
-      maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
+      serverSelectionTimeoutMS: 10000, // Reduced to 10 seconds for faster failure
+      socketTimeoutMS: 45000, // 45 seconds socket timeout
+      maxPoolSize: 20, // Increased to 20 connections for better concurrency
+      minPoolSize: 5, // Increased to 5 for better reliability
+      maxIdleTimeMS: 60000, // Keep connections alive longer (60 seconds)
       heartbeatFrequencyMS: 10000, // Check connection health every 10 seconds
       // SSL/TLS options are handled by MongoDB URI connection string automatically
       // Do NOT set ssl, sslValidate, or any SSL-related options here
@@ -62,7 +62,9 @@ async function connectDB(): Promise<typeof mongoose> {
       retryWrites: true,
       retryReads: true,
       // Connection retry options
-      connectTimeoutMS: 20000, // 20 seconds to establish connection
+      connectTimeoutMS: 10000, // Reduced to 10 seconds for faster connection
+      // Optimize for performance
+      directConnection: false, // Use connection pool
     };
 
     // Add retry logic for SSL/TLS connection errors

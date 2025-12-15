@@ -58,11 +58,11 @@ export default function HeroSection({ category }: HeroSectionProps) {
           if (location.latitude) searchParamsObj.append('userLat', location.latitude.toString());
           if (location.longitude) searchParamsObj.append('userLng', location.longitude.toString());
 
-          const searchUrl = `/api/search?${searchParamsObj.toString()}&_t=${Date.now()}`;
+          const searchUrl = `/api/search?${searchParamsObj.toString()}`;
           console.log(`🔍 Fetching search results from: ${searchUrl}`);
           
           const searchRes = await fetch(searchUrl, {
-            cache: 'no-store', // Disable browser caching for fresh visitor counts
+            next: { revalidate: 30 } // Cache for 30 seconds
           });
           const searchData = await safeJsonParse<{
             success: boolean;
@@ -236,7 +236,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
           if (location.area) url += `&area=${encodeURIComponent(location.area)}`;
           if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
           if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
-          nearbyShopsPromise = fetch(`${url}&_t=${Date.now()}`, { cache: 'no-store' });
+          nearbyShopsPromise = fetch(url, { next: { revalidate: 60 } });
         } else if (location.city || location.area || pincodeFilter) {
           // Fetch with location filters (city/area/pincode)
           const cityFilter = location.city || 'Patna';
@@ -244,13 +244,13 @@ export default function HeroSection({ category }: HeroSectionProps) {
           if (location.area) url += `&area=${encodeURIComponent(location.area)}`;
           if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
           if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
-          nearbyShopsPromise = fetch(`${url}&_t=${Date.now()}`, { cache: 'no-store' });
+          nearbyShopsPromise = fetch(url, { next: { revalidate: 60 } });
         } else {
           // No location at all - fetch all shops (will be limited to 100 by API)
           let url = `/api/shops/nearby?radiusKm=1000&useMongoDB=true&limit=50`;
           if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
           if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
-          nearbyShopsPromise = fetch(`${url}&_t=${Date.now()}`, { cache: 'no-store' });
+          nearbyShopsPromise = fetch(url, { next: { revalidate: 60 } });
         }
 
         // Use Promise.allSettled to handle individual fetch failures gracefully
@@ -299,9 +299,8 @@ export default function HeroSection({ category }: HeroSectionProps) {
             let url = `/api/shops/nearby?city=${encodeURIComponent(cityFilter)}&radiusKm=1000&useMongoDB=true&limit=50`;
             if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
             if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
-            url += `&_t=${Date.now()}`; // Cache-busting
             const allShopsRes = await fetch(url, {
-              cache: 'no-store', // Disable browser caching
+              next: { revalidate: 60 } // Cache for 60 seconds
             }).catch(() => null);
             if (allShopsRes) {
               const parsed = await safeJsonParse(allShopsRes);
@@ -316,16 +315,16 @@ export default function HeroSection({ category }: HeroSectionProps) {
           // IMPORTANT: Homepage पर सिर्फ AgentShop से shops fetch करें (Shop.ts से नहीं)
           // Only fetch all shops if no search filters are active (page load)
           if (!isSearchActive) {
-            console.log('🌍 Page Load: Fetching ALL shops from AgentShop only for homepage...');
-            let allLocationsUrl = '/api/shops/nearby?radiusKm=1000&useMongoDB=true'; // No limit - fetch ALL shops from AgentShop
+            console.log('🌍 Page Load: Fetching shops from AgentShop only for homepage...');
+            // Limit to 100 shops max for better performance
+            let allLocationsUrl = '/api/shops/nearby?radiusKm=1000&useMongoDB=true&limit=100';
             if (location.latitude && location.longitude) {
               allLocationsUrl += `&userLat=${location.latitude}&userLng=${location.longitude}`;
             }
-            // Add cache-busting timestamp to ensure fresh data
-            allLocationsUrl += `&_t=${Date.now()}`;
+            // Use caching for better performance - cache for 60 seconds
             // Don't apply filters on page load - show all shops from AgentShop
             const allLocationsRes = await fetch(allLocationsUrl, {
-              cache: 'no-store', // Disable browser caching
+              next: { revalidate: 60 } // Cache for 60 seconds
             }).catch(() => null);
             if (allLocationsRes) {
               const parsed = await safeJsonParse(allLocationsRes);
@@ -339,14 +338,13 @@ export default function HeroSection({ category }: HeroSectionProps) {
           // If still no shops, try fetching by plan types
           if (!nearbyShopsData?.shops || nearbyShopsData.shops.length === 0) {
             console.log('📍 Trying to fetch shops by plan types for left/right rails...');
-            const timestamp = Date.now();
-            const leftBarUrl = `/api/shops/by-plan?planType=LEFT_BAR&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}&_t=${timestamp}`;
-            const rightBarUrl = `/api/shops/by-plan?planType=RIGHT_SIDE&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}&_t=${timestamp}`;
-            const heroUrl = `/api/shops/by-plan?planType=HERO&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}&_t=${timestamp}`;
+            const leftBarUrl = `/api/shops/by-plan?planType=LEFT_BAR&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}`;
+            const rightBarUrl = `/api/shops/by-plan?planType=RIGHT_SIDE&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}`;
+            const heroUrl = `/api/shops/by-plan?planType=HERO&limit=10${pincodeFilter ? `&pincode=${pincodeFilter}` : ''}${categoryFilter ? `&category=${encodeURIComponent(categoryFilter)}` : ''}`;
             const [leftBarRes, rightBarRes, heroRes] = await Promise.all([
-              fetch(leftBarUrl, { cache: 'no-store' }).catch(() => null),
-              fetch(rightBarUrl, { cache: 'no-store' }).catch(() => null),
-              fetch(heroUrl, { cache: 'no-store' }).catch(() => null),
+              fetch(leftBarUrl, { next: { revalidate: 60 } }).catch(() => null),
+              fetch(rightBarUrl, { next: { revalidate: 60 } }).catch(() => null),
+              fetch(heroUrl, { next: { revalidate: 60 } }).catch(() => null),
             ]);
             
             const leftBarData = leftBarRes ? await safeJsonParse(leftBarRes) : null;
@@ -402,7 +400,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
               let url = `/api/shops/nearby?city=Patna&area=${encodeURIComponent(area)}&radiusKm=1000&useMongoDB=true&limit=5`;
               if (pincodeFilter) url += `&pincode=${pincodeFilter}`;
               if (categoryFilter) url += `&category=${encodeURIComponent(categoryFilter)}`;
-              return fetch(`${url}&_t=${Date.now()}`, { cache: 'no-store' });
+              return fetch(url, { next: { revalidate: 60 } });
             });
             const areaResponses = await Promise.all(areaPromises);
             const areaData = await Promise.all(areaResponses.map(res => safeJsonParse(res)));

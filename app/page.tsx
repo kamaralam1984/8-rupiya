@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import Navbar from "./components/Navbar";
 import HeroSection from "./components/HeroSection";
 import CategoryGrid from "./components/CategoryGrid";
 import OffersStrip from "./components/OffersStrip";
-import FeaturedBusinesses from "./components/FeaturedBusinesses";
-import LatestOffers from "./components/LatestOffers";
-import TopRatedBusinesses from "./components/TopRatedBusinesses";
-import NewBusinesses from "./components/NewBusinesses";
+// Lazy load heavy components for faster initial page load
+const FeaturedBusinesses = lazy(() => import("./components/FeaturedBusinesses"));
+const LatestOffers = lazy(() => import("./components/LatestOffers"));
+const TopRatedBusinesses = lazy(() => import("./components/TopRatedBusinesses"));
+const NewBusinesses = lazy(() => import("./components/NewBusinesses"));
 import { safeJsonParse } from "./utils/fetchHelpers";
 
 interface HomepageSettings {
@@ -189,31 +190,39 @@ export default function Home() {
           </div>
         )}
 
-        {/* Offers Section */}
+        {/* Offers Section - Lazy Loaded */}
         {sections.offers && (
           <div style={{ marginBottom: sectionSpacing }}>
-            <LatestOffers />
+            <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg" />}>
+              <LatestOffers />
+            </Suspense>
           </div>
         )}
 
-        {/* Featured Businesses */}
+        {/* Featured Businesses - Lazy Loaded */}
         {sections.featuredBusinesses && (
           <div style={{ marginBottom: sectionSpacing }}>
-            <FeaturedBusinesses />
+            <Suspense fallback={<div className="h-64 bg-gray-100 animate-pulse rounded-lg" />}>
+              <FeaturedBusinesses />
+            </Suspense>
           </div>
         )}
 
-        {/* Top Rated Businesses */}
+        {/* Top Rated Businesses - Lazy Loaded */}
         {sections.topRated && (
           <div style={{ marginBottom: sectionSpacing }}>
-            <TopRatedBusinesses />
+            <Suspense fallback={<div className="h-64 bg-gray-100 animate-pulse rounded-lg" />}>
+              <TopRatedBusinesses />
+            </Suspense>
           </div>
         )}
 
-        {/* New Businesses */}
+        {/* New Businesses - Lazy Loaded */}
         {sections.newBusinesses && (
           <div style={{ marginBottom: sectionSpacing }}>
-            <NewBusinesses />
+            <Suspense fallback={<div className="h-64 bg-gray-100 animate-pulse rounded-lg" />}>
+              <NewBusinesses />
+            </Suspense>
           </div>
         )}
 

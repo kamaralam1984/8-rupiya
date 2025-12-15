@@ -272,7 +272,7 @@ const ShopSchema = new Schema<IShop>(
   }
 );
 
-// Indexes for better query performance
+// Indexes for better query performance - optimized for common queries
 ShopSchema.index({ category: 1 });
 ShopSchema.index({ latitude: 1, longitude: 1 });
 ShopSchema.index({ area: 1 });
@@ -285,6 +285,12 @@ ShopSchema.index({ planType: 1, priorityRank: -1 }); // For plan-based sorting
 ShopSchema.index({ isHomePageBanner: 1 }); // For featured shops
 ShopSchema.index({ isTopSlider: 1 }); // For slider shops
 ShopSchema.index({ paymentStatus: 1 }); // For pending/paid shops filtering
+// Combined indexes for better performance on filtered queries
+ShopSchema.index({ paymentStatus: 1, isVisible: 1 }); // Combined index for payment + visibility filter
+ShopSchema.index({ paymentStatus: 1, planType: 1 }); // Combined index for payment + plan filter
+ShopSchema.index({ category: 1, paymentStatus: 1 }); // Combined index for category + payment filter
+ShopSchema.index({ pincode: 1, paymentStatus: 1 }); // Combined index for pincode + payment filter
+ShopSchema.index({ shopName: 'text' }); // Text index for search
 
 // Use a unique model name to avoid conflicts with old Shop model
 const Shop: Model<IShop> = mongoose.models.ShopFromImage || mongoose.model<IShop>('ShopFromImage', ShopSchema);

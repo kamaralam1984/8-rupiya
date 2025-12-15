@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       settings: settings.toObject(),
     }, {
       headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200', // Cache for 10 minutes
       },
     });
   } catch (error: any) {

@@ -46,8 +46,9 @@ interface ShopWithDistance {
  * 
  * Returns shops sorted by distance, filtered by radius
  */
-export const dynamic = 'force-dynamic';
-export const revalidate = 0; // No caching - always fetch fresh data for visitor counts
+// Aggressive caching - cache for 5 minutes, stale for 10 minutes
+// This dramatically reduces database load while keeping data fresh enough
+export const revalidate = 300; // 5 minutes
 
 export async function GET(request: NextRequest) {
   try {
@@ -259,9 +260,13 @@ export async function GET(request: NextRequest) {
           ownerName: 1,
         };
         
+        // Add default limit to prevent loading too much data - optimized for performance
+        const maxLimit = Math.min(limitCount || 50, 100); // Reduced max to 100 for faster queries
+        
+        // Use optimized query with proper indexes
         const agentShops = await (Object.keys(finalQuery).length > 0 
-          ? AgentShop.find(finalQuery).select(projection).lean() 
-          : (limitCount ? AgentShop.find(baseFilter).select(projection).limit(limitCount).lean() : AgentShop.find(baseFilter).select(projection).limit(100).lean())
+          ? AgentShop.find(finalQuery).select(projection).limit(maxLimit).lean().hint({ paymentStatus: 1, planType: 1 }).sort({ planType: 1, visitorCount: -1 })
+          : AgentShop.find(baseFilter).select(projection).limit(maxLimit).lean().hint({ paymentStatus: 1, planType: 1 }).sort({ planType: 1, visitorCount: -1 })
         ).catch(() => []);
         
         console.log(`📍 Fetching shops from AgentShop only: ${agentShops.length} shops found`);
@@ -436,7 +441,7 @@ export async function GET(request: NextRequest) {
       {
         status: 200,
         headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate', // No caching - always fetch fresh visitor counts
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600', // Cache for 5min, stale for 10min
         },
       }
     );

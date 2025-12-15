@@ -285,11 +285,12 @@ export async function GET(request: NextRequest) {
 
     // IMPORTANT: Homepage पर सिर्फ AgentShop से shops fetch करें
     // Shop.ts (AdminShop) और old Shop model से नहीं
+    // Limit to 150 shops max for performance
     const agentShops = await AgentShop.find(finalQuery)
       .select(projection)
-      .limit(200)
+      .limit(150) // Reduced from 200 for better performance
       .lean()
-      .hint({ planType: 1, pincode: 1 }) // Use index for better performance
+      .hint({ paymentStatus: 1, planType: 1, pincode: 1 }) // Use indexes for better performance
       .catch((err) => {
         console.error('Error fetching AgentShops:', err);
         return [];
@@ -522,8 +523,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // No caching - always fetch fresh visitor counts
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    // Aggressive caching - cache for 2 minutes for search results
+    response.headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
     
     return response;
   } catch (error: any) {
