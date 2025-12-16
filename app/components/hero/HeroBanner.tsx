@@ -302,13 +302,13 @@ export default function HeroBanner({ hero, heroShops, onBannerClick, height = 'h
               src={heroBanner.imageUrl}
               alt={heroBanner.title || heroBanner.advertiser || 'Shop'}
               fill
-              className="object-cover group-hover:scale-110 transition-transform duration-700 rounded-xl"
+              className="object-contain sm:object-cover md:object-cover group-hover:scale-110 transition-transform duration-700 rounded-xl"
               priority={currentShopIndex === 0}
               sizes="(max-width: 1024px) 100vw, 60vw"
             />
             
-            {/* Image Overlay for better visibility */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/20 z-[12] rounded-xl" />
+            {/* Image Overlay for better visibility - Very light on mobile, no blur */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/10 to-transparent sm:from-black/70 sm:via-black/30 sm:to-black/20 z-[12] rounded-xl" />
           </>
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center z-10">
@@ -318,27 +318,53 @@ export default function HeroBanner({ hero, heroShops, onBannerClick, height = 'h
           </div>
         )}
         
-        {/* Modern Shop Info Overlay - Enhanced Visibility */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-4 sm:p-6 z-20 backdrop-blur-sm">
-          <h3 className="text-white text-xl sm:text-2xl font-bold mb-2 drop-shadow-lg">
-            {heroBanner.title || heroBanner.advertiser}
-          </h3>
-          <div className="flex flex-wrap items-center gap-3 text-sm sm:text-base">
+        {/* Modern Shop Info Overlay - Enhanced Visibility - Lighter on mobile, no blur */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent sm:from-black/95 sm:via-black/70 p-2 sm:p-4 md:p-6 z-20">
+          {/* Mobile: Shop Name, Distance, Area all in one line */}
+          <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+            {/* Shop Name */}
+            <h3 className="text-white text-xs sm:text-lg md:text-2xl font-bold drop-shadow-lg truncate flex-shrink min-w-0">
+              {heroBanner.title || heroBanner.advertiser}
+            </h3>
+            {/* Distance - In same line on mobile */}
             {heroBanner.distance !== undefined && heroBanner.distance > 0 && (
-              <span className="bg-red-500/80 text-white px-3 py-1 rounded-full font-semibold shadow-lg">
-                {heroBanner.distance.toFixed(1)}km
-              </span>
+              <>
+                <span className="text-white/60 text-xs sm:text-sm">|</span>
+                <span className="bg-red-500/80 text-white px-1 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap">
+                  {heroBanner.distance.toFixed(1)}km
+                </span>
+              </>
             )}
-            {heroBanner.visitorCount !== undefined && (
-              <span className="bg-blue-500/80 text-white px-3 py-1 rounded-full font-semibold shadow-lg">
-                {heroBanner.visitorCount} visitors
-              </span>
-            )}
+            {/* Area - In same line on mobile */}
             {heroBanner.area && (
-              <span className="bg-white/20 text-white px-3 py-1 rounded-full font-medium backdrop-blur-sm">
-                {heroBanner.area}
-              </span>
+              <>
+                <span className="text-white/60 text-xs sm:text-sm">|</span>
+                <span className="bg-white/20 text-white px-1 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap">
+                  {heroBanner.area}
+                </span>
+              </>
             )}
+            {/* Visitor Count - In same line on mobile */}
+            {heroBanner.visitorCount !== undefined && (
+              <>
+                <span className="text-white/60 text-xs sm:text-sm">|</span>
+                <span className="bg-blue-500/80 text-white px-1 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap">
+                  {heroBanner.visitorCount} visitors
+                </span>
+              </>
+            )}
+            {/* Time - In same line on mobile (if distance exists) */}
+            {heroBanner.distance !== undefined && heroBanner.distance > 0 && (() => {
+              const estimatedTime = Math.round(heroBanner.distance * 1.5);
+              return estimatedTime > 0 ? (
+                <>
+                  <span className="text-white/60 text-xs sm:text-sm">|</span>
+                  <span className="bg-yellow-500/80 text-white px-1 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-semibold shadow-lg whitespace-nowrap">
+                    {estimatedTime}min
+                  </span>
+                </>
+              ) : null;
+            })()}
           </div>
         </div>
         
@@ -427,33 +453,33 @@ export default function HeroBanner({ hero, heroShops, onBannerClick, height = 'h
         const distance = heroBanner.distance || 0;
         const estimatedTime = distance > 0 ? Math.round(distance * 1.5) : 0;
         return (
-          <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 z-20">
-            <div className="flex flex-wrap items-center justify-center gap-2 px-3 py-2">
+          <div className="absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 md:bottom-4 md:left-4 md:right-4 z-20">
+            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 px-2 py-1 sm:px-3 sm:py-2">
               {/* Distance - Red */}
               {distance > 0 && (
                 <>
-                  <span className="text-sm sm:text-base font-bold text-red-600 drop-shadow-lg">
+                  <span className="text-xs sm:text-sm md:text-base font-bold text-red-600 drop-shadow-lg whitespace-nowrap">
                     {distance.toFixed(1)}km
                   </span>
                   {(estimatedTime > 0 || heroBanner.visitorCount !== undefined) && (
-                    <span className="text-sm sm:text-base text-white/60">|</span>
+                    <span className="text-xs sm:text-sm md:text-base text-white/60">|</span>
                   )}
                 </>
               )}
               {/* Time - Yellow */}
               {estimatedTime > 0 && (
                 <>
-                  <span className="text-sm sm:text-base font-bold text-yellow-600 drop-shadow-lg">
+                  <span className="text-xs sm:text-sm md:text-base font-bold text-yellow-600 drop-shadow-lg whitespace-nowrap">
                     {estimatedTime}min
                   </span>
                   {heroBanner.visitorCount !== undefined && (
-                    <span className="text-sm sm:text-base text-white/60">|</span>
+                    <span className="text-xs sm:text-sm md:text-base text-white/60">|</span>
                   )}
                 </>
               )}
               {/* Visitor - Blue */}
               {heroBanner.visitorCount !== undefined && (
-                <span className="text-sm sm:text-base font-bold text-blue-600 drop-shadow-lg">
+                <span className="text-xs sm:text-sm md:text-base font-bold text-blue-600 drop-shadow-lg whitespace-nowrap">
                   {heroBanner.visitorCount || 0}visitor
                 </span>
               )}

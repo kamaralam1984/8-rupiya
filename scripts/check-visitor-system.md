@@ -124,3 +124,4 @@ Based on the screenshot:
 3. Add daily/weekly/monthly visitor trends
 4. Add email notifications for milestone visitor counts
 
+

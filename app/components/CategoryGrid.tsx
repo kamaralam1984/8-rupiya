@@ -118,10 +118,27 @@ export default function CategoryGrid() {
   const [showAllDropdown, setShowAllDropdown] = useState(false);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
+  const [heroSettings, setHeroSettings] = useState<any>(null);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const desktopScrollRef = useRef<HTMLDivElement>(null);
   const mobileScrollRef = useRef<HTMLDivElement>(null);
+
+  // Fetch hero section settings
+  useEffect(() => {
+    const fetchHeroSettings = async () => {
+      try {
+        const res = await fetch('/api/hero-section');
+        const data = await res.json();
+        if (data.success) {
+          setHeroSettings(data.settings);
+        }
+      } catch (error) {
+        console.error('Error fetching hero settings:', error);
+      }
+    };
+    fetchHeroSettings();
+  }, []);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -340,6 +357,52 @@ export default function CategoryGrid() {
     container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
   };
 
+  // Apply hero section category settings
+  const getDisplayCategories = () => {
+    let displayCategories = [...categories];
+
+    // Only apply hero section settings if categories section is enabled
+    if (heroSettings?.sections?.categories && heroSettings?.categories?.enabled) {
+      // Filter by selected category IDs if specified
+      if (heroSettings.categories.categoryIds && heroSettings.categories.categoryIds.length > 0) {
+        displayCategories = displayCategories.filter((cat) => {
+          const categoryId = cat.id || '';
+          return heroSettings.categories.categoryIds.includes(categoryId);
+        });
+      }
+
+      // Apply count limit if specified (0 = show all)
+      if (heroSettings.categories.count && heroSettings.categories.count > 0) {
+        displayCategories = displayCategories.slice(0, heroSettings.categories.count);
+      }
+    }
+
+    return displayCategories;
+  };
+
+  const displayCategories = getDisplayCategories();
+  
+  // Get category size from hero settings
+  const getCategorySize = () => {
+    // Only apply hero section size if categories section is enabled
+    if (heroSettings?.sections?.categories && heroSettings?.categories?.enabled && heroSettings.categories.size) {
+      return heroSettings.categories.size;
+    }
+    return 'h-24 w-24 md:h-28 md:w-28'; // Default size
+  };
+
+  const categorySize = getCategorySize();
+  
+  // Parse size classes (e.g., "h-24 w-24 md:h-28 md:w-28" -> { mobile: "h-24 w-24", desktop: "md:h-28 md:w-28" })
+  const parseSizeClasses = (sizeString: string) => {
+    const parts = sizeString.split(' ');
+    const mobile = parts.filter(p => !p.startsWith('md:')).join(' ');
+    const desktop = parts.filter(p => p.startsWith('md:')).map(p => p.replace('md:', '')).join(' ');
+    return { mobile: mobile || 'h-24 w-24', desktop: desktop || 'h-28 w-28' };
+  };
+
+  const sizeClasses = parseSizeClasses(categorySize);
+
   if (isLoading) {
     return (
       <section className="py-8 px-2 sm:px-3 lg:px-4">
@@ -412,7 +475,7 @@ export default function CategoryGrid() {
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {categories.map((category, index) => (
+                  {displayCategories.map((category, index) => (
                     <button
                       key={`dropdown-${category.id || category.slug || index}`}
                       onClick={() => {
@@ -481,7 +544,7 @@ export default function CategoryGrid() {
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             <div className="flex gap-4 pb-2" style={{ width: 'max-content' }}>
-              {categories.map((category, index) => {
+              {displayCategories.map((category, index) => {
                 const customImageUrl = getCategoryImageUrl(category.slug, category.iconUrl);
 
                 return (
@@ -492,7 +555,7 @@ export default function CategoryGrid() {
                     aria-label={`Browse ${category.displayName} - ${category.itemCount} shops available`}
                     style={{ minWidth: '112px' }}
                   >
-                    <div className="relative mb-2 flex items-center justify-center h-24 w-24 md:h-28 md:w-28">
+                    <div className={`relative mb-2 flex items-center justify-center ${categorySize}`}>
                       {customImageUrl ? (
                         <div className="relative w-full h-full rounded-full overflow-hidden bg-white border-2 border-gray-100 shadow-sm group-hover:shadow-md transition-all duration-200">
                           <Image
@@ -554,7 +617,7 @@ export default function CategoryGrid() {
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             <div className="flex gap-3" style={{ width: 'max-content' }}>
-              {categories.map((category, index) => {
+              {displayCategories.map((category, index) => {
                 const customImageUrl = getCategoryImageUrl(category.slug, category.iconUrl);
 
                 return (
@@ -564,7 +627,7 @@ export default function CategoryGrid() {
                     className="shrink-0 flex flex-col items-center focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[80px]"
                     aria-label={`Browse ${category.displayName} - ${category.itemCount} shops available`}
                   >
-                    <div className="relative mb-2 flex items-center justify-center h-20 w-20">
+                    <div className={`relative mb-2 flex items-center justify-center ${sizeClasses.mobile}`}>
                       {customImageUrl ? (
                         <div className="relative w-full h-full rounded-full overflow-hidden bg-white border-2 border-gray-100 shadow-sm">
                           <Image

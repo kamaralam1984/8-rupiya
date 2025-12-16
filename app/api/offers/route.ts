@@ -26,13 +26,12 @@ export async function GET(request: NextRequest) {
     ];
 
     // Get offers from database, sorted by position and sponsored status
-    // Use indexes for better performance
+    // MongoDB will automatically use the best available index
     const offers = await Offer.find(query)
       .select('_id shopId shopName shopLogo imageUrl headline description discount expiresAt cta sponsored')
       .sort({ position: 1, sponsored: -1, createdAt: -1 })
       .limit(limit)
-      .lean()
-      .hint({ isActive: 1, position: 1 }); // Use index
+      .lean();
 
     // Transform to frontend format
     const transformedOffers: OfferType[] = offers.map((offer: any) => ({

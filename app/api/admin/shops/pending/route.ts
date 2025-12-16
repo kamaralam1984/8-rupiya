@@ -36,6 +36,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
       paymentStatus: shop.paymentStatus,
       planType: shop.planType,
       planAmount: shop.planAmount,
+      visitorCount: shop.visitorCount || 0, // Include visitorCount
       createdAt: shop.createdAt,
     }));
 

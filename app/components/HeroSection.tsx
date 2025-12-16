@@ -438,11 +438,19 @@ export default function HeroSection({ category }: HeroSectionProps) {
         // IMPORTANT: सिर्फ AgentShop से shops आ रहे हैं, duplicate prevention के लिए shopName + ownerName + mobile use करें
         const allUniqueShops = new Map<string, any>();
         
-        // Add shops from all sources, keeping unique shops based on shopName + ownerName + mobile
+        // Add shops from all sources, keeping unique shops based on shopName + ownerName + mobile + ID
         [...allShops, ...nearbyShops, ...patnaAreaShops].forEach((shop: any) => {
           if (shop && shop.id) {
-            // Create unique key from shopName + ownerName + mobile
-            const uniqueKey = `${(shop.name || shop.shopName || '').toLowerCase().trim()}_${(shop.ownerName || '').toLowerCase().trim()}_${(shop.phone || shop.mobile || '').trim()}`;
+            const shopName = (shop.name || shop.shopName || '').trim();
+            const ownerName = (shop.ownerName || '').trim();
+            const mobile = (shop.phone || shop.mobile || '').trim();
+            const shopId = shop.id || shop._id || '';
+            
+            // Create unique key from shopName + ownerName + mobile + ID
+            // Use ID as part of key to ensure uniqueness even if other fields are empty
+            const uniqueKey = shopId 
+              ? `${shopName.toLowerCase()}_${ownerName.toLowerCase()}_${mobile}_${shopId}`
+              : `${shopName.toLowerCase()}_${ownerName.toLowerCase()}_${mobile}`;
             
             // अगर पहले से नहीं है, तो add करें
             // अगर है, तो latest (higher visitorCount) को keep करें
@@ -451,7 +459,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
             } else {
               const existingShop = allUniqueShops.get(uniqueKey);
               // Keep the one with higher visitorCount (more popular)
-              if (shop.visitorCount > (existingShop.visitorCount || 0)) {
+              if ((shop.visitorCount || 0) > (existingShop?.visitorCount || 0)) {
                 allUniqueShops.set(uniqueKey, shop);
               }
             }

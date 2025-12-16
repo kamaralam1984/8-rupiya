@@ -40,6 +40,8 @@ interface Shop {
   longitude: number;
   area?: string;
   createdAt: string;
+  // Visitor count
+  visitorCount?: number;
 }
 
 /**
@@ -105,6 +107,10 @@ export default function ShopsPage() {
       if (data.success) {
         toast.success(`Visitor count incremented by ${incrementBy} (${data.previousCount} → ${data.visitorCount})`);
         fetchShops(); // Refresh the list
+        // Refresh visitor stats if modal is open
+        if (showVisitorStats) {
+          fetchVisitorStats();
+        }
       } else {
         toast.error(data.error || 'Failed to increment visitor count');
       }
@@ -1169,7 +1175,7 @@ export default function ShopsPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-gray-700">
-                              {(shop as any).visitorCount || 0}
+                              {shop.visitorCount || 0}
                             </span>
                             <button
                               onClick={() => handleIncrementVisitors(shop._id, 1)}

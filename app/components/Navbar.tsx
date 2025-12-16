@@ -130,10 +130,10 @@ export default function Navbar({ hideSearch = false }: NavbarProps) {
           {/* Left: Logo with enhanced design */}
           <div className="flex items-center shrink-0">
             <Link href="/" className="flex items-center group">
-              <div className="relative w-16 h-6 sm:w-20 sm:h-8 md:w-24 md:h-10">
+              <div className="relative w-[86px] h-[32px] sm:w-[108px] sm:h-[44px] md:w-[130px] md:h-[54px]">
                 <Image
-                  src="/Assets/kvl-logo.png"
-                  alt="8 Ruppess logo"
+                  src="/Assets/logo 8rupiya.png"
+                  alt="8rupiya.com logo"
                   fill
                   sizes="400px"
                   priority

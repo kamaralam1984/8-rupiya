@@ -15,6 +15,14 @@ interface Shop {
   planType?: string;
 }
 
+interface Category {
+  _id: string;
+  id?: string;
+  name: string;
+  slug: string;
+  isActive?: boolean;
+}
+
 interface HeroSectionSettings {
   sections: {
     slider: boolean;
@@ -22,6 +30,7 @@ interface HeroSectionSettings {
     hero: boolean;
     rightRail: boolean;
     bottomStrip: boolean;
+    categories: boolean;
   };
   slider: {
     enabled: boolean;
@@ -63,6 +72,12 @@ interface HeroSectionSettings {
     borderColor: string;
     shopIds: string[];
   };
+  categories: {
+    enabled: boolean;
+    count: number;
+    size: string;
+    categoryIds: string[];
+  };
   global: {
     containerWidth: string;
     sectionSpacing: string;
@@ -77,13 +92,16 @@ export default function HeroSectionPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [shops, setShops] = useState<Shop[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [categorySearchQuery, setCategorySearchQuery] = useState('');
   const [settings, setSettings] = useState<HeroSectionSettings | null>(null);
-  const [activeTab, setActiveTab] = useState<'slider' | 'leftRail' | 'hero' | 'rightRail' | 'bottomStrip' | 'global'>('slider');
+  const [activeTab, setActiveTab] = useState<'slider' | 'leftRail' | 'hero' | 'rightRail' | 'bottomStrip' | 'categories' | 'global'>('slider');
 
   useEffect(() => {
     fetchSettings();
     fetchShops();
+    fetchCategories();
   }, []);
 
   const fetchSettings = async () => {
@@ -114,6 +132,20 @@ export default function HeroSectionPage() {
       }
     } catch (error: any) {
       console.error('Error fetching shops:', error);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/admin/categories', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCategories(data.categories || []);
+      }
+    } catch (error: any) {
+      console.error('Error fetching categories:', error);
     }
   };
 
@@ -204,6 +236,28 @@ export default function HeroSectionPage() {
     updateSettings(sectionKey, currentIds.filter((id) => id !== shopId));
   };
 
+  const addCategory = (categoryId: string) => {
+    if (!settings) return;
+    const currentIds = settings.categories.categoryIds || [];
+    if (!currentIds.includes(categoryId)) {
+      updateSettings('categories.categoryIds', [...currentIds, categoryId]);
+    }
+  };
+
+  const removeCategory = (categoryId: string) => {
+    if (!settings) return;
+    const currentIds = settings.categories.categoryIds || [];
+    updateSettings('categories.categoryIds', currentIds.filter((id) => id !== categoryId));
+  };
+
+  const filteredCategories = categories.filter((cat) => {
+    const categoryId = cat._id || cat.id || '';
+    return (
+      cat.name?.toLowerCase().includes(categorySearchQuery.toLowerCase()) ||
+      cat.slug?.toLowerCase().includes(categorySearchQuery.toLowerCase())
+    );
+  });
+
   const filteredShops = shops.filter((shop) => {
     const shopId = shop.id || shop._id || '';
     return (
@@ -251,7 +305,7 @@ export default function HeroSectionPage() {
       {/* Quick On/Off Toggles */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-xl font-semibold mb-4">Quick Section Controls</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           {/* Best Deals Slider Toggle */}
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
             <div className="flex items-center gap-3">
@@ -366,6 +420,31 @@ export default function HeroSectionPage() {
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
+
+          {/* Categories Toggle */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📁</span>
+              <div>
+                <p className="font-medium text-gray-900">Categories</p>
+                <p className="text-xs text-gray-500">
+                  {settings.categories.count > 0 ? `${settings.categories.count} categories` : 'All categories'}
+                </p>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.sections.categories && settings.categories.enabled}
+                onChange={(e) => {
+                  updateSettings('sections.categories', e.target.checked);
+                  updateSettings('categories.enabled', e.target.checked);
+                }}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -378,6 +457,7 @@ export default function HeroSectionPage() {
             { id: 'hero', label: 'Hero Banner', icon: '⭐' },
             { id: 'rightRail', label: 'Right Rail', icon: '➡️' },
             { id: 'bottomStrip', label: 'Bottom Strip', icon: '⬇️' },
+            { id: 'categories', label: 'Categories', icon: '📁' },
             { id: 'global', label: 'Global Settings', icon: '⚙️' },
           ].map((tab, index) => (
             <button
@@ -1170,6 +1250,157 @@ export default function HeroSectionPage() {
                           </div>
                         );
                       })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Categories Tab */}
+          {activeTab === 'categories' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold">Category Settings</h3>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.sections.categories}
+                    onChange={(e) => updateSettings('sections.categories', e.target.checked)}
+                    className="w-5 h-5"
+                  />
+                  <span>Show Section</span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Enabled</label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={settings.categories.enabled}
+                      onChange={(e) => updateSettings('categories.enabled', e.target.checked)}
+                      className="w-5 h-5"
+                    />
+                    <span>Enable Categories Display</span>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Count (0 = Show All)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={settings.categories.count}
+                    onChange={(e) => updateSettings('categories.count', parseInt(e.target.value) || 0)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Set to 0 to show all categories, or specify a number to limit display
+                  </p>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category Size</label>
+                  <select
+                    value={settings.categories.size}
+                    onChange={(e) => updateSettings('categories.size', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="h-20 w-20 md:h-24 md:w-24">Small (20x20 / 24x24)</option>
+                    <option value="h-24 w-24 md:h-28 md:w-28">Medium (24x24 / 28x28) - Default</option>
+                    <option value="h-28 w-28 md:h-32 md:w-32">Large (28x28 / 32x32)</option>
+                    <option value="h-32 w-32 md:h-36 md:w-36">Extra Large (32x32 / 36x36)</option>
+                    <option value="h-36 w-36 md:h-40 md:w-40">XXL (36x36 / 40x40)</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Current: {settings.categories.size}
+                  </p>
+                </div>
+              </div>
+
+              {/* Category Selection */}
+              <div className="border-t border-gray-200 pt-6">
+                <h4 className="text-lg font-semibold mb-4">Select Categories to Display</h4>
+                <p className="text-sm text-gray-600 mb-4">
+                  {settings.categories.categoryIds.length === 0 
+                    ? 'No categories selected - All active categories will be displayed'
+                    : `${settings.categories.categoryIds.length} category(ies) selected - Only selected categories will be displayed`}
+                </p>
+
+                {/* Selected Categories */}
+                {settings.categories.categoryIds.length > 0 && (
+                  <div className="mb-4">
+                    <h5 className="text-sm font-medium text-gray-700 mb-2">Selected Categories:</h5>
+                    <div className="flex flex-wrap gap-2">
+                      {settings.categories.categoryIds.map((catId) => {
+                        const category = categories.find((c) => (c._id || c.id) === catId);
+                        if (!category) return null;
+                        return (
+                          <div
+                            key={catId}
+                            className="flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-lg"
+                          >
+                            <span>{category.name}</span>
+                            <button
+                              onClick={() => removeCategory(catId)}
+                              className="text-blue-600 hover:text-blue-800 font-bold"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Category Search and List */}
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Search categories..."
+                    value={categorySearchQuery}
+                    onChange={(e) => setCategorySearchQuery(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"
+                  />
+                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                    {filteredCategories
+                      .filter((cat) => {
+                        const categoryId = cat._id || cat.id || '';
+                        return !settings.categories.categoryIds.includes(categoryId);
+                      })
+                      .map((cat) => {
+                        const categoryId = cat._id || cat.id || '';
+                        return (
+                          <div
+                            key={categoryId}
+                            className="p-3 hover:bg-gray-50 flex items-center justify-between border-b border-gray-100"
+                          >
+                            <div className="flex-1">
+                              <p className="font-medium">{cat.name}</p>
+                              <p className="text-sm text-gray-500">Slug: {cat.slug}</p>
+                            </div>
+                            <button
+                              onClick={() => addCategory(categoryId)}
+                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                            >
+                              Add
+                            </button>
+                          </div>
+                        );
+                      })}
+                    {filteredCategories.filter((cat) => {
+                      const categoryId = cat._id || cat.id || '';
+                      return !settings.categories.categoryIds.includes(categoryId);
+                    }).length === 0 && (
+                      <div className="p-4 text-center text-gray-500">
+                        {categorySearchQuery ? 'No categories found' : 'All categories selected'}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

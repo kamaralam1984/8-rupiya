@@ -8,6 +8,7 @@ export interface IHeroSectionSettings extends Document {
     hero: boolean;
     rightRail: boolean;
     bottomStrip: boolean;
+    categories: boolean;
   };
   
   // Slider Settings
@@ -60,6 +61,14 @@ export interface IHeroSectionSettings extends Document {
     shopIds: string[];
   };
   
+  // Categories Settings
+  categories: {
+    enabled: boolean;
+    count: number; // Number of categories to display (default: show all)
+    size: string; // Icon/image size (e.g., "h-24 w-24", "h-28 w-28", "h-32 w-32")
+    categoryIds: string[]; // Selected category IDs to display (empty = show all)
+  };
+  
   // Global Settings
   global: {
     containerWidth: string; // e.g., "98%", "1200px"
@@ -81,6 +90,7 @@ const HeroSectionSettingsSchema = new Schema<IHeroSectionSettings>(
       hero: { type: Boolean, default: true },
       rightRail: { type: Boolean, default: true },
       bottomStrip: { type: Boolean, default: true },
+      categories: { type: Boolean, default: true },
     },
     slider: {
       enabled: { type: Boolean, default: true },
@@ -121,6 +131,12 @@ const HeroSectionSettingsSchema = new Schema<IHeroSectionSettings>(
       backgroundColor: { type: String, default: '#ffffff' },
       borderColor: { type: String, default: '#e5e7eb' },
       shopIds: { type: [String], default: [] },
+    },
+    categories: {
+      enabled: { type: Boolean, default: true },
+      count: { type: Number, default: 0, min: 0 }, // 0 = show all
+      size: { type: String, default: 'h-24 w-24 md:h-28 md:w-28' }, // Default size
+      categoryIds: { type: [String], default: [] }, // Empty = show all categories
     },
     global: {
       containerWidth: { type: String, default: '98%' },

@@ -313,8 +313,22 @@ export async function GET(request: NextRequest) {
         // Remove duplicates - same shopName + ownerName + mobile combination
         const uniqueShopsMap = new Map<string, any>();
         transformedAgentShops.forEach((shop: any) => {
-          // Create unique key from shopName + ownerName + mobile
-          const uniqueKey = `${(shop.name || shop.shopName || '').toLowerCase().trim()}_${(shop.ownerName || '').toLowerCase().trim()}_${(shop.phone || shop.mobile || '').trim()}`;
+          // Skip shops without enough identifying information
+          const shopName = (shop.name || shop.shopName || '').trim();
+          const ownerName = (shop.ownerName || '').trim();
+          const mobile = (shop.phone || shop.mobile || '').trim();
+          const shopId = shop.id || shop._id || '';
+          
+          // If shop has no name and no ID, skip it
+          if (!shopName && !shopId) {
+            return;
+          }
+          
+          // Create unique key from shopName + ownerName + mobile + ID (fallback)
+          // Use ID as part of key to ensure uniqueness even if other fields are empty
+          const uniqueKey = shopId 
+            ? `${shopName.toLowerCase()}_${ownerName.toLowerCase()}_${mobile}_${shopId}`
+            : `${shopName.toLowerCase()}_${ownerName.toLowerCase()}_${mobile}`;
           
           // अगर पहले से नहीं है, तो add करें
           // अगर है, तो latest (higher visitorCount) को keep करें
@@ -323,7 +337,7 @@ export async function GET(request: NextRequest) {
           } else {
             const existingShop = uniqueShopsMap.get(uniqueKey);
             // Keep the one with higher visitorCount (more popular)
-            if (shop.visitorCount > (existingShop.visitorCount || 0)) {
+            if ((shop.visitorCount || 0) > (existingShop?.visitorCount || 0)) {
               uniqueShopsMap.set(uniqueKey, shop);
             }
           }

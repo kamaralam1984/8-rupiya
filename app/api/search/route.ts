@@ -336,8 +336,22 @@ export async function GET(request: NextRequest) {
     // Remove duplicates - same shopName + ownerName + mobile combination
     const uniqueShopsMap = new Map<string, Shop>();
     transformedAgentShops.forEach((shop: any) => {
-      // Create unique key from shopName + ownerName + mobile
-      const uniqueKey = `${(shop.name || shop.shopName || '').toLowerCase().trim()}_${(shop.ownerName || '').toLowerCase().trim()}_${(shop.mobile || '').trim()}`;
+      // Skip shops without enough identifying information
+      const shopName = (shop.name || shop.shopName || '').trim();
+      const ownerName = (shop.ownerName || '').trim();
+      const mobile = (shop.mobile || shop.phone || '').trim();
+      const shopId = shop.id || shop._id || '';
+      
+      // If shop has no name and no ID, skip it
+      if (!shopName && !shopId) {
+        return;
+      }
+      
+      // Create unique key from shopName + ownerName + mobile + ID (fallback)
+      // Use ID as part of key to ensure uniqueness even if other fields are empty
+      const uniqueKey = shopId 
+        ? `${shopName.toLowerCase()}_${ownerName.toLowerCase()}_${mobile}_${shopId}`
+        : `${shopName.toLowerCase()}_${ownerName.toLowerCase()}_${mobile}`;
       
       // अगर पहले से नहीं है, तो add करें
       // अगर है, तो latest (higher visitorCount) को keep करें
@@ -346,7 +360,7 @@ export async function GET(request: NextRequest) {
       } else {
         const existingShop = uniqueShopsMap.get(uniqueKey);
         // Keep the one with higher visitorCount (more popular)
-        if (shop.visitorCount > (existingShop?.visitorCount || 0)) {
+        if ((shop.visitorCount || 0) > (existingShop?.visitorCount || 0)) {
           uniqueShopsMap.set(uniqueKey, shop);
         }
       }
@@ -357,24 +371,8 @@ export async function GET(request: NextRequest) {
     
     console.log(`✅ After removing duplicates: ${allShops.length} unique shops from AgentShop (removed ${transformedAgentShops.length - allShops.length} duplicates)`);
 
-    // Additional duplicate removal by shopName+ownerName+mobile (consistent with homepage)
-    // Already done above, but this is a backup check
-    const uniqueShopsMap2 = new Map<string, Shop>();
-    allShops.forEach((shop) => {
-      const uniqueKey = `${(shop.name || shop.shopName || '').toLowerCase().trim()}_${((shop as any).ownerName || '').toLowerCase().trim()}_${(shop.mobile || '').trim()}`;
-      if (!uniqueShopsMap2.has(uniqueKey)) {
-        uniqueShopsMap2.set(uniqueKey, shop);
-      } else {
-        const existing = uniqueShopsMap2.get(uniqueKey);
-        if ((shop.visitorCount || 0) > (existing?.visitorCount || 0)) {
-          uniqueShopsMap2.set(uniqueKey, shop);
-        }
-      }
-    });
-    const uniqueShops = Array.from(uniqueShopsMap2.values());
-
     // Calculate scores for all shops
-    const scoredShops = uniqueShops.map((shop) => {
+    const scoredShops = allShops.map((shop) => {
       let baseScore = calculateShopScore(shop, searchParamsObj, userLat, userLng);
       
       // Boost score for agent shops (priority)
@@ -496,11 +494,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Log final results
-    console.log(`✅ Search Results Ready: Hero=${mainResults.length}, Left=${leftRail.length}, Right=${rightRail.length}, Bottom=${bottomStrip.length}, Total=${uniqueShops.length}`);
-    console.log(`📌 Pincode Filter: ${pincode || 'None'}, Found Shops: ${uniqueShops.length}`);
+    console.log(`✅ Search Results Ready: Hero=${mainResults.length}, Left=${leftRail.length}, Right=${rightRail.length}, Bottom=${bottomStrip.length}, Total=${allShops.length}`);
+    console.log(`📌 Pincode Filter: ${pincode || 'None'}, Found Shops: ${allShops.length}`);
 
     // If pincode filter is active but no shops found, log warning
-    if (pincode && uniqueShops.length === 0) {
+    if (pincode && allShops.length === 0) {
       console.warn(`⚠️ No shops found for pincode: ${pincode}`);
     }
 
@@ -510,7 +508,7 @@ export async function GET(request: NextRequest) {
       leftRail,
       rightRail,
       bottomStrip,
-      totalFound: uniqueShops.length,
+      totalFound: allShops.length,
       resultCounts: {
         hero: mainResults.length,
         leftBar: leftRail.length,

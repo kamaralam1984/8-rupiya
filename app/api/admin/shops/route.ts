@@ -260,6 +260,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
       planAmount: shop.planAmount || 100,
       paymentExpiryDate: shop.paymentExpiryDate ? new Date(shop.paymentExpiryDate).toISOString() : undefined,
       lastPaymentDate: shop.lastPaymentDate ? new Date(shop.lastPaymentDate).toISOString() : undefined,
+      visitorCount: shop.visitorCount || 0, // Include visitorCount for old shops
       isVisible: true, // Old shops default to visible
       createdAt: shop.createdAt ? new Date(shop.createdAt).toISOString() : new Date().toISOString(),
     }));
