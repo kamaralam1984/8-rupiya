@@ -8,7 +8,15 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const body = await request.json();
-    const { shopName, area, category, pincode, emailId, ranking, shopId, shopUrl } = body;
+    const { 
+      shopName, area, category, pincode, emailId, ranking, shopId, shopUrl,
+      metaTitle, metaDescription, metaKeywords, ogImage, ogTitle, ogDescription,
+      facebookUrl, instagramUrl, twitterUrl, linkedinUrl, youtubeUrl, whatsappNumber,
+      googleBusinessId, googleMapsUrl,
+      enableSocialSharing, socialSharingMessage, enableWhatsAppSharing, enableFacebookSharing,
+      enableTwitterSharing, enableLinkedInSharing,
+      googleAnalyticsId, facebookPixelId
+    } = body;
 
     // Validation - pincode is optional
     if (!shopName || !area || !category || !emailId) {
@@ -62,11 +70,38 @@ export async function POST(request: NextRequest) {
       shopName: shopName.trim(),
       area: area.trim(),
       category: category.trim(),
-      pincode: normalizedPincode || undefined, // Use normalized pincode or undefined (not empty string)
+      pincode: normalizedPincode || undefined,
       emailId: emailId.trim().toLowerCase(),
       ranking: finalRanking,
       shopId: shopId || undefined,
       shopUrl: shopUrl || undefined,
+      // Enhanced SEO Fields
+      metaTitle: metaTitle?.trim(),
+      metaDescription: metaDescription?.trim(),
+      metaKeywords: Array.isArray(metaKeywords) ? metaKeywords.map(k => k.trim()).filter(Boolean) : undefined,
+      ogImage: ogImage?.trim(),
+      ogTitle: ogTitle?.trim(),
+      ogDescription: ogDescription?.trim(),
+      // Social Media Links
+      facebookUrl: facebookUrl?.trim(),
+      instagramUrl: instagramUrl?.trim(),
+      twitterUrl: twitterUrl?.trim(),
+      linkedinUrl: linkedinUrl?.trim(),
+      youtubeUrl: youtubeUrl?.trim(),
+      whatsappNumber: whatsappNumber?.trim(),
+      // Google Business
+      googleBusinessId: googleBusinessId?.trim(),
+      googleMapsUrl: googleMapsUrl?.trim(),
+      // Social Sharing Settings
+      enableSocialSharing: enableSocialSharing !== undefined ? enableSocialSharing : true,
+      socialSharingMessage: socialSharingMessage?.trim(),
+      enableWhatsAppSharing: enableWhatsAppSharing !== undefined ? enableWhatsAppSharing : true,
+      enableFacebookSharing: enableFacebookSharing !== undefined ? enableFacebookSharing : true,
+      enableTwitterSharing: enableTwitterSharing !== undefined ? enableTwitterSharing : true,
+      enableLinkedInSharing: enableLinkedInSharing !== undefined ? enableLinkedInSharing : true,
+      // Analytics
+      googleAnalyticsId: googleAnalyticsId?.trim(),
+      facebookPixelId: facebookPixelId?.trim(),
     });
 
     return NextResponse.json(

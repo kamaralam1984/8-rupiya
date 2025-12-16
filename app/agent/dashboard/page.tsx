@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAgentAuth } from '@/app/contexts/AgentAuthContext';
 import AgentRouteGuard from '@/app/components/AgentRouteGuard';
+import AgentHeader from '@/app/components/AgentHeader';
 
 interface DashboardStats {
   totalShopsToday: number;
@@ -91,31 +92,11 @@ export default function AgentDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    router.push('/agent/login');
-  };
-
   return (
     <AgentRouteGuard>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-50">
         {/* Header */}
-        <header className="bg-blue-600 text-white shadow-lg">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold">Digital India</h1>
-                <p className="text-blue-100 text-sm">Field Agent Panel</p>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-lg transition-colors"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </header>
+        <AgentHeader />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {loading ? (

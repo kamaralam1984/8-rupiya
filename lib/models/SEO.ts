@@ -2,7 +2,7 @@ import mongoose, { Schema, Document, Model, Types } from 'mongoose';
 
 /**
  * SEO Interface - TypeScript interface for SEO document
- * Stores SEO information for shops with ranking system
+ * Stores comprehensive SEO information for shops with ranking system
  */
 export interface ISEO extends Document {
   shopName: string;
@@ -10,9 +10,42 @@ export interface ISEO extends Document {
   category: string;
   pincode?: string; // Optional pincode
   emailId: string;
-  ranking: number; // SEO ranking (1, 2, 3, etc.)
+  ranking: number; // SEO ranking (1, 2, 3, etc.) - Lower number = Higher priority
   shopId?: Types.ObjectId; // Reference to shop (optional, can be linked later)
   shopUrl?: string; // Shop URL for reference
+  
+  // Enhanced SEO Fields
+  metaTitle?: string; // Custom meta title (if not provided, auto-generated)
+  metaDescription?: string; // Custom meta description (max 160 chars)
+  metaKeywords?: string[]; // Custom keywords array
+  ogImage?: string; // Custom Open Graph image URL
+  ogTitle?: string; // Custom Open Graph title
+  ogDescription?: string; // Custom Open Graph description
+  
+  // Social Media Links
+  facebookUrl?: string;
+  instagramUrl?: string;
+  twitterUrl?: string;
+  linkedinUrl?: string;
+  youtubeUrl?: string;
+  whatsappNumber?: string;
+  
+  // Google Business & Local SEO
+  googleBusinessId?: string;
+  googleMapsUrl?: string;
+  
+  // Additional SEO Settings
+  enableSocialSharing?: boolean; // Show social sharing popup when shop opens
+  socialSharingMessage?: string; // Custom message for social sharing
+  enableWhatsAppSharing?: boolean; // Enable WhatsApp sharing
+  enableFacebookSharing?: boolean; // Enable Facebook sharing
+  enableTwitterSharing?: boolean; // Enable Twitter sharing
+  enableLinkedInSharing?: boolean; // Enable LinkedIn sharing
+  
+  // Analytics & Tracking
+  googleAnalyticsId?: string;
+  facebookPixelId?: string;
+  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -83,6 +116,104 @@ const SEOSchema = new Schema<ISEO>(
       type: String,
       trim: true,
       index: true,
+    },
+    // Enhanced SEO Fields
+    metaTitle: {
+      type: String,
+      trim: true,
+      maxlength: [70, 'Meta title should not exceed 70 characters'],
+    },
+    metaDescription: {
+      type: String,
+      trim: true,
+      maxlength: [160, 'Meta description should not exceed 160 characters'],
+    },
+    metaKeywords: {
+      type: [String],
+      default: [],
+    },
+    ogImage: {
+      type: String,
+      trim: true,
+    },
+    ogTitle: {
+      type: String,
+      trim: true,
+      maxlength: [70, 'OG title should not exceed 70 characters'],
+    },
+    ogDescription: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'OG description should not exceed 200 characters'],
+    },
+    // Social Media Links
+    facebookUrl: {
+      type: String,
+      trim: true,
+    },
+    instagramUrl: {
+      type: String,
+      trim: true,
+    },
+    twitterUrl: {
+      type: String,
+      trim: true,
+    },
+    linkedinUrl: {
+      type: String,
+      trim: true,
+    },
+    youtubeUrl: {
+      type: String,
+      trim: true,
+    },
+    whatsappNumber: {
+      type: String,
+      trim: true,
+    },
+    // Google Business & Local SEO
+    googleBusinessId: {
+      type: String,
+      trim: true,
+    },
+    googleMapsUrl: {
+      type: String,
+      trim: true,
+    },
+    // Additional SEO Settings
+    enableSocialSharing: {
+      type: Boolean,
+      default: true,
+    },
+    socialSharingMessage: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'Social sharing message should not exceed 200 characters'],
+    },
+    enableWhatsAppSharing: {
+      type: Boolean,
+      default: true,
+    },
+    enableFacebookSharing: {
+      type: Boolean,
+      default: true,
+    },
+    enableTwitterSharing: {
+      type: Boolean,
+      default: true,
+    },
+    enableLinkedInSharing: {
+      type: Boolean,
+      default: true,
+    },
+    // Analytics & Tracking
+    googleAnalyticsId: {
+      type: String,
+      trim: true,
+    },
+    facebookPixelId: {
+      type: String,
+      trim: true,
     },
   },
   {

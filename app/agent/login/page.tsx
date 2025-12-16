@@ -59,7 +59,7 @@ export default function AgentLoginPage() {
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Digital India
+              8rupiya.com Digital Shop
             </h1>
             <p className="text-blue-600 font-semibold">Field Agent Panel</p>
             <p className="text-gray-600 text-sm mt-2">Login to your account</p>

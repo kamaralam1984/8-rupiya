@@ -20,7 +20,7 @@ const plans = {
       { en: '1 Shop Photo', hi: '1 दुकान फोटो' },
       { en: 'Category', hi: 'श्रेणी' },
       { en: 'Location (Lat/Long)', hi: 'स्थान (अक्षांश/देशांतर)' },
-      { en: 'Digital India Website Profile', hi: 'डिजिटल इंडिया वेबसाइट प्रोफाइल' },
+      { en: '8rupiya.com Digital Shop Website Profile', hi: '8rupiya.com डिजिटल शॉप वेबसाइट प्रोफाइल' },
     ],
     limitations: [
       { en: 'No offers/discounts section', hi: 'ऑफर/छूट अनुभाग नहीं' },

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import AgentRouteGuard from '@/app/components/AgentRouteGuard';
+import AgentServerStatus from '@/app/components/AgentServerStatus';
 
 // Agent Panel Text Display Component
 function AgentPanelTextDisplay() {
@@ -164,14 +165,19 @@ export default function MyShopsPage() {
         {/* Header */}
         <header className="bg-blue-600 text-white shadow-lg">
           <div className="max-w-7xl mx-auto px-4 py-4">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.back()}
-                className="text-white hover:text-blue-200"
-              >
-                ← Back
-              </button>
-              <h1 className="text-xl font-bold">My Shops</h1>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => router.back()}
+                  className="text-white hover:text-blue-200"
+                >
+                  ← Back
+                </button>
+                <h1 className="text-xl font-bold">My Shops</h1>
+              </div>
+              <div className="flex items-center gap-4">
+                <AgentServerStatus />
+              </div>
             </div>
           </div>
         </header>

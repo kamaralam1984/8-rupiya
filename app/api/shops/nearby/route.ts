@@ -3,6 +3,7 @@ import { calculateDistance } from '@/app/utils/distance';
 import connectDB from '@/lib/mongodb';
 import AgentShop from '@/lib/models/AgentShop'; // सिर्फ AgentShop - homepage के लिए
 import { PRICING_PLANS } from '@/app/utils/pricing';
+import SEO from '@/lib/models/SEO'; // SEO model for ranking
 
 interface ShopWithDistance {
   id: string;
@@ -33,6 +34,7 @@ interface ShopWithDistance {
   priorityRank?: number; // Priority ranking for sorting
   isLeftBar?: boolean;
   isRightBar?: boolean;
+  seoRanking?: number | null; // SEO ranking from SEO collection
 }
 
 /**
@@ -357,6 +359,26 @@ export async function GET(request: NextRequest) {
       shops = [];
     }
 
+    // Fetch SEO rankings for shops
+    const shopIds = shops.map((s: any) => s.id);
+    const shopNames = shops.map((s: any) => (s.name || '').trim()).filter(Boolean);
+    
+    const seoEntries = await SEO.find({
+      $or: [
+        { shopId: { $in: shopIds.map((id: string) => id as any) } },
+        { shopName: { $in: shopNames } },
+      ]
+    }).lean().catch(() => []);
+
+    // Create SEO ranking map
+    const seoRankingMap = new Map<string, number>();
+    seoEntries.forEach((seo: any) => {
+      const shopId = seo.shopId?.toString();
+      const shopName = (seo.shopName || '').trim().toLowerCase();
+      if (shopId) seoRankingMap.set(shopId, seo.ranking);
+      if (shopName) seoRankingMap.set(shopName, seo.ranking);
+    });
+
     // Calculate distance for each shop and filter by radius
     const shopsWithDistance: ShopWithDistance[] = shops
       .map((shop: any) => {
@@ -382,6 +404,11 @@ export async function GET(request: NextRequest) {
         const priorityRank = shop.priorityRank !== undefined && shop.priorityRank !== null 
           ? shop.priorityRank 
           : planDetails.priorityRank;
+
+        // Get SEO ranking
+        const shopId = shop.id;
+        const shopName = (shop.name || '').trim().toLowerCase();
+        const seoRanking = seoRankingMap.get(shopId) || seoRankingMap.get(shopName) || null;
 
         return {
           id: shop.id,
@@ -412,6 +439,7 @@ export async function GET(request: NextRequest) {
           priorityRank: priorityRank, // Add priority rank
           isLeftBar: shop.isLeftBar || planType === 'LEFT_BAR' || false,
           isRightBar: shop.isRightBar || planType === 'RIGHT_SIDE' || false,
+          seoRanking: seoRanking, // Add SEO ranking
         };
       })
       .filter((shop) => {
@@ -424,8 +452,16 @@ export async function GET(request: NextRequest) {
         return true;
       })
       .sort((a, b) => {
-        // Sort by priority rank first (higher = first), then by distance
-        // Priority order: HERO (200) > FEATURED (100) > BANNER (50) > LEFT_BAR/RIGHT_BAR (30/20) > PREMIUM (10) > BASIC (0)
+        // Sort by SEO ranking first (lower = better), then priority rank, then distance
+        const aRanking = a.seoRanking || 999;
+        const bRanking = b.seoRanking || 999;
+        
+        // First sort by SEO ranking (lower number = higher priority)
+        if (aRanking !== bRanking) {
+          return aRanking - bRanking;
+        }
+        
+        // Then by priority rank (higher = first)
         if (b.priorityRank !== a.priorityRank) {
           return b.priorityRank - a.priorityRank;
         }

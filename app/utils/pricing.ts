@@ -1,6 +1,6 @@
 /**
  * Pricing Plans Configuration
- * Based on Digital India Business Plan
+ * Based on 8rupiya.com Digital Shop Business Plan
  */
 
 export const PRICING_PLANS = {
@@ -17,7 +17,7 @@ export const PRICING_PLANS = {
       '1 Shop Photo',
       'Category',
       'Location (Lat/Long)',
-      'Digital India Website Profile',
+      '8rupiya.com Digital Shop Website Profile',
     ],
     maxPhotos: 1,
     maxOffers: 0,

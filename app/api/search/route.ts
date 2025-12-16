@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import AgentShop from '@/lib/models/AgentShop'; // सिर्फ AgentShop - homepage के लिए
+import SEO from '@/lib/models/SEO'; // SEO model for ranking
 
 interface Shop {
   id: string;
@@ -23,6 +24,7 @@ interface Shop {
   offers?: Array<{ title: string; description: string; validTill: Date }>;
   distance?: number;
   score?: number;
+  seoRanking?: number | null; // SEO ranking from SEO collection
 }
 
 interface SearchParams {
@@ -107,6 +109,13 @@ function calculateShopScore(
   // Priority rank boost
   if (shop.priorityRank) {
     score += Math.min(shop.priorityRank / 10, 10);
+  }
+
+  // SEO Ranking boost (Higher boost for lower ranking number - ranking 1 gets highest boost)
+  if (shop.seoRanking) {
+    // Ranking 1 = 50 points, Ranking 2 = 40 points, Ranking 3 = 30 points, etc.
+    const seoBoost = Math.max(0, 60 - (shop.seoRanking * 10));
+    score += seoBoost;
   }
 
   // Nearby score (10 points)
@@ -371,8 +380,39 @@ export async function GET(request: NextRequest) {
     
     console.log(`✅ After removing duplicates: ${allShops.length} unique shops from AgentShop (removed ${transformedAgentShops.length - allShops.length} duplicates)`);
 
-    // Calculate scores for all shops
+    // Fetch SEO rankings for all shops
+    const shopIds = allShops.map(s => s.id);
+    const shopNames = allShops.map(s => (s.shopName || s.name || '').trim()).filter(Boolean);
+    
+    // Fetch SEO entries by shopId or shopName
+    const seoEntries = await SEO.find({
+      $or: [
+        { shopId: { $in: shopIds.map(id => id as any) } },
+        { shopName: { $in: shopNames } },
+      ]
+    }).lean().catch(() => []);
+
+    // Create SEO ranking map for quick lookup
+    const seoRankingMap = new Map<string, number>();
+    seoEntries.forEach((seo: any) => {
+      const shopId = seo.shopId?.toString();
+      const shopName = (seo.shopName || '').trim().toLowerCase();
+      
+      if (shopId) {
+        seoRankingMap.set(shopId, seo.ranking);
+      }
+      if (shopName) {
+        seoRankingMap.set(shopName, seo.ranking);
+      }
+    });
+
+    // Calculate scores for all shops with SEO ranking
     const scoredShops = allShops.map((shop) => {
+      // Get SEO ranking for this shop
+      const shopId = shop.id;
+      const shopName = (shop.shopName || shop.name || '').trim().toLowerCase();
+      const seoRanking = seoRankingMap.get(shopId) || seoRankingMap.get(shopName) || null;
+      
       let baseScore = calculateShopScore(shop, searchParamsObj, userLat, userLng);
       
       // Boost score for agent shops (priority)
@@ -383,11 +423,23 @@ export async function GET(request: NextRequest) {
       return {
         ...shop,
         score: baseScore,
+        seoRanking: seoRanking, // Add SEO ranking
       };
     });
 
-    // Sort by score (descending) - agent shops will rank higher
-    scoredShops.sort((a, b) => (b.score || 0) - (a.score || 0));
+    // Sort by SEO ranking first (lower = better), then by score (descending)
+    scoredShops.sort((a, b) => {
+      const aRanking = a.seoRanking || 999; // Shops without SEO ranking go to bottom
+      const bRanking = b.seoRanking || 999;
+      
+      // First sort by SEO ranking (lower number = higher priority)
+      if (aRanking !== bRanking) {
+        return aRanking - bRanking;
+      }
+      
+      // If same SEO ranking, sort by score
+      return (b.score || 0) - (a.score || 0);
+    });
 
     // Deduplication Set
     const displayedShopIds = new Set<string>();

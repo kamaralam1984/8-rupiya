@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useLocation } from '@/app/contexts/LocationContext';
 import Navbar from '@/app/components/Navbar';
 import { calculateDistance } from '@/app/utils/distance';
+import SocialSharingPopup from '@/app/components/SocialSharingPopup';
 
 interface ShopDetailsClientProps {
   shop: {
@@ -33,6 +34,8 @@ export default function ShopDetailsClient({ shop }: ShopDetailsClientProps) {
   const router = useRouter();
   const { location } = useLocation();
   const [visitorCount, setVisitorCount] = useState(shop.visitorCount || 0);
+  const [showSocialPopup, setShowSocialPopup] = useState(false);
+  const [seoData, setSeoData] = useState<any>(null);
 
   // Track visit automatically when page loads
   useEffect(() => {
@@ -57,6 +60,38 @@ export default function ShopDetailsClient({ shop }: ShopDetailsClientProps) {
         });
     }
   }, [shop.id]);
+
+  // Fetch SEO data and show social sharing popup
+  useEffect(() => {
+    const fetchSEOData = async () => {
+      try {
+        // Try to find SEO entry by shopId or shopName
+        const response = await fetch(`/api/seo?shopName=${encodeURIComponent(shop.shopName)}`);
+        const data = await response.json();
+        
+        if (data.success && data.seo && data.seo.length > 0) {
+          const seoEntry = data.seo.find((e: any) => 
+            e.shopId === shop.id || 
+            e.shopName.toLowerCase() === shop.shopName.toLowerCase()
+          ) || data.seo[0];
+          
+          setSeoData(seoEntry);
+          
+          // Show popup if enabled
+          if (seoEntry.enableSocialSharing !== false) {
+            setShowSocialPopup(true);
+          }
+        }
+      } catch (error) {
+        // Silently fail - SEO data is optional
+        if (process.env.NODE_ENV === 'development') {
+          console.log('SEO data fetch failed (non-critical):', error);
+        }
+      }
+    };
+
+    fetchSEOData();
+  }, [shop.id, shop.shopName]);
   
   // Calculate distance
   const distance = shop.latitude && shop.longitude && location.latitude && location.longitude
@@ -277,6 +312,23 @@ export default function ShopDetailsClient({ shop }: ShopDetailsClientProps) {
           </div>
         </div>
       </main>
+
+      {/* Social Sharing Popup */}
+      {showSocialPopup && seoData && (
+        <SocialSharingPopup
+          shopName={shop.shopName}
+          shopUrl={`/shop/${shop.id}`}
+          shopImage={shop.photoUrl}
+          shopDescription={`${shop.category} in ${shop.area || shop.city || ''}`}
+          enableWhatsApp={seoData.enableWhatsAppSharing !== false}
+          enableFacebook={seoData.enableFacebookSharing !== false}
+          enableTwitter={seoData.enableTwitterSharing !== false}
+          enableLinkedIn={seoData.enableLinkedInSharing !== false}
+          whatsappNumber={seoData.whatsappNumber || shop.whatsappNumber}
+          customMessage={seoData.socialSharingMessage}
+          onClose={() => setShowSocialPopup(false)}
+        />
+      )}
     </div>
   );
 }

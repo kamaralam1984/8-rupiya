@@ -70,7 +70,7 @@ function generateBillMessage(options: NotificationOptions): string {
     `Mode: ${paymentMode || 'CASH'}\n` +
     `Valid Till: ${expiryDate}\n\n` +
     `Thank you for your payment!\n` +
-    `- Digital India`;
+    `- 8rupiya.com Digital Shop`;
 
   return shortMessage;
 }
@@ -121,7 +121,7 @@ function generateDetailedBill(options: NotificationOptions): string {
 
   const detailedBill = `
 ╔══════════════════════════════════════╗
-║      DIGITAL INDIA - PAYMENT RECEIPT      ║
+║      8RUPIYA.COM DIGITAL SHOP - PAYMENT RECEIPT      ║
 ╚══════════════════════════════════════╝
 
 📋 RECEIPT DETAILS
@@ -153,7 +153,7 @@ Your listing is now active for 365 days.
 
 For support, contact your agent or admin.
 
-- Digital India Platform
+- 8rupiya.com Digital Shop Platform
 `;
 
   return detailedBill;
@@ -282,7 +282,7 @@ async function sendEmail(
       <body>
         <div class="container">
           <div class="header">
-            <h1>Digital India - Payment Receipt</h1>
+            <h1>8rupiya.com Digital Shop - Payment Receipt</h1>
           </div>
           <div class="content">
             <p>Dear ${ownerName},</p>
@@ -293,7 +293,7 @@ async function sendEmail(
             <p>Thank you for your payment!</p>
           </div>
           <div class="footer">
-            <p>This is an automated message from Digital India Platform.</p>
+            <p>This is an automated message from 8rupiya.com Digital Shop Platform.</p>
           </div>
         </div>
       </body>
@@ -355,7 +355,7 @@ async function sendWhatsApp(mobile: string, message: string): Promise<void> {
 export async function sendRenewalReminder(options: NotificationOptions & { daysRemaining: number }): Promise<void> {
   const { mobile, shopName, ownerName, daysRemaining } = options;
   
-  const message = `Dear ${ownerName}, Your shop "${shopName}" payment will expire in ${daysRemaining} days. Please renew to continue your listing. Contact: [Agent/Admin Contact]. - Digital India`;
+  const message = `Dear ${ownerName}, Your shop "${shopName}" payment will expire in ${daysRemaining} days. Please renew to continue your listing. Contact: [Agent/Admin Contact]. - 8rupiya.com Digital Shop`;
 
   try {
     await sendSMS(mobile, message);

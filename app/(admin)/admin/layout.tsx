@@ -202,6 +202,8 @@ export default function AdminLayout({
     { name: 'Google Business', href: '/admin/google-business', icon: '🏢', color: 'blue', allowedRoles: ['admin', 'editor', 'operator'] }, // Admin, Editor, Operator
     { name: 'Hero Section', href: '/admin/hero-section', icon: '🎯', color: 'purple', allowedRoles: ['admin', 'editor'] }, // Admin, Editor
     { name: 'Pages', href: '/admin/pages', icon: '📄', color: 'pink', allowedRoles: ['admin', 'editor'] },
+    { name: 'SEO Management', href: '/admin/seo', icon: '🔍', color: 'emerald', allowedRoles: ['admin', 'editor'] }, // Admin, Editor
+    { name: 'Analytics', href: '/admin/analytics', icon: '📊', color: 'blue', allowedRoles: ['admin', 'editor'] }, // Admin, Editor
   ];
 
   // Filter navigation based on user role

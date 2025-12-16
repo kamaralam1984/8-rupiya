@@ -4,6 +4,7 @@ import connectDB from '@/lib/mongodb';
 import AgentShop from '@/lib/models/AgentShop';
 import AdminShop from '@/lib/models/Shop';
 import ShopDetailsClient from '@/app/components/ShopDetailsClient';
+import SEO from '@/lib/models/SEO';
 import mongoose from 'mongoose';
 
 interface PageProps {
@@ -86,32 +87,57 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const email = shop.email || '';
     const description = `${shopName} - ${category} in ${area}${pincode ? `, PIN ${pincode}` : ''}. Contact: ${phone ? phone : email ? email : ''}. ${address ? `Address: ${address}` : ''}`;
 
-    const title = `${shopName} - ${category} in ${area}${pincode ? ` (${pincode})` : ''} | 8 Rupiya`;
-    const metaDescription = description.length > 160 ? description.substring(0, 157) + '...' : description;
-    const imageUrl = shop.photoUrl || shop.imageUrl || `${baseUrl}/og-image.jpg`;
+    // Fetch SEO data if available
+    let seoData: any = null;
+    try {
+      const shopId = shop._id?.toString();
+      const seoEntries = await SEO.find({
+        $or: [
+          { shopId: shopId },
+          { shopName: shopName },
+        ]
+      }).lean();
+      
+      if (seoEntries && seoEntries.length > 0) {
+        seoData = seoEntries.find((e: any) => e.shopId?.toString() === shopId) || seoEntries[0];
+      }
+    } catch (error) {
+      // SEO data is optional, continue without it
+    }
+
+    // Use SEO data if available, otherwise use defaults
+    const title = seoData?.metaTitle || `${shopName} - ${category} in ${area}${pincode ? ` (${pincode})` : ''} | 8 Rupiya`;
+    const metaDescription = seoData?.metaDescription || (description.length > 160 ? description.substring(0, 157) + '...' : description);
+    const ogTitle = seoData?.ogTitle || title;
+    const ogDescription = seoData?.ogDescription || metaDescription;
+    const ogImage = seoData?.ogImage || shop.photoUrl || shop.imageUrl || `${baseUrl}/og-image.jpg`;
+    const keywords = seoData?.metaKeywords && seoData.metaKeywords.length > 0 
+      ? seoData.metaKeywords 
+      : [
+          shopName,
+          category,
+          area,
+          pincode,
+          `${category} in ${area}`,
+          `${shopName} ${area}`,
+          `shop near me ${area}`,
+          `${category} shop ${pincode}`,
+        ];
+    const imageUrl = ogImage;
     const shopUrl = `${baseUrl}/shop/${slug}`;
 
     return {
       title,
       description: metaDescription,
-      keywords: [
-        shopName,
-        category,
-        area,
-        pincode,
-        `${category} in ${area}`,
-        `${shopName} ${area}`,
-        `shop near me ${area}`,
-        `${category} shop ${pincode}`,
-      ],
+      keywords,
       alternates: {
         canonical: shopUrl,
       },
-        openGraph: {
-          type: 'website',
+      openGraph: {
+        type: 'website',
         url: shopUrl,
-        title,
-        description: metaDescription,
+        title: ogTitle,
+        description: ogDescription,
         siteName: '8 Rupiya',
         images: [
           {
@@ -125,8 +151,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       },
       twitter: {
         card: 'summary_large_image',
-        title,
-        description: metaDescription,
+        title: ogTitle,
+        description: ogDescription,
         images: [imageUrl],
       },
       other: {
@@ -264,13 +290,31 @@ export default async function ShopPage({ params }: PageProps) {
       visitorCount: shopPlain.visitorCount || 0,
     };
 
+    // Fetch SEO data for structured data
+    let seoDataForStructured: any = null;
+    try {
+      const shopId = shopPlain._id?.toString() || shopData.id;
+      const seoEntries = await SEO.find({
+        $or: [
+          { shopId: shopId },
+          { shopName: shopData.shopName },
+        ]
+      }).lean();
+      
+      if (seoEntries && seoEntries.length > 0) {
+        seoDataForStructured = seoEntries.find((e: any) => e.shopId?.toString() === shopId) || seoEntries[0];
+      }
+    } catch (error) {
+      // SEO data is optional
+    }
+
     // Generate structured data (JSON-LD) - ensure all values are plain types
     const structuredData: any = {
       '@context': 'https://schema.org',
       '@type': 'LocalBusiness',
       name: String(shopData.shopName || ''),
       image: String(shopData.photoUrl || ''),
-      description: String(`${shopData.shopName} - ${shopData.category} in ${shopData.area || shopData.city || ''}`),
+      description: String(seoDataForStructured?.metaDescription || `${shopData.shopName} - ${shopData.category} in ${shopData.area || shopData.city || ''}`),
       address: {
         '@type': 'PostalAddress',
         streetAddress: String(shopData.fullAddress || ''),
@@ -289,6 +333,19 @@ export default async function ShopPage({ params }: PageProps) {
         name: String(shopData.city || shopData.area || 'Patna'),
       },
     };
+
+    // Add social media links if available from SEO data
+    if (seoDataForStructured) {
+      const sameAs: string[] = [];
+      if (seoDataForStructured.facebookUrl) sameAs.push(seoDataForStructured.facebookUrl);
+      if (seoDataForStructured.instagramUrl) sameAs.push(seoDataForStructured.instagramUrl);
+      if (seoDataForStructured.twitterUrl) sameAs.push(seoDataForStructured.twitterUrl);
+      if (seoDataForStructured.linkedinUrl) sameAs.push(seoDataForStructured.linkedinUrl);
+      if (seoDataForStructured.youtubeUrl) sameAs.push(seoDataForStructured.youtubeUrl);
+      if (sameAs.length > 0) {
+        structuredData.sameAs = sameAs;
+      }
+    }
     
     // Add geo coordinates only if both latitude and longitude are valid numbers
     if (shopData.latitude && shopData.longitude && 

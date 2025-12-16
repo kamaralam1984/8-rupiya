@@ -39,7 +39,7 @@ export default function UPIQRCode({ amount, shopName, ownerName, mobile, onPayme
     // UPI format: upi://pay?pa=<VPA>&pn=<PayeeName>&am=<Amount>&cu=<Currency>&tn=<TransactionNote>
     // Use the UPI ID constant
     const upiId = UPI_ID;
-    const payeeName = 'Digital India Shop Directory';
+    const payeeName = '8rupiya.com Digital Shop';
     const transactionNote = `Payment for ${shopName} - ${ownerName}`;
     
     // Generate unique payment ID
