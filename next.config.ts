@@ -17,15 +17,20 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60,
     deviceSizes: [640, 750, 828, 1080, 1200],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // Enable image optimization
+    dangerouslyAllowSVG: false,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   // Enable compression
   compress: true,
-  // Note: swcMinify is enabled by default in Next.js 16, no need to specify
-  // Enable experimental features for better performance
+  // Enable production source maps for better debugging (optional, can disable for smaller builds)
+  productionBrowserSourceMaps: false,
+  // Optimize package imports for better tree shaking
   experimental: {
-    optimizePackageImports: ['lucide-react', 'react-hot-toast'],
+    optimizePackageImports: ['lucide-react', 'react-hot-toast', 'recharts'],
   },
-  // Headers for better caching
+  // Headers for better caching and performance
   async headers() {
     return [
       {
@@ -34,6 +39,10 @@ const nextConfig: NextConfig = {
           {
             key: 'Cache-Control',
             value: 'public, s-maxage=300, stale-while-revalidate=600',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
           },
         ],
       },
@@ -46,8 +55,27 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+        ],
+      },
     ];
   },
+  // Turbopack configuration (Next.js 16+ uses Turbopack by default)
+  turbopack: {},
 };
 
 export default nextConfig;

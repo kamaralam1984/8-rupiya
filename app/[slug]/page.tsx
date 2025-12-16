@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import HeroSection from '../components/HeroSection';
 import CategoryGrid from '../components/CategoryGrid';
 import OffersStrip from '../components/OffersStrip';
-import FeaturedBusinesses from '../components/FeaturedBusinesses';
-import LatestOffers from '../components/LatestOffers';
-import TopRatedBusinesses from '../components/TopRatedBusinesses';
-import NewBusinesses from '../components/NewBusinesses';
+// Lazy load heavy components for faster initial page load
+const FeaturedBusinesses = lazy(() => import('../components/FeaturedBusinesses'));
+const LatestOffers = lazy(() => import('../components/LatestOffers'));
+const TopRatedBusinesses = lazy(() => import('../components/TopRatedBusinesses'));
+const NewBusinesses = lazy(() => import('../components/NewBusinesses'));
 import { safeJsonParse } from '../utils/fetchHelpers';
 import NotFound from './not-found';
 
@@ -309,17 +310,33 @@ export default function DynamicPage() {
           {/* Categories Section */}
           {sections.categories && <CategoryGrid />}
 
-          {/* Offers Section */}
-          {sections.offers && <LatestOffers />}
+          {/* Offers Section - Lazy Loaded */}
+          {sections.offers && (
+            <Suspense fallback={<div className="h-32 bg-gray-100 animate-pulse rounded-lg" />}>
+              <LatestOffers />
+            </Suspense>
+          )}
 
-          {/* Featured Businesses */}
-          {sections.featuredBusinesses && <FeaturedBusinesses />}
+          {/* Featured Businesses - Lazy Loaded */}
+          {sections.featuredBusinesses && (
+            <Suspense fallback={<div className="h-64 bg-gray-100 animate-pulse rounded-lg" />}>
+              <FeaturedBusinesses />
+            </Suspense>
+          )}
 
-          {/* Top Rated Businesses */}
-          {sections.topRated && <TopRatedBusinesses />}
+          {/* Top Rated Businesses - Lazy Loaded */}
+          {sections.topRated && (
+            <Suspense fallback={<div className="h-64 bg-gray-100 animate-pulse rounded-lg" />}>
+              <TopRatedBusinesses />
+            </Suspense>
+          )}
 
-          {/* New Businesses */}
-          {sections.newBusinesses && <NewBusinesses />}
+          {/* New Businesses - Lazy Loaded */}
+          {sections.newBusinesses && (
+            <Suspense fallback={<div className="h-64 bg-gray-100 animate-pulse rounded-lg" />}>
+              <NewBusinesses />
+            </Suspense>
+          )}
         </main>
 
         {/* Footer - Exact homepage style */}

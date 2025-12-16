@@ -25,6 +25,7 @@ const DistrictSchema = new Schema<IDistrict>(
       unique: true,
       trim: true,
       uppercase: true,
+      // Note: unique: true already creates an index, no need for explicit index below
     },
     state: {
       type: String,
@@ -75,7 +76,7 @@ const DistrictSchema = new Schema<IDistrict>(
 );
 
 // Indexes
-DistrictSchema.index({ name: 1 });
+// Note: name already has unique: true which creates an index automatically
 DistrictSchema.index({ state: 1 });
 DistrictSchema.index({ totalRevenue: -1 });
 

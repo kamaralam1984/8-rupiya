@@ -16,7 +16,7 @@ const OTPSchema = new Schema<IOTP>(
       required: [true, 'Email is required'],
       lowercase: true,
       trim: true,
-      index: true,
+      // Index created explicitly below as compound index
     },
     otp: {
       type: String,
@@ -32,7 +32,7 @@ const OTPSchema = new Schema<IOTP>(
     expiresAt: {
       type: Date,
       required: true,
-      index: { expireAfterSeconds: 0 }, // Auto-delete expired OTPs
+      // Index created explicitly below with expireAfterSeconds
     },
     verified: {
       type: Boolean,

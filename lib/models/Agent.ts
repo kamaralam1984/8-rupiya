@@ -97,9 +97,8 @@ AgentSchema.methods.comparePassword = async function (
 };
 
 // Indexes
-AgentSchema.index({ agentCode: 1 });
-AgentSchema.index({ phone: 1 });
-AgentSchema.index({ email: 1 });
+// Note: agentCode, phone, and email already have unique: true which creates indexes automatically
+// No need for explicit indexes here
 
 const Agent: Model<IAgent> = mongoose.models.Agent || mongoose.model<IAgent>('Agent', AgentSchema);
 

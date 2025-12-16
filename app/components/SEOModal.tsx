@@ -16,50 +16,23 @@ interface SEOModalProps {
 
 export default function SEOModal({ isOpen, onClose, shopName, area, category, pincode, email, onSave }: SEOModalProps) {
   const [ranking, setRanking] = useState<number>(1);
-  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!email || !email.trim()) {
       toast.error('Email ID is required for SEO');
       return;
     }
 
-    setLoading(true);
-    try {
-      const response = await fetch('/api/seo', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          shopName: shopName.trim(),
-          area: area.trim(),
-          category: category.trim(),
-          pincode: pincode?.trim() || '', // Send empty string if pincode is empty
-          emailId: email.trim(),
-          ranking: ranking,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('SEO entry created successfully!');
-        onSave({ ranking });
-        // Reset ranking for next entry (optional)
-        setRanking(1);
-        // Don't close modal - let user continue or close manually
-      } else {
-        throw new Error(data.error || 'Failed to create SEO entry');
-      }
-    } catch (error: any) {
-      console.error('SEO save error:', error);
-      toast.error(error.message || 'Failed to save SEO entry');
-    } finally {
-      setLoading(false);
+    if (ranking < 1) {
+      toast.error('Ranking must be at least 1');
+      return;
     }
+
+    // Store SEO data temporarily - will be saved after shop creation
+    onSave({ ranking });
+    setRanking(1);
   };
 
   return (
@@ -125,7 +98,7 @@ export default function SEOModal({ isOpen, onClose, shopName, area, category, pi
           {/* Info Box */}
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-xs text-blue-800">
-              <strong>Note:</strong> SEO entry will be saved with shop name, area, category, pincode, and email ID. 
+              <strong>Note:</strong> SEO entry will be saved automatically when you submit the shop. 
               This helps improve search visibility for your shop.
             </p>
           </div>
@@ -140,10 +113,10 @@ export default function SEOModal({ isOpen, onClose, shopName, area, category, pi
           </button>
           <button
             onClick={handleSave}
-            disabled={loading || !email || ranking < 1}
+            disabled={!email || ranking < 1}
             className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Saving...' : 'Save SEO'}
+            Save SEO
           </button>
         </div>
       </div>

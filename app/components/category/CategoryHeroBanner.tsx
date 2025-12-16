@@ -65,7 +65,7 @@ export default function CategoryHeroBanner({ hero, onBannerClick, height = 'h-[4
       {/* Distance and Time Badge - Top Right (Hidden on mobile, shown on larger screens) */}
       {(hero.distance !== undefined || hero.isBusiness) && (
         <div className="hidden md:block absolute top-4 right-4 lg:top-5 lg:right-5 z-20">
-          <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-xl shadow-xl border border-white/50 flex flex-col gap-2">
+          <div className="bg-white/95 px-4 py-2.5 rounded-xl shadow-xl border border-white/50 flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -119,7 +119,7 @@ export default function CategoryHeroBanner({ hero, onBannerClick, height = 'h-[4
           {(hero.rating || hero.reviews) && (
             <div className="flex items-center gap-3 sm:gap-4 mb-5">
               {hero.rating && (
-                <div className="flex items-center gap-2 bg-white/25 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg border border-white/30">
+                <div className="flex items-center gap-2 bg-white/25 px-4 py-2 rounded-xl shadow-lg border border-white/30">
                   <span className="text-yellow-400 text-xl sm:text-2xl">★</span>
                   <span className="text-white text-lg sm:text-xl font-bold">{hero.rating.toFixed(1)}</span>
                   {hero.rating >= 4.5 && (
@@ -128,7 +128,7 @@ export default function CategoryHeroBanner({ hero, onBannerClick, height = 'h-[4
                 </div>
               )}
               {hero.reviews && (
-                <div className="bg-white/25 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg border border-white/30">
+                <div className="bg-white/25 px-4 py-2 rounded-xl shadow-lg border border-white/30">
                   <span className="text-white text-sm sm:text-base font-semibold">
                     {hero.reviews.toLocaleString()} reviews
                   </span>

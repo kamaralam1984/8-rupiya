@@ -168,15 +168,24 @@ export async function GET(request: NextRequest) {
     if (pincode) query.pincode = pincode;
     if (ranking) query.ranking = parseInt(ranking);
 
+    // Fetch all SEO entries with all fields
     const seoEntries = await SEO.find(query)
       .sort({ ranking: 1, createdAt: -1 })
-      .lean();
+      .lean()
+      .exec();
+    
+    // Ensure all fields are included in response
+    const enrichedEntries = seoEntries.map((entry: any) => ({
+      ...entry,
+      _id: entry._id?.toString(),
+      shopId: entry.shopId?.toString(),
+    }));
 
     return NextResponse.json(
       {
         success: true,
-        seo: seoEntries,
-        count: seoEntries.length,
+        seo: enrichedEntries,
+        count: enrichedEntries.length,
       },
       { status: 200 }
     );

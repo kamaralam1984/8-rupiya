@@ -80,9 +80,8 @@ OperatorSchema.methods.comparePassword = async function (
 };
 
 // Indexes
-OperatorSchema.index({ operatorCode: 1 });
-OperatorSchema.index({ phone: 1 });
-OperatorSchema.index({ email: 1 });
+// Note: operatorCode, phone, and email already have unique: true which creates indexes automatically
+// No need for explicit indexes here
 
 const Operator: Model<IOperator> = mongoose.models.Operator || mongoose.model<IOperator>('Operator', OperatorSchema);
 

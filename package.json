@@ -18,7 +18,8 @@
     "verify-agent": "ts-node scripts/verify-agent.ts",
     "generate-shops": "ts-node --project tsconfig.scripts.json scripts/generate-patna-shops.ts",
     "generate-plan-htmls": "ts-node --project tsconfig.scripts.json scripts/generate-plan-pdfs.ts",
-    "convert-html-to-pdf": "node scripts/convert-html-to-pdf.js"
+    "convert-html-to-pdf": "node scripts/convert-html-to-pdf.js",
+    "remove-duplicates": "ts-node --project tsconfig.scripts.json scripts/remove-duplicates.ts"
   },
   "dependencies": {
     "@types/qrcode": "^1.5.6",

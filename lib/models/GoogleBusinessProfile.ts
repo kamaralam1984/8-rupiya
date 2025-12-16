@@ -43,7 +43,7 @@ const GoogleBusinessProfileSchema = new Schema<IGoogleBusinessProfile>(
       type: Schema.Types.ObjectId,
       ref: 'Shop',
       required: [true, 'Shop ID is required'],
-      index: true,
+      // Index created explicitly below
     },
     shopName: {
       type: String,
@@ -104,7 +104,7 @@ const GoogleBusinessProfileSchema = new Schema<IGoogleBusinessProfile>(
     googleBusinessId: {
       type: String,
       trim: true,
-      index: true,
+      // Index created explicitly below with sparse option
     },
     googleBusinessUrl: {
       type: String,
@@ -114,7 +114,7 @@ const GoogleBusinessProfileSchema = new Schema<IGoogleBusinessProfile>(
       type: String,
       enum: ['PENDING', 'VERIFIED', 'FAILED', 'NOT_CREATED'],
       default: 'NOT_CREATED',
-      index: true,
+      // Index created explicitly below
     },
     verificationMethod: {
       type: String,

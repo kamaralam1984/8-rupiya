@@ -152,8 +152,8 @@ const HeroSectionSettingsSchema = new Schema<IHeroSectionSettings>(
   }
 );
 
-// Ensure only one settings document exists
-HeroSectionSettingsSchema.index({ _id: 1 }, { unique: true });
+// Note: _id already has a default index in MongoDB, cannot create custom index on _id
+// MongoDB automatically creates a unique index on _id field
 
 const HeroSectionSettings: Model<IHeroSectionSettings> =
   mongoose.models.HeroSectionSettings ||

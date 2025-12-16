@@ -128,6 +128,8 @@ export const POST = requireAdmin(async (request: NextRequest) => {
     }
 
     // Step 5: Create and save Shop document with new model
+    // Generate unique temporary URL to avoid duplicate key errors
+    const tempUrl = `/temp/${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     // First create a temporary shop to get the ID, then update with the URL
     const tempShop = await NewShop.create({
       shopName: shopName.trim(),
@@ -143,7 +145,7 @@ export const POST = requireAdmin(async (request: NextRequest) => {
       longitude: lon,
       photoUrl: photoUrl.trim(),
       iconUrl: photoUrl.trim(), // Same as photoUrl for now
-      shopUrl: 'temp', // Temporary value, will be updated
+      shopUrl: tempUrl, // Unique temporary value, will be updated
       createdByAdmin: adminUserId,
       paymentStatus: 'PENDING', // Set as pending by default
     });

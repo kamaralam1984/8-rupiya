@@ -56,6 +56,7 @@ export default function AddNewShopPage() {
   const [verifyingOTP, setVerifyingOTP] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [showSEOModal, setShowSEOModal] = useState(false);
+  const [pendingSEOData, setPendingSEOData] = useState<{ ranking: number } | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     shopName: '',
@@ -731,6 +732,89 @@ export default function AddNewShopPage() {
 
       const data = await response.json();
       if (data.success) {
+        // Save SEO data if user has provided it
+        if (pendingSEOData) {
+          try {
+            // First, try to fetch best SEO entry (ranking = 1) for auto-fill
+            let bestSEOData: any = null;
+            try {
+              const bestSEOResponse = await fetch(`/api/seo?category=${encodeURIComponent(trimmedCategory)}${trimmedArea ? `&area=${encodeURIComponent(trimmedArea)}` : ''}`);
+              const bestSEOResult = await bestSEOResponse.json();
+              if (bestSEOResult.success && bestSEOResult.seo && bestSEOResult.seo.length > 0) {
+                // Find entry with ranking = 1
+                const bestSEO = bestSEOResult.seo
+                  .filter((entry: any) => entry.ranking === 1)
+                  .sort((a: any, b: any) => {
+                    if (trimmedArea) {
+                      if (a.area?.toLowerCase() === trimmedArea.toLowerCase()) return -1;
+                      if (b.area?.toLowerCase() === trimmedArea.toLowerCase()) return 1;
+                    }
+                    return 0;
+                  })[0] || bestSEOResult.seo[0];
+                bestSEOData = bestSEO;
+              }
+            } catch (fetchError) {
+              console.log('Could not fetch best SEO for auto-fill, continuing without it');
+            }
+
+            // Merge best SEO data with user's ranking
+            const seoPayload: any = {
+              shopName: trimmedShopName,
+              area: trimmedArea || '',
+              category: trimmedCategory,
+              pincode: trimmedPincode,
+              emailId: trimmedEmail,
+              ranking: pendingSEOData.ranking,
+              shopId: data.shop._id,
+              shopUrl: data.shop.shopUrl,
+            };
+
+            // Auto-fill from best SEO if available
+            if (bestSEOData) {
+              seoPayload.metaTitle = bestSEOData.metaTitle;
+              seoPayload.metaDescription = bestSEOData.metaDescription;
+              seoPayload.metaKeywords = bestSEOData.metaKeywords;
+              seoPayload.ogImage = bestSEOData.ogImage;
+              seoPayload.ogTitle = bestSEOData.ogTitle;
+              seoPayload.ogDescription = bestSEOData.ogDescription;
+              seoPayload.facebookUrl = bestSEOData.facebookUrl;
+              seoPayload.instagramUrl = bestSEOData.instagramUrl;
+              seoPayload.twitterUrl = bestSEOData.twitterUrl;
+              seoPayload.linkedinUrl = bestSEOData.linkedinUrl;
+              seoPayload.youtubeUrl = bestSEOData.youtubeUrl;
+              seoPayload.whatsappNumber = bestSEOData.whatsappNumber;
+              seoPayload.googleBusinessId = bestSEOData.googleBusinessId;
+              seoPayload.googleMapsUrl = bestSEOData.googleMapsUrl;
+              seoPayload.enableSocialSharing = bestSEOData.enableSocialSharing !== undefined ? bestSEOData.enableSocialSharing : true;
+              seoPayload.socialSharingMessage = bestSEOData.socialSharingMessage;
+              seoPayload.enableWhatsAppSharing = bestSEOData.enableWhatsAppSharing !== undefined ? bestSEOData.enableWhatsAppSharing : true;
+              seoPayload.enableFacebookSharing = bestSEOData.enableFacebookSharing !== undefined ? bestSEOData.enableFacebookSharing : true;
+              seoPayload.enableTwitterSharing = bestSEOData.enableTwitterSharing !== undefined ? bestSEOData.enableTwitterSharing : true;
+              seoPayload.enableLinkedInSharing = bestSEOData.enableLinkedInSharing !== undefined ? bestSEOData.enableLinkedInSharing : true;
+              seoPayload.googleAnalyticsId = bestSEOData.googleAnalyticsId;
+              seoPayload.facebookPixelId = bestSEOData.facebookPixelId;
+            }
+
+            const seoResponse = await fetch('/api/seo', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(seoPayload),
+            });
+
+            const seoResult = await seoResponse.json();
+            if (seoResult.success) {
+              console.log('✅ SEO entry created successfully after shop creation');
+            } else {
+              console.error('⚠️ Failed to create SEO entry (non-critical):', seoResult.error);
+            }
+          } catch (seoError: any) {
+            // Don't fail shop creation if SEO save fails
+            console.error('⚠️ Failed to save SEO entry (non-critical):', seoError);
+          }
+        }
+        
         // Success - show success screen
         router.push(`/agent/shops/new/success?id=${data.shop._id}`);
       } else {
@@ -1066,34 +1150,6 @@ export default function AddNewShopPage() {
                 />
               </div>
 
-              {/* SEO Button */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Area is optional - removed from required fields
-                    if (!formData.shopName || !formData.category || !formData.pincode || !formData.email) {
-                      toast.error('Please fill all required fields before adding SEO');
-                      return;
-                    }
-                    // Skip OTP verification if disabled
-                    if (!isOTPDisabled && !isEmailVerified) {
-                      toast.error('Please verify your email address before adding SEO');
-                      return;
-                    }
-                    setShowSEOModal(true);
-                  }}
-                  disabled={!formData.shopName || !formData.category || !formData.pincode || !formData.email || (!isOTPDisabled && !isEmailVerified)}
-                  className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  <span>🔍</span>
-                  <span>Add SEO</span>
-                </button>
-                <p className="text-xs text-gray-500 mt-1 text-center">
-                  Add SEO entry to improve search visibility (Shop Name, Category, Pincode, Email)
-                </p>
-              </div>
-
               <div className="flex gap-4">
                 <button
                   onClick={() => setStep(1)}
@@ -1357,19 +1413,45 @@ export default function AddNewShopPage() {
                 )}
               </div>
 
-              {/* Location Capture */}
+              {/* Location Capture and SEO */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Location <span className="text-red-500">*</span>
                 </label>
-                <button
-                  type="button"
-                  onClick={handleCaptureLocation}
-                  disabled={loading}
-                  className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
-                >
-                  {loading ? 'Capturing...' : 'Capture Current Location'}
-                </button>
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={handleCaptureLocation}
+                    disabled={loading}
+                    className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    {loading ? 'Capturing...' : 'Capture Current Location'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Area is optional - removed from required fields
+                      if (!formData.shopName || !formData.category || !formData.pincode || !formData.email) {
+                        toast.error('Please fill all required fields before adding SEO');
+                        return;
+                      }
+                      // Skip OTP verification if disabled
+                      if (!isOTPDisabled && !isEmailVerified) {
+                        toast.error('Please verify your email address before adding SEO');
+                        return;
+                      }
+                      setShowSEOModal(true);
+                    }}
+                    disabled={!formData.shopName || !formData.category || !formData.pincode || !formData.email || (!isOTPDisabled && !isEmailVerified)}
+                    className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <span>🔍</span>
+                    <span>Add SEO</span>
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1 text-center">
+                  Add SEO entry to improve search visibility (Shop Name, Category, Pincode, Email)
+                </p>
                 {locationError && (
                   <p className="text-red-600 text-sm mt-2">{locationError}</p>
                 )}
@@ -1548,8 +1630,10 @@ export default function AddNewShopPage() {
           pincode={formData.pincode}
           email={formData.email}
           onSave={(seoData) => {
-            console.log('SEO saved:', seoData);
-            // SEO data is already saved via API, just close modal
+            // Store SEO data temporarily - will be saved after shop creation
+            setPendingSEOData(seoData);
+            toast.success('SEO data will be saved when shop is created');
+            setShowSEOModal(false);
           }}
         />
       </div>

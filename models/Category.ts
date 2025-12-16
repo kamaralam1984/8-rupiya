@@ -58,8 +58,8 @@ const CategorySchema = new Schema<ICategory>(
 );
 
 // Indexes - optimized for common queries
+// Note: slug already has unique: true which creates an index automatically
 CategorySchema.index({ isActive: 1 });
-CategorySchema.index({ slug: 1 }); // Already unique, but explicit index helps
 CategorySchema.index({ name: 1 }); // For name-based queries
 
 const Category: Model<ICategory> = mongoose.models.Category || mongoose.model<ICategory>('Category', CategorySchema);
