@@ -42,33 +42,51 @@ export default function SocialSharingPopup({
   }, []);
 
   const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${shopUrl}` : shopUrl;
+  const imageUrl = shopImage ? (shopImage.startsWith('http') ? shopImage : `${typeof window !== 'undefined' ? window.location.origin : ''}${shopImage}`) : '';
   const shareMessage = customMessage || `Check out ${shopName} on 8rupiya.com! ${fullUrl}`;
   const shareMessageEncoded = encodeURIComponent(shareMessage);
+  
+  // WhatsApp message with image URL if available
+  const whatsappMessage = imageUrl 
+    ? `${shareMessage}\n\n${imageUrl}`
+    : shareMessage;
+  const whatsappMessageEncoded = encodeURIComponent(whatsappMessage);
 
   const handleShare = (platform: string) => {
     let shareUrl = '';
 
     switch (platform) {
       case 'whatsapp':
+        // WhatsApp sharing with image URL in message
         const whatsappUrl = whatsappNumber
-          ? `https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${shareMessageEncoded}`
-          : `https://wa.me/?text=${shareMessageEncoded}`;
+          ? `https://wa.me/${whatsappNumber.replace(/\D/g, '')}?text=${whatsappMessageEncoded}`
+          : `https://wa.me/?text=${whatsappMessageEncoded}`;
         window.open(whatsappUrl, '_blank');
         break;
       case 'facebook':
+        // Facebook automatically fetches image from Open Graph tags
+        // Using share dialog which supports images via OG tags
         shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fullUrl)}`;
         window.open(shareUrl, '_blank', 'width=600,height=400');
         break;
       case 'twitter':
-        shareUrl = `https://twitter.com/intent/tweet?text=${shareMessageEncoded}&url=${encodeURIComponent(fullUrl)}`;
+        // Twitter automatically fetches image from Twitter Card meta tags
+        // Including image URL in tweet for better visibility
+        const twitterText = imageUrl 
+          ? `${shareMessage}\n\n${imageUrl}`
+          : shareMessage;
+        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(twitterText)}&url=${encodeURIComponent(fullUrl)}`;
         window.open(shareUrl, '_blank', 'width=600,height=400');
         break;
       case 'linkedin':
+        // LinkedIn automatically fetches image from Open Graph tags
         shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(fullUrl)}`;
         window.open(shareUrl, '_blank', 'width=600,height=400');
         break;
       case 'copy':
-        navigator.clipboard.writeText(fullUrl);
+        // Copy link with image URL if available
+        const copyText = imageUrl ? `${fullUrl}\n\n${imageUrl}` : fullUrl;
+        navigator.clipboard.writeText(copyText);
         alert('Link copied to clipboard!');
         break;
     }

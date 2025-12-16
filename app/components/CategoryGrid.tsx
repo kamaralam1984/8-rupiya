@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import type { Category } from '../types';
 import { useLocation } from '../contexts/LocationContext';
 import type { LucideIcon } from 'lucide-react';
+import CategoryShopCountModal from './CategoryShopCountModal';
 import {
   BedDouble,
   Building,
@@ -119,6 +120,8 @@ export default function CategoryGrid() {
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
   const [heroSettings, setHeroSettings] = useState<any>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const desktopScrollRef = useRef<HTMLDivElement>(null);
@@ -262,12 +265,23 @@ export default function CategoryGrid() {
   }, [location.id, location.latitude, location.longitude]);
 
   const handleCategoryClick = (category: Category) => {
+    setSelectedCategory(category);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedCategory(null);
+  };
+
+  const handleViewCategory = (category: Category) => {
     const params = new URLSearchParams({
       loc: location.id,
       city: location.city,
       locName: location.displayName,
     });
     router.push(`/${category.slug}?${params.toString()}`);
+    handleCloseModal();
   };
 
   useEffect(() => {
@@ -658,6 +672,14 @@ export default function CategoryGrid() {
           </div>
         </div>
       </div>
+
+      {/* Category Shop Count Modal */}
+      <CategoryShopCountModal
+        category={selectedCategory}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onViewCategory={handleViewCategory}
+      />
     </section>
   );
 }

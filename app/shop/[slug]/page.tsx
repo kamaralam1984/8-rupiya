@@ -110,7 +110,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const metaDescription = seoData?.metaDescription || (description.length > 160 ? description.substring(0, 157) + '...' : description);
     const ogTitle = seoData?.ogTitle || title;
     const ogDescription = seoData?.ogDescription || metaDescription;
-    const ogImage = seoData?.ogImage || shop.photoUrl || shop.imageUrl || `${baseUrl}/og-image.jpg`;
+    const ogImageRaw = seoData?.ogImage || shop.photoUrl || shop.imageUrl || `${baseUrl}/og-image.jpg`;
+    // Ensure image URL is absolute for Open Graph tags
+    const ogImage = ogImageRaw && !ogImageRaw.startsWith('http') 
+      ? `${baseUrl}${ogImageRaw.startsWith('/') ? '' : '/'}${ogImageRaw}`
+      : ogImageRaw;
     const keywords = seoData?.metaKeywords && seoData.metaKeywords.length > 0 
       ? seoData.metaKeywords 
       : [
