@@ -15,7 +15,7 @@ export interface IAgentShop extends Document {
   latitude: number;
   longitude: number;
   paymentStatus: 'PAID' | 'PENDING';
-  paymentMode: 'CASH' | 'UPI' | 'NONE';
+  paymentMode: 'CASH' | 'UPI' | 'ONLINE' | 'NONE';
   receiptNo: string;
   amount: number;
   sendSmsReceipt: boolean;
@@ -135,7 +135,7 @@ const AgentShopSchema = new Schema<IAgentShop>(
     },
     paymentMode: {
       type: String,
-      enum: ['CASH', 'UPI', 'NONE'],
+      enum: ['CASH', 'UPI', 'ONLINE', 'NONE'],
       default: 'NONE',
       required: true,
     },

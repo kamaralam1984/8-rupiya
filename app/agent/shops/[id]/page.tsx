@@ -5,12 +5,15 @@ import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import AgentRouteGuard from '@/app/components/AgentRouteGuard';
+import AgentPaymentButton from '@/app/components/AgentPaymentButton';
+import { verifyAgentToken } from '@/lib/utils/agentAuth';
 
 interface Shop {
   _id: string;
   shopName: string;
   ownerName: string;
   mobile: string;
+  email?: string;
   category: string;
   pincode: string;
   address: string;
@@ -18,11 +21,13 @@ interface Shop {
   latitude: number;
   longitude: number;
   paymentStatus: 'PAID' | 'PENDING';
-  paymentMode: 'CASH' | 'UPI' | 'NONE';
+  paymentMode: 'CASH' | 'UPI' | 'ONLINE' | 'NONE';
   receiptNo: string;
   amount: number;
+  planType?: string;
   sendSmsReceipt: boolean;
   createdAt: string;
+  agentId?: string;
 }
 
 export default function ShopDetailPage() {
@@ -31,6 +36,7 @@ export default function ShopDetailPage() {
   const shopId = params.id as string;
   const [shop, setShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
+  const [agentId, setAgentId] = useState<string>('');
 
   useEffect(() => {
     if (shopId) {
@@ -63,6 +69,18 @@ export default function ShopDetailPage() {
       const data = await response.json();
       if (data.success && data.shop) {
         setShop(data.shop);
+        // Extract agent ID from token
+        try {
+          const token = localStorage.getItem('agent_token');
+          if (token) {
+            const payload = verifyAgentToken(token);
+            if (payload) {
+              setAgentId(payload.agentId || data.shop.agentId || '');
+            }
+          }
+        } catch (e) {
+          console.error('Failed to extract agent ID:', e);
+        }
       } else {
         console.error('Shop not found or invalid response');
       }
@@ -205,16 +223,28 @@ export default function ShopDetailPage() {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-4">
+              <div className="flex gap-4 flex-wrap">
                 <Link
                   href={`/agent/shops/${shopId}/edit`}
-                  className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center"
+                  className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-center min-w-[120px]"
                 >
                   Edit Shop
                 </Link>
+                {shop.paymentStatus === 'PENDING' && agentId && (
+                  <AgentPaymentButton
+                    shopId={shop._id}
+                    shopName={shop.shopName}
+                    ownerName={shop.ownerName}
+                    mobile={shop.mobile}
+                    email={shop.email}
+                    currentPlan={(shop.planType as any) || 'BASIC'}
+                    agentId={agentId}
+                    onPaymentSuccess={fetchShop}
+                  />
+                )}
                 {shop.paymentStatus === 'PAID' && shop.sendSmsReceipt && (
                   <button
-                    className="flex-1 bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+                    className="flex-1 bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors min-w-[120px]"
                   >
                     Resend Receipt
                   </button>

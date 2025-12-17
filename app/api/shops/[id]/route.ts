@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import AdminShop from '@/lib/models/Shop';
-import Shop from '@/models/Shop'; // Old Shop model
 import AgentShop from '@/lib/models/AgentShop';
-import mongoose from 'mongoose';
+import AdminShop from '@/lib/models/Shop';
 
 /**
  * GET /api/shops/[id]
- * Get a single shop by ID (Public API)
- * Checks all possible shop collections: AdminShop, old Shop, AgentShop
+ * Get shop details by ID (public endpoint for shopkeepers)
  */
 export async function GET(
   request: NextRequest,
@@ -18,75 +15,74 @@ export async function GET(
     await connectDB();
 
     const { id } = await params;
-    
-    // Validate ObjectId format
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+
+    // Try to find in AgentShop first
+    let agentShop = await AgentShop.findById(id).lean();
+
+    if (agentShop) {
+      // Return shop data (public, no sensitive info)
       return NextResponse.json(
-        { error: 'Invalid shop ID format' },
-        { status: 400 }
+        {
+          success: true,
+          shop: {
+            _id: agentShop._id,
+            shopName: agentShop.shopName,
+            ownerName: agentShop.ownerName,
+            mobile: agentShop.mobile,
+            email: agentShop.email,
+            category: agentShop.category,
+            pincode: agentShop.pincode,
+            address: agentShop.address,
+            photoUrl: agentShop.photoUrl,
+            planType: agentShop.planType || 'BASIC',
+            paymentStatus: agentShop.paymentStatus,
+            shopUrl: (agentShop as any).shopUrl,
+          },
+        },
+        { status: 200 }
       );
     }
 
-    // Try to find shop in new AdminShop collection first
-    let shop: any = await AdminShop.findById(id).lean();
-    let isOldModel = false;
+    // Try AdminShop
+    const adminShop = await AdminShop.findById(id).lean();
 
-    // If not found, try old Shop model
-    if (!shop) {
-      shop = await Shop.findById(id).lean();
-      isOldModel = true;
-    }
-
-    // If still not found, try AgentShop
-    if (!shop) {
-      shop = await AgentShop.findById(id).lean();
-    }
-
-    if (!shop) {
-      return NextResponse.json(
-        { error: 'Shop not found' },
-        { status: 404 }
-      );
-    }
-
-    // Transform old model to match new format
-    if (isOldModel) {
-      shop = {
-        ...shop,
-        shopName: shop.name || shop.shopName,
-        photoUrl: shop.imageUrl || shop.photoUrl,
-        iconUrl: shop.iconUrl || shop.imageUrl,
-        fullAddress: shop.address || shop.fullAddress,
-        isOldModel: true,
-      };
-    }
-
-    // Only return visible shops (if isVisible field exists)
-    if (shop.isVisible === false) {
+    if (!adminShop) {
       return NextResponse.json(
         { error: 'Shop not found' },
         { status: 404 }
       );
     }
 
-    // Only return PAID shops for public API
-    if (shop.paymentStatus && shop.paymentStatus !== 'PAID') {
-      return NextResponse.json(
-        { error: 'Shop not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      shop,
-    });
+    // Return shop data (public, no sensitive info)
+    const adminShopData = adminShop as any;
+    return NextResponse.json(
+      {
+        success: true,
+        shop: {
+          _id: adminShop._id,
+          shopName: adminShopData.shopName || adminShopData.name,
+          ownerName: adminShopData.ownerName,
+          mobile: adminShopData.mobile || adminShopData.phone,
+          email: adminShopData.email,
+          category: adminShopData.category,
+          pincode: adminShopData.pincode,
+          address: adminShopData.address || adminShopData.fullAddress,
+          photoUrl: adminShopData.photoUrl || adminShopData.imageUrl,
+          planType: adminShopData.planType || 'BASIC',
+          paymentStatus: adminShopData.paymentStatus || 'PAID',
+          shopUrl: adminShopData.shopUrl,
+        },
+      },
+      { status: 200 }
+    );
   } catch (error: any) {
     console.error('Get shop error:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      {
+        error: 'Failed to fetch shop',
+        details: error.message || 'Unknown error occurred',
+      },
       { status: 500 }
     );
   }
 }
-

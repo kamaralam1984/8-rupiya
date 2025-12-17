@@ -49,37 +49,42 @@ async function connectDB(): Promise<typeof mongoose> {
     
     const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
-      serverSelectionTimeoutMS: 10000, // Reduced to 10 seconds for faster failure
+      serverSelectionTimeoutMS: 15000, // Increased to 15 seconds for better reliability
       socketTimeoutMS: 45000, // 45 seconds socket timeout
       maxPoolSize: 20, // Increased to 20 connections for better concurrency
       minPoolSize: 5, // Increased to 5 for better reliability
       maxIdleTimeMS: 60000, // Keep connections alive longer (60 seconds)
       heartbeatFrequencyMS: 10000, // Check connection health every 10 seconds
-      // SSL/TLS options are handled by MongoDB URI connection string automatically
-      // Do NOT set ssl, sslValidate, or any SSL-related options here
-      // MongoDB Atlas handles SSL/TLS automatically through the connection string
+      // SSL/TLS options - explicitly handle SSL for better reliability
+      ssl: true,
       // Retry options for better reliability
       retryWrites: true,
       retryReads: true,
       // Connection retry options
-      connectTimeoutMS: 10000, // Reduced to 10 seconds for faster connection
+      connectTimeoutMS: 15000, // Increased to 15 seconds for better connection reliability
       // Optimize for performance
       directConnection: false, // Use connection pool
+      // Additional options for SSL/TLS stability
+      tlsAllowInvalidCertificates: false, // Keep SSL validation enabled
+      tlsAllowInvalidHostnames: false, // Keep hostname validation enabled
     };
 
     // Add retry logic for SSL/TLS connection errors
-    const connectWithRetry = async (retries = 2): Promise<typeof mongoose> => {
+    const connectWithRetry = async (retries = 3): Promise<typeof mongoose> => {
       try {
         return await mongoose.connect(MONGODB_URI!, opts);
       } catch (error: any) {
         const isSSLError = error?.message?.includes('SSL') || 
                           error?.message?.includes('TLS') || 
                           error?.message?.includes('ssl3_read_bytes') ||
-                          error?.message?.includes('tlsv1 alert');
+                          error?.message?.includes('tlsv1 alert') ||
+                          error?.code === 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR' ||
+                          error?.message?.includes('0A000438');
         
-        // Retry SSL errors up to 2 times with delay
+        // Retry SSL errors up to 3 times with exponential backoff
         if (isSSLError && retries > 0) {
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+          const delay = Math.pow(2, 3 - retries) * 1000; // Exponential backoff: 1s, 2s, 4s
+          await new Promise(resolve => setTimeout(resolve, delay));
           return connectWithRetry(retries - 1);
         }
         throw error;

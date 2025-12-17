@@ -387,9 +387,7 @@ export default function CategoryPage({ categoryName, categorySlug }: CategoryPag
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 sm:mb-8">
             <div className="flex-1">
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-3 leading-tight">
-                {categoryName.toLowerCase() === 'hotels' 
-                  ? 'Best Hotels'
-                  : `${categoryName} in ${location.displayName || location.city || 'Your Area'}`}
+                {categoryName} in {location.displayName || location.city || 'Your Area'}
               </h1>
               <p className="text-gray-600 text-base sm:text-lg">
                 {currentBusinesses.length > 0 

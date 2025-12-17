@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Page from '@/models/Page';
 
-// Revalidate every hour (3600 seconds)
-export const revalidate = 3600;
-
 // GET - Get page by slug (public route)
 export async function GET(
   request: NextRequest,
