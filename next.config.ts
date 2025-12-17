@@ -14,13 +14,15 @@ const nextConfig: NextConfig = {
     ],
     // Optimize images for faster loading
     formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 60,
-    deviceSizes: [640, 750, 828, 1080, 1200],
+    minimumCacheTTL: 31536000, // 1 year cache for optimized images
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    // Enable image optimization
+    // Enable image optimization with quality settings
     dangerouslyAllowSVG: false,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Image quality optimization
+    unoptimized: false,
   },
   // Enable compression
   compress: true,
@@ -29,7 +31,11 @@ const nextConfig: NextConfig = {
   // Optimize package imports for better tree shaking
   experimental: {
     optimizePackageImports: ['lucide-react', 'react-hot-toast', 'recharts'],
+    // Enable modern bundling
+    optimizeCss: true,
   },
+  // Power optimizations (SWC minification is enabled by default in Next.js 16)
+  poweredByHeader: false,
   // Headers for better caching and performance
   async headers() {
     return [
@@ -56,6 +62,33 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: '/_next/image',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/:path*\\.(jpg|jpeg|png|gif|webp|avif|svg|ico)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/:path*\\.(woff|woff2|ttf|otf|eot)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
         source: '/:path*',
         headers: [
           {
@@ -69,6 +102,10 @@ const nextConfig: NextConfig = {
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
           },
         ],
       },
