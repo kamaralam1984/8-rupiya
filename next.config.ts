@@ -12,12 +12,13 @@ const nextConfig: NextConfig = {
         hostname: 'res.cloudinary.com',
       },
     ],
-    // Optimize images for faster loading
-    formats: ['image/avif', 'image/webp'],
+    // Optimize images for faster loading (< 1 MB target per image)
+    formats: ['image/avif', 'image/webp'], // AVIF is smallest, WebP fallback
     minimumCacheTTL: 31536000, // 1 year cache for optimized images
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     // Enable image optimization with quality settings
+    // Note: Quality is set per-image using quality prop on Image component (default: 75)
     dangerouslyAllowSVG: false,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
@@ -28,7 +29,7 @@ const nextConfig: NextConfig = {
   compress: true,
   // Enable production source maps for better debugging (optional, can disable for smaller builds)
   productionBrowserSourceMaps: false,
-  // Optimize package imports for better tree shaking
+  // Optimize package imports for better tree shaking (reduce JS bundle < 170 KB)
   experimental: {
     optimizePackageImports: ['lucide-react', 'react-hot-toast', 'recharts'],
     // Enable modern bundling

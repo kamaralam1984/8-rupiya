@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { LocationProvider } from "./contexts/LocationContext";
 import { DistanceProvider } from "./contexts/DistanceContext";
@@ -9,22 +10,16 @@ import { SearchProvider } from "./contexts/SearchContext";
 import Toaster from "./components/Toaster";
 import PerformanceOptimizations from "./components/PerformanceOptimizations";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  display: 'swap',
+  display: "swap",
   preload: true,
   fallback: ['system-ui', 'arial'],
   adjustFontFallback: true,
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  display: 'swap',
-  preload: false, // Only preload main font
-  fallback: ['monospace'],
-  adjustFontFallback: true,
+  // Optimize font size - limit weights to reduce file size (< 100 KB target)
+  weight: ['400', '500', '600', '700'], // Only load essential weights
+  // Inter is a variable font, so this keeps file size small
 });
 
 export const metadata: Metadata = {
@@ -32,16 +27,72 @@ export const metadata: Metadata = {
     default: "8 Rupiya - Find Best Local Shops & Businesses Near You | Patna Business Directory",
     template: "%s | 8 Rupiya - Local Business Directory",
   },
-  description: "Find the best local shops, businesses, and services near you in Patna. Search by category, pincode, or area. Contact details, addresses, and directions for thousands of local businesses.",
+  description: "8 Rupiya - Find best local shops, businesses, and services near you. Search shops near me, nearby stores, restaurants, hotels, salons, and more. Trusted local business directory in Patna with contact details, addresses, and directions.",
   keywords: [
-    "local businesses",
+    // Brand Keywords
+    "8 rupiya",
+    "8rupiya",
+    "8 rupiya com",
+    "8rupiya com",
+    "8rupiya.com",
+    "8 rupiya website",
+    "8rupiya website",
+    "8 rupiya directory",
+    "8rupiya directory",
+    "8 rupiya business",
+    "8rupiya business",
+    "8 rupiya local",
+    "8rupiya local",
+    "8 rupiya shops",
+    "8rupiya shops",
+    "8 rupiya near me",
+    "8rupiya near me",
+    "8 rupiya app",
+    "8rupiya app",
+    "8 rupiya login",
+    "8rupiya login",
+    // Generic Local Search (Near Me)
+    "local shops near me",
     "shops near me",
+    "nearby shops",
+    "best local shops",
+    "trusted local shops",
+    "local businesses near me",
+    "small businesses near me",
+    "near me services",
+    "nearby stores",
+    "open now shops",
+    "shops open now near me",
+    "grocery near me",
+    "medical store near me",
+    "mobile shop near me",
+    "electronics near me",
+    "hardware near me",
+    "restaurant near me",
+    "hotel near me",
+    "salon near me",
+    "tailoring near me",
+    "computer shop near me",
+    "coaching center near me",
+    "tuition near me",
+    "repair shop near me",
+    "plumber near me",
+    "electrician near me",
+    "mechanic near me",
+    "bike service near me",
+    "car service near me",
+    "gym near me",
+    "fitness near me",
+    "pharmacy near me",
+    "clinic near me",
+    "diagnostic center near me",
+    // General Keywords
+    "local businesses",
     "Patna business directory",
     "find shops",
     "local services",
     "business directory",
     "shop search",
-    "nearby shops",
     "Patna shops",
     "local directory",
   ],
@@ -102,7 +153,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} antialiased`}
         suppressHydrationWarning
       >
         <PerformanceOptimizations />
@@ -118,6 +169,11 @@ export default function RootLayout({
             </AuthProvider>
           </DistanceProvider>
         </LocationProvider>
+        {/* External script removed for performance - uncomment only if needed */}
+        {/* <Script
+          src="https://8rupiya.com/script.js"
+          strategy="afterInteractive"
+        /> */}
       </body>
     </html>
   );

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import HomepageSettings from '@/models/HomepageSettings';
 
+// Revalidate every hour (3600 seconds)
+export const revalidate = 3600;
+
 // Default homepage settings to return on error
 const defaultSettings = {
   sections: {

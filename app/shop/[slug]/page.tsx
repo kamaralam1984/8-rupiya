@@ -11,6 +11,9 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
+// Revalidate every hour (3600 seconds)
+export const revalidate = 3600;
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yourdomain.com';
