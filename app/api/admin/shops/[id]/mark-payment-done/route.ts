@@ -4,9 +4,10 @@ import AdminShop from '@/lib/models/Shop';
 import Shop from '@/models/Shop'; // Old Shop model
 import AgentShop from '@/lib/models/AgentShop';
 import Agent from '@/lib/models/Agent';
+import Operator from '@/lib/models/Operator';
 import { requireAdmin } from '@/lib/auth';
 import { sendPaymentConfirmation } from '@/lib/services/notificationService';
-import { calculateAgentCommission, PRICING_PLANS, PlanType } from '@/app/utils/pricing';
+import { calculateAgentCommission, calculateOperatorCommission, PRICING_PLANS, PlanType } from '@/app/utils/pricing';
 import Revenue from '@/lib/models/Revenue';
 import mongoose from 'mongoose';
 
@@ -150,6 +151,7 @@ export const POST = requireAdmin(async (
         
         // Calculate commission based on plan type
         const agentCommission = calculateAgentCommission(finalPlanType, finalAmount);
+        const operatorCommission = calculateOperatorCommission(finalPlanType, finalAmount, agentCommission);
         
         agentShop.paymentStatus = 'PAID';
         agentShop.paymentMode = paymentMode || 'CASH';
@@ -158,6 +160,7 @@ export const POST = requireAdmin(async (
         agentShop.planType = finalPlanType;
         agentShop.planAmount = finalAmount;
         agentShop.agentCommission = agentCommission;
+        agentShop.operatorCommission = operatorCommission;
         agentShop.district = district || agentShop.district;
         agentShop.lastPaymentDate = paymentDate;
         agentShop.paymentExpiryDate = expiryDate;
@@ -198,6 +201,30 @@ export const POST = requireAdmin(async (
                 oldEarnings,
                 newTotalEarnings: agent.totalEarnings,
               });
+
+              // Add operator commission if agent has an operator
+              if (agent.operatorId) {
+                try {
+                  const operator = await Operator.findById(agent.operatorId);
+                  if (operator) {
+                    const oldOperatorEarnings = operator.totalEarnings || 0;
+                    operator.totalEarnings = oldOperatorEarnings + operatorCommission;
+                    await operator.save();
+                    
+                    console.log('Operator commission added successfully:', {
+                      operatorId: operator._id.toString(),
+                      operatorName: operator.name,
+                      operatorCommission,
+                      agentCommission,
+                      totalAmount: finalAmount,
+                      oldEarnings: oldOperatorEarnings,
+                      newTotalEarnings: operator.totalEarnings,
+                    });
+                  }
+                } catch (operatorError: any) {
+                  console.error('Error updating operator commission:', operatorError);
+                }
+              }
             } else {
               console.error('Agent not found for agentId:', agentShop.agentId);
             }
@@ -210,7 +237,73 @@ export const POST = requireAdmin(async (
             // Continue even if commission update fails
           }
         } else {
-          console.log('Payment was already PAID, no commission added. Previous status:', agentShop.paymentStatus);
+          // Shop was already PAID - check if plan type changed
+          const oldPlanType = agentShop.planType;
+          const oldPlanAmount = agentShop.planAmount || agentShop.amount || 0;
+          const oldAgentCommission = agentShop.agentCommission || 0;
+          const oldOperatorCommission = agentShop.operatorCommission || 0;
+          
+          // If plan type or amount changed, update commissions
+          if (oldPlanType !== finalPlanType || oldPlanAmount !== finalAmount) {
+            console.log('Plan type or amount changed for PAID shop, updating commissions:', {
+              oldPlanType,
+              newPlanType: finalPlanType,
+              oldAmount: oldPlanAmount,
+              newAmount: finalAmount,
+            });
+            
+            // Recalculate commissions
+            const newAgentCommission = calculateAgentCommission(finalPlanType, finalAmount);
+            const newOperatorCommission = calculateOperatorCommission(finalPlanType, finalAmount, newAgentCommission);
+            
+            // Update commissions in AgentShop
+            agentShop.agentCommission = newAgentCommission;
+            agentShop.operatorCommission = newOperatorCommission;
+            await agentShop.save();
+            
+            // Update agent and operator earnings
+            try {
+              const agent = await Agent.findById(agentShop.agentId);
+              if (agent) {
+                // Subtract old commission and add new commission
+                const oldEarnings = agent.totalEarnings || 0;
+                const newEarnings = oldEarnings - oldAgentCommission + newAgentCommission;
+                agent.totalEarnings = Math.max(0, newEarnings);
+                await agent.save();
+                
+                console.log('Agent commission updated (plan changed):', {
+                  agentId: agent._id.toString(),
+                  oldCommission: oldAgentCommission,
+                  newCommission: newAgentCommission,
+                  oldEarnings,
+                  newEarnings,
+                });
+                
+                // Update operator earnings if agent has an operator
+                if (agent.operatorId) {
+                  const operator = await Operator.findById(agent.operatorId);
+                  if (operator) {
+                    const oldOperatorEarnings = operator.totalEarnings || 0;
+                    const newOperatorEarnings = oldOperatorEarnings - oldOperatorCommission + newOperatorCommission;
+                    operator.totalEarnings = Math.max(0, newOperatorEarnings);
+                    await operator.save();
+                    
+                    console.log('Operator commission updated (plan changed):', {
+                      operatorId: operator._id.toString(),
+                      oldCommission: oldOperatorCommission,
+                      newCommission: newOperatorCommission,
+                      oldEarnings: oldOperatorEarnings,
+                      newEarnings: newOperatorEarnings,
+                    });
+                  }
+                }
+              }
+            } catch (commissionError: any) {
+              console.error('Error updating commissions for plan change:', commissionError);
+            }
+          } else {
+            console.log('Payment was already PAID and plan unchanged. Previous status:', agentShop.paymentStatus);
+          }
         }
       } else {
         console.log('No matching AgentShop found for:', {

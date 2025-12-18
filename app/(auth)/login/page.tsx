@@ -11,7 +11,7 @@ import Navbar from '@/app/components/Navbar';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const { login: agentLogin, isAuthenticated: isAgentAuthenticated } = useAgentAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,16 +23,36 @@ function LoginForm() {
 
   // If already logged in, redirect immediately
   useEffect(() => {
-    if (isAuthenticated && selectedRole !== 'agent') {
-      router.push(redirectUrl);
+    // Check if operator is logged in (from localStorage)
+    if (typeof window !== 'undefined') {
+      const operatorToken = localStorage.getItem('operator_token');
+      if (operatorToken) {
+        router.push('/operator/dashboard');
+        return;
+      }
     }
-    if (isAgentAuthenticated && selectedRole === 'agent') {
+    
+    if (isAgentAuthenticated) {
       router.push('/agent/dashboard');
+      return;
+    }
+    if (isAuthenticated && selectedRole !== 'agent' && selectedRole !== 'operator') {
+      router.push(redirectUrl);
     }
   }, [isAuthenticated, isAgentAuthenticated, selectedRole, redirectUrl, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Redirect operators to operator login page (like agents)
+    if (selectedRole === 'operator') {
+      toast('Redirecting to Operators Panel...', { icon: 'ℹ️' });
+      setTimeout(() => {
+        router.push('/operator/login');
+      }, 500);
+      return;
+    }
+    
     setLoading(true);
     const loadingToast = toast.loading('Logging in...');
 
@@ -80,7 +100,23 @@ function LoginForm() {
             router.push('/agent/dashboard');
           }, 1000);
         } else {
-          // Update auth context for regular users (user, admin, editor, operator)
+          // Check actual user role from API response
+          const userRole = data.user?.role || selectedRole;
+          
+          // Handle operator login separately (like agent login)
+          if (userRole === 'operator') {
+            // Operators should use operator login API, not regular login
+            // Redirect to operator login page
+            toast.dismiss(loadingToast);
+            toast.error('Please use Operators Panel login page');
+            setTimeout(() => {
+              router.push('/operator/login');
+            }, 2000);
+            setLoading(false);
+            return;
+          }
+          
+          // Update auth context for regular users (user, admin, editor)
           login(data.token, data.user);
           
           // Small delay to ensure token is saved
@@ -88,7 +124,8 @@ function LoginForm() {
           
           // Redirect based on role
           let redirectPath = redirectUrl;
-          if (selectedRole === 'admin' || selectedRole === 'editor' || selectedRole === 'operator') {
+          
+          if (selectedRole === 'admin' || selectedRole === 'editor') {
             redirectPath = '/admin';
           }
           
@@ -99,8 +136,22 @@ function LoginForm() {
         }
       } else {
         toast.dismiss(loadingToast);
-        toast.error(data.error || 'Login failed');
-        console.error('Login failed:', data);
+        const errorMessage = data.error || data.message || 'Login failed';
+        toast.error(errorMessage);
+        console.error('Login failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: data.error,
+          message: data.message,
+          data: data
+        });
+        
+        // If operator tried to login, redirect them
+        if (data.redirect) {
+          setTimeout(() => {
+            router.push(data.redirect);
+          }, 2000);
+        }
       }
     } catch (err: any) {
       toast.dismiss(loadingToast);

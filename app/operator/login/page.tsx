@@ -59,9 +59,9 @@ export default function OperatorLoginPage() {
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Operator Panel
+              Operators Panel
             </h1>
-            <p className="text-green-600 font-semibold">Google Business Account Manager</p>
+            <p className="text-green-600 font-semibold">Agent Management & Commission</p>
             <p className="text-gray-600 text-sm mt-2">Login to your account</p>
           </div>
 

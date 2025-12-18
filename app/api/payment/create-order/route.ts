@@ -38,10 +38,10 @@ export async function POST(request: NextRequest) {
       agentId,
     } = body;
 
-    // Validate required fields
-    if (!shopId || !planType || !customerName || !customerPhone) {
+    // Validate required fields (shopId is optional for testing)
+    if (!planType || !customerName || !customerPhone) {
       return NextResponse.json(
-        { error: 'Missing required fields: shopId, planType, customerName, customerPhone' },
+        { error: 'Missing required fields: planType, customerName, customerPhone' },
         { status: 400 }
       );
     }
@@ -74,39 +74,61 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify shop exists
-    const shop = await AgentShop.findById(shopId);
-    if (!shop) {
-      return NextResponse.json(
-        { error: 'Shop not found' },
-        { status: 404 }
-      );
-    }
-
-    // If agentId is provided, verify agent token
-    if (agentId) {
-      const token = getAgentTokenFromRequest(request);
-      if (!token) {
+    // Verify shop exists (if shopId is provided)
+    let shop = null;
+    if (shopId) {
+      shop = await AgentShop.findById(shopId);
+      if (!shop) {
         return NextResponse.json(
-          { error: 'Authentication required for agent payments' },
-          { status: 401 }
+          { error: 'Shop not found' },
+          { status: 404 }
         );
       }
 
-      const payload = verifyAgentToken(token);
-      if (!payload || payload.agentId !== agentId) {
-        return NextResponse.json(
-          { error: 'Unauthorized' },
-          { status: 403 }
-        );
-      }
+      // If agentId is provided, verify agent token
+      if (agentId) {
+        const token = getAgentTokenFromRequest(request);
+        if (!token) {
+          return NextResponse.json(
+            { error: 'Authentication required for agent payments' },
+            { status: 401 }
+          );
+        }
 
-      // Verify agent owns the shop
-      if (shop.agentId.toString() !== agentId) {
-        return NextResponse.json(
-          { error: 'Agent does not own this shop' },
-          { status: 403 }
-        );
+        const payload = verifyAgentToken(token);
+        if (!payload || payload.agentId !== agentId) {
+          return NextResponse.json(
+            { error: 'Unauthorized' },
+            { status: 403 }
+          );
+        }
+
+        // Verify agent owns the shop
+        if (shop.agentId.toString() !== agentId) {
+          return NextResponse.json(
+            { error: 'Agent does not own this shop' },
+            { status: 403 }
+          );
+        }
+      }
+    } else {
+      // For test payments without shopId, verify agent token
+      if (agentId) {
+        const token = getAgentTokenFromRequest(request);
+        if (!token) {
+          return NextResponse.json(
+            { error: 'Authentication required for agent payments' },
+            { status: 401 }
+          );
+        }
+
+        const payload = verifyAgentToken(token);
+        if (!payload || payload.agentId !== agentId) {
+          return NextResponse.json(
+            { error: 'Unauthorized' },
+            { status: 403 }
+          );
+        }
       }
     }
 
@@ -118,15 +140,21 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 30); // 30 minutes expiry
 
+    // For test payments without shopId, we need to create a temporary shop reference
+    // Use a dummy ObjectId that won't conflict with real shops
+    const testShopId = shopId 
+      ? new mongoose.Types.ObjectId(shopId) 
+      : new mongoose.Types.ObjectId('507f1f77bcf86cd799439011'); // Dummy ObjectId for test payments
+    
     const payment = await Payment.create({
       orderId,
-      shopId: new mongoose.Types.ObjectId(shopId),
-      agentId: agentId ? new mongoose.Types.ObjectId(agentId) : shop.agentId,
+      shopId: testShopId,
+      agentId: agentId ? new mongoose.Types.ObjectId(agentId) : (shop ? shop.agentId : undefined),
       amount: Math.round(finalAmount * 100), // Convert to paise
       currency: 'INR',
       planType: planType as PlanType,
       status: 'PENDING',
-      paymentMode: 'ONLINE',
+      paymentMode: 'NONE',
       customerName,
       customerEmail,
       customerPhone,
@@ -171,10 +199,10 @@ export async function POST(request: NextRequest) {
           currency: razorpayOrder.currency,
           key: razorpayKeyId,
           name: '8Rupiya',
-          description: `${planDetails.name} - ${shop.shopName}`,
+          description: `${planDetails.name}${shop ? ` - ${shop.shopName}` : ' - Test Payment'}`,
           prefill: {
             name: customerName,
-            email: customerEmail || shop.email || '',
+            email: customerEmail || (shop ? shop.email : '') || '',
             contact: customerPhone,
           },
           theme: {

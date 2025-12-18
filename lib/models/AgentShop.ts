@@ -15,7 +15,7 @@ export interface IAgentShop extends Document {
   latitude: number;
   longitude: number;
   paymentStatus: 'PAID' | 'PENDING';
-  paymentMode: 'CASH' | 'UPI' | 'ONLINE' | 'NONE';
+  paymentMode: 'CASH' | 'UPI' | 'NONE';
   receiptNo: string;
   amount: number;
   sendSmsReceipt: boolean;
@@ -28,6 +28,7 @@ export interface IAgentShop extends Document {
   planAmount: number; // Actual amount paid
   district?: string; // District for revenue tracking
   agentCommission: number; // Commission earned by agent
+  operatorCommission?: number; // Commission earned by operator (15% of remaining after agent commission)
   paymentScreenshot?: string; // UPI payment screenshot URL
   // Google Business Profile
   googleBusinessAccount?: {
@@ -135,7 +136,7 @@ const AgentShopSchema = new Schema<IAgentShop>(
     },
     paymentMode: {
       type: String,
-      enum: ['CASH', 'UPI', 'ONLINE', 'NONE'],
+      enum: ['CASH', 'UPI', 'NONE'],
       default: 'NONE',
       required: true,
     },
@@ -199,6 +200,11 @@ const AgentShopSchema = new Schema<IAgentShop>(
     agentCommission: {
       type: Number,
       default: 20, // ₹20 for Basic plan (20% of ₹100)
+      min: [0, 'Commission cannot be negative'],
+    },
+    operatorCommission: {
+      type: Number,
+      default: 0, // Operator commission (15% of remaining after agent commission)
       min: [0, 'Commission cannot be negative'],
     },
     googleBusinessAccount: {

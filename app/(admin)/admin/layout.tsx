@@ -68,7 +68,17 @@ export default function AdminLayout({
 
   useEffect(() => {
     const checkAdminAccess = async () => {
-      // First check if user is logged in
+      // First, check if operator token exists - operators should not access admin panel
+      if (typeof window !== 'undefined') {
+        const operatorToken = localStorage.getItem('operator_token');
+        if (operatorToken) {
+          toast.error('Operators cannot access admin panel. Redirecting to operator dashboard...');
+          router.push('/operator/dashboard');
+          return;
+        }
+      }
+
+      // Check if user is logged in
       if (!token) {
         router.push('/login?redirect=/admin');
         return;
@@ -122,12 +132,20 @@ export default function AdminLayout({
           updateUser(currentUser);
         }
 
-        // Check if user is admin, editor, or operator
-        if (!['admin', 'editor', 'operator'].includes(currentUser.role)) {
-          setError('Access Denied: Admin, Editor, or Operator privileges required');
+        // STRICTLY: Only admin and editor can access admin panel
+        // Operators should be redirected to operator panel
+        if (currentUser.role === 'operator') {
+          toast.error('Operators cannot access admin panel. Redirecting to operator dashboard...');
+          router.push('/operator/dashboard');
+          return;
+        }
+
+        // Check if user is admin or editor (ONLY these two roles allowed)
+        if (!['admin', 'editor'].includes(currentUser.role)) {
+          setError('Access Denied: Admin or Editor privileges required');
           // Only show toast once, not multiple times
           if (!error) {
-            toast.error('You need admin, editor, or operator privileges to access this page');
+            toast.error('You need admin or editor privileges to access this page');
           }
           setTimeout(() => {
             router.push('/');
@@ -148,7 +166,7 @@ export default function AdminLayout({
     };
 
     checkAdminAccess();
-  }, [token, router, user, updateUser]);
+  }, [token, router, user, updateUser, error]);
 
   if (isLoading) {
     return (
@@ -173,7 +191,8 @@ export default function AdminLayout({
     );
   }
 
-  if (!user || !['admin', 'editor', 'operator'].includes(user.role)) {
+  // Only admin and editor can access admin panel
+  if (!user || !['admin', 'editor'].includes(user.role)) {
     return null;
   }
 
@@ -195,6 +214,7 @@ export default function AdminLayout({
     { name: 'New Shop (Image)', href: '/admin/shops/new-from-image', icon: '📸', color: 'cyan', allowedRoles: ['admin', 'editor'] },
     { name: 'Renew Shops', href: '/admin/shops/renew', icon: '🔄', color: 'orange', allowedRoles: ['admin', 'editor'] },
     { name: 'Agents', href: '/admin/agents', icon: '👤', color: 'violet', allowedRoles: ['admin', 'editor'] },
+    { name: 'Operators', href: '/admin/operators', icon: '👔', color: 'green', allowedRoles: ['admin', 'editor'] },
     { name: 'Revenue', href: '/admin/revenue', icon: '💰', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
     { name: 'Reports & Analytics', href: '/admin/reports', icon: '📊', color: 'indigo', allowedRoles: ['admin', 'editor', 'operator'] },
     { name: 'Database', href: '/admin/database', icon: '🗄️', color: 'slate', allowedRoles: ['admin'] }, // Sirf Admin
@@ -207,9 +227,20 @@ export default function AdminLayout({
   ];
 
   // Filter navigation based on user role
-  const filteredNavigation = navigation.filter((item) => {
+  // If on operators page, show only Revenue and Operators
+  const isOperatorsPage = pathname === '/admin/operators' || pathname?.startsWith('/admin/operators/');
+  
+  let filteredNavigation = navigation.filter((item) => {
     if (!user) return false;
-    return item.allowedRoles.includes(user.role);
+    const isAllowed = item.allowedRoles.includes(user.role);
+    
+    // On operators page, show only Revenue and Operators (remove Agents)
+    if (isOperatorsPage) {
+      const allowedItems = ['Revenue', 'Operators'];
+      return isAllowed && allowedItems.includes(item.name);
+    }
+    
+    return isAllowed;
   });
 
   const isActive = (href: string) => {

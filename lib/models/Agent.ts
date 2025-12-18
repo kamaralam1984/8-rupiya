@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Document, Model, Types } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IAgent extends Document {
@@ -9,6 +9,7 @@ export interface IAgent extends Document {
   agentCode: string; // Unique agent identifier
   agentPanelText?: string; // Text to display in agent panel
   agentPanelTextColor?: 'red' | 'green' | 'blue' | 'black'; // Text color for agent panel
+  operatorId?: Types.ObjectId; // Reference to Operator who manages this agent
   totalShops: number;
   totalEarnings: number; // Total commission earned
   createdAt: Date;
@@ -67,6 +68,11 @@ const AgentSchema = new Schema<IAgent>(
     totalEarnings: {
       type: Number,
       default: 0,
+    },
+    operatorId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Operator',
+      index: true,
     },
   },
   {

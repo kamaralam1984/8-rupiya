@@ -5,7 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import AgentRouteGuard from '@/app/components/AgentRouteGuard';
-import AgentPaymentButton from '@/app/components/AgentPaymentButton';
 import { verifyAgentToken } from '@/lib/utils/agentAuth';
 
 interface Shop {
@@ -21,7 +20,7 @@ interface Shop {
   latitude: number;
   longitude: number;
   paymentStatus: 'PAID' | 'PENDING';
-  paymentMode: 'CASH' | 'UPI' | 'ONLINE' | 'NONE';
+  paymentMode: 'CASH' | 'UPI' | 'NONE';
   receiptNo: string;
   amount: number;
   planType?: string;
@@ -230,18 +229,6 @@ export default function ShopDetailPage() {
                 >
                   Edit Shop
                 </Link>
-                {shop.paymentStatus === 'PENDING' && agentId && (
-                  <AgentPaymentButton
-                    shopId={shop._id}
-                    shopName={shop.shopName}
-                    ownerName={shop.ownerName}
-                    mobile={shop.mobile}
-                    email={shop.email}
-                    currentPlan={(shop.planType as any) || 'BASIC'}
-                    agentId={agentId}
-                    onPaymentSuccess={fetchShop}
-                  />
-                )}
                 {shop.paymentStatus === 'PAID' && shop.sendSmsReceipt && (
                   <button
                     className="flex-1 bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors min-w-[120px]"

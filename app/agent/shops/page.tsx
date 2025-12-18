@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import AgentRouteGuard from '@/app/components/AgentRouteGuard';
 import AgentServerStatus from '@/app/components/AgentServerStatus';
+import { verifyAgentToken } from '@/lib/utils/agentAuth';
 
 // Agent Panel Text Display Component
 function AgentPanelTextDisplay() {
@@ -70,10 +71,13 @@ interface Shop {
   _id: string;
   shopName: string;
   ownerName: string;
+  mobile?: string;
+  email?: string;
   category: string;
   pincode: string;
   photoUrl: string;
   paymentStatus: 'PAID' | 'PENDING';
+  planType?: string;
   createdAt: string;
 }
 
@@ -83,8 +87,17 @@ export default function MyShopsPage() {
   const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
+  const [agentId, setAgentId] = useState<string>('');
 
   useEffect(() => {
+    // Get agent ID from token
+    const token = localStorage.getItem('agent_token');
+    if (token) {
+      const payload = verifyAgentToken(token);
+      if (payload) {
+        setAgentId(payload.agentId);
+      }
+    }
     fetchShops();
   }, [dateFilter, paymentFilter]);
 
@@ -135,29 +148,6 @@ export default function MyShopsPage() {
       }
     }
   };
-
-  useEffect(() => {
-    fetchShops();
-  }, [dateFilter, paymentFilter]);
-
-  // Auto-refresh shops list when window gains focus (e.g., when user switches back to tab)
-  useEffect(() => {
-    const handleFocus = () => {
-      fetchShops(false); // Silent refresh when tab becomes active
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, []);
-
-  // Auto-refresh every 2 minutes to get latest payment status (silent refresh)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchShops(false); // Silent refresh without loading indicator
-    }, 120000); // Refresh every 2 minutes
-
-    return () => clearInterval(interval);
-  }, [dateFilter, paymentFilter]);
 
   return (
     <AgentRouteGuard>
@@ -239,48 +229,52 @@ export default function MyShopsPage() {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {shops.map((shop) => (
-                <Link
-                  key={shop._id}
-                  href={`/agent/shops/${shop._id}`}
-                  className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all"
-                >
-                  <div className="relative h-48 w-full">
-                    <Image
-                      src={shop.photoUrl || '/placeholder-shop.jpg'}
-                      alt={shop.shopName}
-                      fill
-                      className="object-cover"
-                    />
-                    <div className="absolute top-2 right-2">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          shop.paymentStatus === 'PAID'
-                            ? 'bg-green-500 text-white'
-                            : 'bg-yellow-500 text-white'
-                        }`}
-                      >
-                        {shop.paymentStatus}
-                      </span>
-                    </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {shops.map((shop) => (
+                  <div
+                    key={shop._id}
+                    className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all"
+                  >
+                    <Link href={`/agent/shops/${shop._id}`}>
+                      <div className="relative h-48 w-full">
+                        <Image
+                          src={shop.photoUrl || '/placeholder-shop.jpg'}
+                          alt={shop.shopName}
+                          fill
+                          className="object-cover"
+                        />
+                        <div className="absolute top-2 right-2">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              shop.paymentStatus === 'PAID'
+                                ? 'bg-green-500 text-white'
+                                : 'bg-yellow-500 text-white'
+                            }`}
+                          >
+                            {shop.paymentStatus}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-bold text-gray-900 mb-1 line-clamp-1">
+                          {shop.shopName}
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-2">{shop.ownerName}</p>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">{shop.category}</span>
+                          <span className="text-gray-500">{shop.pincode}</span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">
+                          {new Date(shop.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </Link>
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-gray-900 mb-1 line-clamp-1">
-                      {shop.shopName}
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-2">{shop.ownerName}</p>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">{shop.category}</span>
-                      <span className="text-gray-500">{shop.pincode}</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-2">
-                      {new Date(shop.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
+                ))}
+              </div>
+
+            </>
           )}
         </main>
       </div>

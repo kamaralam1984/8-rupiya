@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Agent from '@/lib/models/Agent';
+import Operator from '@/lib/models/Operator';
 import { requireAdmin } from '@/lib/auth';
 
 // GET /api/admin/agents - List all agents
@@ -15,6 +16,8 @@ export const GET = requireAdmin(async (request: NextRequest) => {
 
     // Build search query
     const searchQuery: any = {};
+    const operatorCode = searchParams.get('operatorCode');
+    
     if (search) {
       searchQuery.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -24,12 +27,36 @@ export const GET = requireAdmin(async (request: NextRequest) => {
       ];
     }
 
+    // If operator code is provided, filter agents by operator
+    if (operatorCode) {
+      const operator = await Operator.findOne({ operatorCode: operatorCode.toUpperCase() });
+      if (operator) {
+        searchQuery.operatorId = operator._id;
+      } else {
+        // If operator not found, return empty results
+        return NextResponse.json(
+          {
+            success: true,
+            agents: [],
+            pagination: {
+              page,
+              limit,
+              total: 0,
+              pages: 0,
+            },
+          },
+          { status: 200 }
+        );
+      }
+    }
+
     // Get total count
     const total = await Agent.countDocuments(searchQuery);
 
-    // Get agents
+    // Get agents with operator info
     const agents = await Agent.find(searchQuery)
       .select('-passwordHash') // Don't return password hash
+      .populate('operatorId', 'name operatorCode')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -40,6 +67,8 @@ export const GET = requireAdmin(async (request: NextRequest) => {
       ...agent,
       id: agent._id.toString(),
       _id: agent._id.toString(),
+      operatorId: agent.operatorId?._id?.toString() || agent.operatorId?.toString(),
+      operatorName: agent.operatorId?.name || null,
     }));
 
     return NextResponse.json(

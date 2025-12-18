@@ -17,7 +17,7 @@ export interface IPayment extends Document {
   
   // Payment status
   status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED' | 'REFUNDED';
-  paymentMode: 'ONLINE' | 'CASH' | 'UPI'; // Payment mode
+  paymentMode: 'CASH' | 'UPI'; // Payment mode
   
   // Customer details
   customerName: string;
@@ -27,6 +27,7 @@ export interface IPayment extends Document {
   // Razorpay details
   razorpayOrderId: string; // Razorpay order ID
   razorpayPaymentId?: string; // Razorpay payment ID
+  razorpayPaymentLinkId?: string; // Razorpay Payment Link ID (for QR code payments)
   razorpaySignature?: string; // Razorpay signature for verification
   
   // Payment gateway
@@ -101,8 +102,8 @@ const PaymentSchema = new Schema<IPayment>(
     },
     paymentMode: {
       type: String,
-      enum: ['ONLINE', 'CASH', 'UPI'],
-      default: 'ONLINE',
+      enum: ['CASH', 'UPI'],
+      default: 'CASH',
     },
     customerName: {
       type: String,
@@ -127,6 +128,11 @@ const PaymentSchema = new Schema<IPayment>(
       index: true,
     },
     razorpayPaymentId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    razorpayPaymentLinkId: {
       type: String,
       trim: true,
       index: true,

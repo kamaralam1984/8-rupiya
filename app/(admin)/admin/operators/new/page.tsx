@@ -35,6 +35,18 @@ export default function NewOperatorPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate all required fields
+    if (!formData.name || !formData.email || !formData.phone || !formData.operatorCode || !formData.password) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -48,14 +60,29 @@ export default function NewOperatorPage() {
       });
 
       const data = await response.json();
+      
+      if (!response.ok) {
+        // Handle error responses (400, 500, etc.)
+        const errorMessage = data.error || 'Failed to create operator';
+        console.error('Operator creation failed:', {
+          status: response.status,
+          error: errorMessage,
+          formData: formData,
+          fullResponse: data
+        });
+        toast.error(errorMessage);
+        return;
+      }
+
       if (data.success) {
         toast.success('Operator created successfully!');
         router.push('/admin/operators');
       } else {
         toast.error(data.error || 'Failed to create operator');
       }
-    } catch (error) {
-      toast.error('Failed to create operator');
+    } catch (error: any) {
+      console.error('Create operator error:', error);
+      toast.error(error.message || 'Failed to create operator. Please try again.');
     } finally {
       setLoading(false);
     }

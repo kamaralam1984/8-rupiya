@@ -110,6 +110,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
       heroPlanRevenue: 0,
       advertisementRevenue: 0,
       totalAgentCommission: 0,
+      totalOperatorCommission: 0,
       totalRevenue: 0,
       netRevenue: 0,
       basicPlanCount: 0,
@@ -307,10 +308,14 @@ export const GET = requireAdmin(async (request: NextRequest) => {
         }
       }
       
-        // Add agent commission if shop is paid and within period
+        // Add agent commission and operator commission if shop is paid and within period
         if (isPaid && !isExpired && includeShopForCommission) {
           const commission = Number(shop.agentCommission) || 0;
           totals.totalAgentCommission += commission;
+          
+          // Calculate operator commission (15% of remaining amount after agent commission)
+          const operatorCommission = Number(shop.operatorCommission) || 0;
+          totals.totalOperatorCommission += operatorCommission;
         }
       } catch (shopProcessError: any) {
         console.error('Error processing agent shop:', shopProcessError, shop);
@@ -322,7 +327,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
     // Calculate total revenue and net revenue (ensure all values are numbers)
     totals.totalRevenue = (totals.basicPlanRevenue || 0) + (totals.premiumPlanRevenue || 0) + (totals.featuredPlanRevenue || 0) +
                          (totals.leftBarPlanRevenue || 0) + (totals.rightBarPlanRevenue || 0) + (totals.bottomRailPlanRevenue || 0) + (totals.bannerPlanRevenue || 0) + (totals.heroPlanRevenue || 0);
-    totals.netRevenue = (totals.totalRevenue || 0) - (totals.totalAgentCommission || 0);
+    totals.netRevenue = (totals.totalRevenue || 0) - (totals.totalAgentCommission || 0) - (totals.totalOperatorCommission || 0);
     
     // Get revenue records for historical tracking
     let revenues: any[] = [];
@@ -684,6 +689,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
           heroPlanCount: totals.heroPlanCount || 0,
           advertisementCount: 0,
           totalAgentCommission: totals.totalAgentCommission || 0,
+          totalOperatorCommission: totals.totalOperatorCommission || 0,
           totalRevenue: totals.totalRevenue || 0,
           netRevenue: totals.netRevenue || 0,
         },

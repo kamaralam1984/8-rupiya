@@ -277,6 +277,15 @@ export function calculateCompanyProfit(planType: PlanType, amount: number, agent
 }
 
 /**
+ * Calculate operator commission (15% of remaining after agent commission)
+ * Formula: (Amount - Agent Commission) * 0.15
+ */
+export function calculateOperatorCommission(planType: PlanType, amount: number, agentCommission: number): number {
+  const remaining = amount - agentCommission;
+  return Math.round(remaining * 0.15); // 15% of remaining
+}
+
+/**
  * Check if shop can upgrade to a plan
  */
 export function canUpgrade(currentPlan: PlanType, targetPlan: PlanType): boolean {

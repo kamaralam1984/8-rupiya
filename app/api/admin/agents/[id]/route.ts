@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Agent from '@/lib/models/Agent';
 import AgentShop from '@/lib/models/AgentShop';
+import Operator from '@/lib/models/Operator';
 import { requireAdmin } from '@/lib/auth';
+import mongoose from 'mongoose';
 
 // GET /api/admin/agents/[id] - Get single agent
 export const GET = requireAdmin(async (
@@ -82,12 +84,29 @@ export const PUT = requireAdmin(async (
     }
 
     const body = await request.json();
-    const { name, phone, email, password, agentCode, agentPanelText, agentPanelTextColor } = body;
+    const { name, phone, email, password, agentCode, agentPanelText, agentPanelTextColor, operatorId } = body;
 
     // Update allowed fields
     if (name !== undefined) agent.name = name;
     if (agentPanelText !== undefined) agent.agentPanelText = agentPanelText;
     if (agentPanelTextColor !== undefined) agent.agentPanelTextColor = agentPanelTextColor;
+    
+    // Update operator assignment
+    if (operatorId !== undefined) {
+      if (operatorId) {
+        // Verify operator exists
+        const operator = await Operator.findById(operatorId);
+        if (!operator) {
+          return NextResponse.json(
+            { error: 'Operator not found' },
+            { status: 404 }
+          );
+        }
+        agent.operatorId = new mongoose.Types.ObjectId(operatorId);
+      } else {
+        agent.operatorId = undefined;
+      }
+    }
     if (phone !== undefined) {
       // Check if phone is already taken by another agent
       const existingAgent = await Agent.findOne({

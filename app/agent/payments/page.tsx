@@ -4,17 +4,21 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AgentRouteGuard from '@/app/components/AgentRouteGuard';
 import Link from 'next/link';
+import { verifyAgentToken } from '@/lib/utils/agentAuth';
 
 interface Shop {
   _id: string;
   shopName: string;
   ownerName: string;
   mobile: string;
+  email?: string;
   paymentStatus: 'PAID' | 'PENDING';
   paymentMode: 'CASH' | 'UPI' | 'NONE';
   receiptNo: string;
   amount: number;
+  planType?: string;
   createdAt: string;
+  agentId?: string;
 }
 
 interface Analytics {
@@ -35,8 +39,17 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
+  const [agentId, setAgentId] = useState<string>('');
 
   useEffect(() => {
+    // Get agent ID from token
+    const token = localStorage.getItem('agent_token');
+    if (token) {
+      const payload = verifyAgentToken(token);
+      if (payload) {
+        setAgentId(payload.agentId);
+      }
+    }
     fetchPayments();
   }, [dateFilter, paymentFilter]);
 
@@ -220,12 +233,14 @@ export default function PaymentsPage() {
                           {new Date(shop.createdAt).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <Link
-                            href={`/agent/shops/${shop._id}`}
-                            className="text-blue-600 hover:text-blue-700 font-semibold"
-                          >
-                            View
-                          </Link>
+                          <div className="flex items-center gap-2">
+                            <Link
+                              href={`/agent/shops/${shop._id}`}
+                              className="text-blue-600 hover:text-blue-700 font-semibold"
+                            >
+                              View
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -234,6 +249,7 @@ export default function PaymentsPage() {
               </div>
             </div>
           )}
+
         </main>
       </div>
     </AgentRouteGuard>

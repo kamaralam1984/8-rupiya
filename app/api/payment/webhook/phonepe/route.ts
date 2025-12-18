@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
               const agentCommission = calculateAgentCommission(payment.planType, planAmount);
 
               shop.paymentStatus = 'PAID';
-              shop.paymentMode = 'ONLINE';
+              shop.paymentMode = 'NONE';
               shop.planType = payment.planType;
               shop.planAmount = planAmount;
               shop.amount = planAmount;

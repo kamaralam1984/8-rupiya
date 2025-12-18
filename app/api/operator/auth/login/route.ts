@@ -20,20 +20,35 @@ export async function POST(request: NextRequest) {
     // Normalize identifier
     const normalizedIdentifier = identifier.toLowerCase().trim();
     
-    // Find operator by email or phone
+    // Find operator by email or phone (check both active and inactive for better error messages)
     const operator = await Operator.findOne({
       $or: [
         { email: normalizedIdentifier },
         { phone: identifier.trim() },
       ],
-      isActive: true, // Only allow active operators
     }).select('+passwordHash'); // Include password hash
 
     if (!operator) {
       console.error('Operator not found for identifier:', identifier);
+      console.error('Searched for email:', normalizedIdentifier, 'or phone:', identifier.trim());
+      // Check if any operator exists at all
+      const totalOperators = await Operator.countDocuments();
+      console.error('Total operators in database:', totalOperators);
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { 
+          error: 'Invalid credentials',
+          hint: totalOperators === 0 ? 'No operators found in database. Please create an operator first via admin panel.' : 'Operator not found with this email/phone.'
+        },
         { status: 401 }
+      );
+    }
+
+    // Check if operator is active
+    if (!operator.isActive) {
+      console.error('Operator is inactive:', operator.email);
+      return NextResponse.json(
+        { error: 'Your account is inactive. Please contact admin.' },
+        { status: 403 }
       );
     }
 

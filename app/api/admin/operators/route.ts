@@ -66,11 +66,21 @@ export const GET = requireAdmin(async (request: NextRequest) => {
 
 // POST /api/admin/operators - Create new operator
 export const POST = requireAdmin(async (request: NextRequest) => {
+  // Store body values for error handling
+  let email = '';
+  let phone = '';
+  let operatorCode = '';
+  
   try {
     await connectDB();
 
     const body = await request.json();
-    const { name, phone, email, password, operatorCode } = body;
+    const { name, phone: phoneValue, email: emailValue, password, operatorCode: operatorCodeValue } = body;
+    
+    // Store values for error handling
+    email = emailValue || '';
+    phone = phoneValue || '';
+    operatorCode = operatorCodeValue || '';
 
     // Validation
     if (!name || !phone || !email || !password || !operatorCode) {
@@ -80,18 +90,27 @@ export const POST = requireAdmin(async (request: NextRequest) => {
       );
     }
 
-    // Check if operator already exists
-    const existingOperator = await Operator.findOne({
-      $or: [
-        { email: email.toLowerCase() },
-        { phone: phone },
-        { operatorCode: operatorCode.toUpperCase() },
-      ],
-    });
-
-    if (existingOperator) {
+    // Check if operator already exists - check each field separately for specific error messages
+    const existingByEmail = await Operator.findOne({ email: email.toLowerCase() });
+    if (existingByEmail) {
       return NextResponse.json(
-        { error: 'Operator with this email, phone, or operator code already exists' },
+        { error: `Operator with email "${email}" already exists` },
+        { status: 400 }
+      );
+    }
+
+    const existingByPhone = await Operator.findOne({ phone: phone });
+    if (existingByPhone) {
+      return NextResponse.json(
+        { error: `Operator with phone "${phone}" already exists` },
+        { status: 400 }
+      );
+    }
+
+    const existingByCode = await Operator.findOne({ operatorCode: operatorCode.toUpperCase() });
+    if (existingByCode) {
+      return NextResponse.json(
+        { error: `Operator with code "${operatorCode.toUpperCase()}" already exists` },
         { status: 400 }
       );
     }
@@ -128,8 +147,20 @@ export const POST = requireAdmin(async (request: NextRequest) => {
   } catch (error: any) {
     console.error('Create operator error:', error);
     if (error.code === 11000) {
+      // MongoDB duplicate key error - extract the field name from error message
+      const errorMessage = error.message || '';
+      let specificError = 'Operator with this email, phone, or operator code already exists';
+      
+      if (errorMessage.includes('email')) {
+        specificError = `Operator with email "${email}" already exists`;
+      } else if (errorMessage.includes('phone')) {
+        specificError = `Operator with phone "${phone}" already exists`;
+      } else if (errorMessage.includes('operatorCode')) {
+        specificError = `Operator with code "${operatorCode.toUpperCase()}" already exists`;
+      }
+      
       return NextResponse.json(
-        { error: 'Operator with this email, phone, or operator code already exists' },
+        { error: specificError },
         { status: 400 }
       );
     }

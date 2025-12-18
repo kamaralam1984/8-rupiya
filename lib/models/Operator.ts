@@ -8,6 +8,7 @@ export interface IOperator extends Document {
   passwordHash: string;
   operatorCode: string; // Unique operator identifier
   isActive: boolean;
+  totalEarnings: number; // Total commission earned from agents
   createdAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
@@ -50,6 +51,10 @@ const OperatorSchema = new Schema<IOperator>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    totalEarnings: {
+      type: Number,
+      default: 0,
     },
   },
   {

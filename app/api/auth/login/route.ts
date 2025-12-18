@@ -86,10 +86,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle user/admin/editor/operator login
+    // Block operators from using admin login - they must use operator login API
+    if (role === 'operator') {
+      return NextResponse.json(
+        { error: 'Operators must use the Operators Panel login page', redirect: '/operator/login' },
+        { status: 403 }
+      );
+    }
+
+    // Handle user/admin/editor login (operators are NOT allowed)
     // Find user and include password field, filter by role if specified
-    const userQuery: any = { email: normalizedEmail };
-    if (role !== 'user') {
+    const userQuery: any = { 
+      email: normalizedEmail
+    };
+    
+    // Build role filter: exclude operators, and match specific role if provided
+    if (role === 'user') {
+      // For 'user' role, find any user that's not an operator
+      userQuery.role = { $ne: 'operator' };
+    } else {
+      // For admin/editor, match exact role (which already excludes operators)
       userQuery.role = role;
     }
 
@@ -103,6 +119,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify role matches (if role was specified and not 'user')
+    // Also ensure user is not an operator
+    if (user.role === 'operator') {
+      return NextResponse.json(
+        { error: 'Operators must use the Operators Panel login page', redirect: '/operator/login' },
+        { status: 403 }
+      );
+    }
+
     if (role !== 'user' && user.role !== role) {
       return NextResponse.json(
         { error: `Invalid credentials for ${role} role` },

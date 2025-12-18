@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import AgentShop from '@/lib/models/AgentShop';
 import Agent from '@/lib/models/Agent';
+import Operator from '@/lib/models/Operator';
 import AdminShop from '@/lib/models/Shop'; // Admin shop model
 import Category from '@/models/Category'; // Category model
 import { verifyAgentToken, getAgentTokenFromRequest } from '@/lib/utils/agentAuth';
-import { calculateAgentCommission, PRICING_PLANS, PlanType } from '@/app/utils/pricing';
+import { calculateAgentCommission, calculateOperatorCommission, PRICING_PLANS, PlanType } from '@/app/utils/pricing';
 import { generateShopUrl } from '@/lib/utils/slugGenerator';
 import mongoose from 'mongoose';
 
@@ -252,6 +253,9 @@ export async function POST(request: NextRequest) {
     const agentCommission = paymentStatus === 'PAID' 
       ? calculateAgentCommission(finalPlanType, finalAmount)
       : 0;
+    const operatorCommission = paymentStatus === 'PAID' && agentCommission > 0
+      ? calculateOperatorCommission(finalPlanType, finalAmount, agentCommission)
+      : 0;
 
     // Calculate payment dates
     const paymentDate = paymentStatus === 'PAID' ? new Date() : new Date();
@@ -329,6 +333,7 @@ export async function POST(request: NextRequest) {
         planType: finalPlanType,
         planAmount: finalAmount,
         agentCommission: agentCommission,
+        operatorCommission: operatorCommission,
         paymentScreenshot: paymentScreenshot || undefined,
         sendSmsReceipt: sendSmsReceipt || false,
         agentId: new mongoose.Types.ObjectId(payload.agentId),
@@ -493,6 +498,19 @@ export async function POST(request: NextRequest) {
           agent.totalEarnings += agentCommission;
         }
         await agent.save();
+
+        // Update operator commission if agent has an operator
+        if (agent.operatorId && paymentStatus === 'PAID' && operatorCommission > 0) {
+          try {
+            const operator = await Operator.findById(agent.operatorId);
+            if (operator) {
+              operator.totalEarnings = (operator.totalEarnings || 0) + operatorCommission;
+              await operator.save();
+            }
+          } catch (operatorError: any) {
+            console.error('Error updating operator commission:', operatorError);
+          }
+        }
       }
     } catch (agentError: any) {
       console.error('Error updating agent stats:', agentError);

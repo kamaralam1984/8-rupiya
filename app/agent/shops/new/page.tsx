@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import AgentRouteGuard from '@/app/components/AgentRouteGuard';
 import Image from 'next/image';
 import { PRICING_PLANS, PlanType } from '@/app/utils/pricing';
-import UPIQRCode from '@/app/components/UPIQRCode';
 import SEOModal from '@/app/components/SEOModal';
+import TestRazorpayPayment from '@/app/components/TestRazorpayPayment';
+import AgentRazorpayQRPayment from '@/app/components/AgentRazorpayQRPayment';
 import toast from 'react-hot-toast';
 
 interface FormData {
@@ -1531,23 +1532,26 @@ export default function AddNewShopPage() {
                     </select>
                   </div>
 
-                  {/* UPI QR Code */}
-                  {formData.paymentMode === 'UPI' && (
-                    <div>
-                      <UPIQRCode
-                        amount={formData.amount}
+                  {/* Razorpay QR Code Payment Component */}
+                  {formData.shopName && formData.ownerName && formData.mobile && (
+                    <div className="mt-4">
+                      <AgentRazorpayQRPayment
                         shopName={formData.shopName}
                         ownerName={formData.ownerName}
                         mobile={formData.mobile}
-                        onPaymentVerified={(screenshotUrl) => {
-                          // Payment verified with screenshot, update form data
-                          setFormData({ 
-                            ...formData, 
-                            paymentStatus: 'PAID',
-                            paymentScreenshot: screenshotUrl 
-                          });
-                          toast.success('Payment screenshot uploaded! You can now submit the shop.');
-                        }}
+                        email={formData.email}
+                      />
+                    </div>
+                  )}
+
+                  {/* Test Razorpay Payment Component (Checkout) */}
+                  {formData.shopName && formData.ownerName && formData.mobile && (
+                    <div className="mt-4">
+                      <TestRazorpayPayment
+                        shopName={formData.shopName}
+                        ownerName={formData.ownerName}
+                        mobile={formData.mobile}
+                        email={formData.email}
                       />
                     </div>
                   )}

@@ -15,6 +15,14 @@ interface Operator {
   operatorCode: string;
   isActive: boolean;
   createdAt: string;
+  totalEarnings?: number;
+}
+
+interface CommissionStats {
+  totalOperatorCommission: number;
+  totalAgentCommission: number;
+  totalRevenue: number;
+  netRevenue: number;
 }
 
 export default function OperatorsPage() {
@@ -24,9 +32,11 @@ export default function OperatorsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [commissionStats, setCommissionStats] = useState<CommissionStats | null>(null);
 
   useEffect(() => {
     fetchOperators();
+    fetchCommissionStats();
   }, [search]);
 
   const fetchOperators = async () => {
@@ -50,6 +60,28 @@ export default function OperatorsPage() {
       toast.error('Failed to load operators');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCommissionStats = async () => {
+    try {
+      const response = await fetch('/api/admin/revenue?period=all', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setCommissionStats({
+          totalOperatorCommission: data.totals?.totalOperatorCommission || 0,
+          totalAgentCommission: data.totals?.totalAgentCommission || 0,
+          totalRevenue: data.totals?.totalRevenue || 0,
+          netRevenue: data.totals?.netRevenue || 0,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load commission stats:', error);
     }
   };
 
@@ -117,7 +149,7 @@ export default function OperatorsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Operators Management</h1>
-          <p className="text-gray-600 mt-1">Manage operators and their Google Business account access</p>
+          <p className="text-gray-600 mt-1">Manage operators and view commission breakdown</p>
         </div>
         <Link
           href="/admin/operators/new"
@@ -126,6 +158,59 @@ export default function OperatorsPage() {
           + Add New Operator
         </Link>
       </div>
+
+      {/* Commission Stats Cards */}
+      {commissionStats && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  ₹{commissionStats.totalRevenue.toLocaleString('en-IN')}
+                </p>
+              </div>
+              <div className="text-4xl">💰</div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Agents Commission</p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  ₹{commissionStats.totalAgentCommission.toLocaleString('en-IN')}
+                </p>
+              </div>
+              <div className="text-4xl">👤</div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Operators Commission</p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  ₹{commissionStats.totalOperatorCommission.toLocaleString('en-IN')}
+                </p>
+              </div>
+              <div className="text-4xl">👔</div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Net Revenue</p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  ₹{commissionStats.netRevenue.toLocaleString('en-IN')}
+                </p>
+              </div>
+              <div className="text-4xl">💵</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="mb-6">

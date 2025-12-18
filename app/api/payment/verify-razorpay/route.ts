@@ -3,8 +3,9 @@ import connectDB from '@/lib/mongodb';
 import Payment from '@/lib/models/Payment';
 import AgentShop from '@/lib/models/AgentShop';
 import Agent from '@/lib/models/Agent';
+import Operator from '@/lib/models/Operator';
 import { verifyPaymentSignature, getPaymentDetails } from '@/lib/utils/razorpay';
-import { calculateAgentCommission } from '@/app/utils/pricing';
+import { calculateAgentCommission, calculateOperatorCommission } from '@/app/utils/pricing';
 
 /**
  * POST /api/payment/verify-razorpay
@@ -134,14 +135,16 @@ export async function POST(request: NextRequest) {
       // Calculate commission
       const planAmount = payment.amount / 100; // Convert paise to rupees
       const agentCommission = calculateAgentCommission(payment.planType, planAmount);
+      const operatorCommission = calculateOperatorCommission(payment.planType, planAmount, agentCommission);
 
       // Update shop payment details
       shop.paymentStatus = 'PAID';
-      shop.paymentMode = 'ONLINE';
+      shop.paymentMode = 'NONE';
       shop.planType = payment.planType;
       shop.planAmount = planAmount;
       shop.amount = planAmount;
       shop.agentCommission = agentCommission;
+      shop.operatorCommission = operatorCommission;
       shop.receiptNo = payment.metadata?.receiptNo || `REC${Date.now()}`;
       shop.lastPaymentDate = new Date();
       
@@ -159,6 +162,19 @@ export async function POST(request: NextRequest) {
           agent.totalEarnings = (agent.totalEarnings || 0) + agentCommission;
           agent.totalShops = (agent.totalShops || 0) + 1;
           await agent.save();
+
+          // Update operator commission if agent has an operator
+          if (agent.operatorId && operatorCommission > 0) {
+            try {
+              const operator = await Operator.findById(agent.operatorId);
+              if (operator) {
+                operator.totalEarnings = (operator.totalEarnings || 0) + operatorCommission;
+                await operator.save();
+              }
+            } catch (operatorError: any) {
+              console.error('Error updating operator commission:', operatorError);
+            }
+          }
         }
       }
     }

@@ -86,3 +86,54 @@ export async function getOrderDetails(orderId: string) {
   return await razorpay.orders.fetch(orderId);
 }
 
+/**
+ * Create Razorpay Payment Link with QR code support
+ */
+export async function createPaymentLink(params: {
+  amount: number; // Amount in rupees
+  currency?: string;
+  description: string;
+  customer: {
+    name: string;
+    email?: string;
+    contact: string;
+  };
+  notes?: Record<string, any>;
+  callbackUrl?: string;
+  callbackMethod?: 'get' | 'post';
+}) {
+  const razorpay = getRazorpayInstance();
+  
+  // Convert rupees to paise (Razorpay uses paise)
+  const amountInPaise = Math.round(params.amount * 100);
+
+  const paymentLink = await razorpay.paymentLink.create({
+    amount: amountInPaise,
+    currency: params.currency || 'INR',
+    description: params.description,
+    customer: {
+      name: params.customer.name,
+      email: params.customer.email,
+      contact: params.customer.contact,
+    },
+    notify: {
+      sms: false,
+      email: false,
+    },
+    reminder_enable: false,
+    notes: params.notes || {},
+    callback_url: params.callbackUrl,
+    callback_method: params.callbackMethod || 'post',
+  });
+
+  return paymentLink;
+}
+
+/**
+ * Fetch Payment Link details
+ */
+export async function getPaymentLinkDetails(paymentLinkId: string) {
+  const razorpay = getRazorpayInstance();
+  return await razorpay.paymentLink.fetch(paymentLinkId);
+}
+
