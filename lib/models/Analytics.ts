@@ -26,24 +26,30 @@ export interface IAnalytics extends Document {
   country?: string; // Country code
   city?: string; // City name
   region?: string; // State/Region
+  district?: string; // District name
+  area?: string; // Area/locality name
+  pincode?: string; // Pincode
   
   // Shop/Category Specific (if applicable)
   shopId?: mongoose.Types.ObjectId; // Shop ID if viewing shop page
   shopName?: string; // Shop name
   category?: string; // Category name
-  area?: string; // Area name
-  pincode?: string; // Pincode
   
   // Session Information
   sessionId?: string; // Session identifier
   isNewSession?: boolean; // Is this a new session
+  sessionDuration?: number; // Total session duration in seconds
+  sessionStartTime?: Date; // When session started
+  sessionEndTime?: Date; // When session ended
   
   // Engagement
   timeOnPage?: number; // Time spent on page (seconds)
   scrollDepth?: number; // Scroll depth percentage
   actions?: Array<{
-    type: 'click' | 'call' | 'whatsapp' | 'direction' | 'share' | 'visit';
+    type: 'click' | 'call' | 'whatsapp' | 'direction' | 'share' | 'visit' | 'shop_click';
     element?: string;
+    shopId?: string; // Shop ID if action is shop-related
+    shopName?: string; // Shop name if action is shop-related
     timestamp: Date;
   }>;
   
@@ -123,6 +129,18 @@ const AnalyticsSchema = new Schema<IAnalytics>(
       type: String,
       index: true,
     },
+    district: {
+      type: String,
+      index: true,
+    },
+    area: {
+      type: String,
+      index: true,
+    },
+    pincode: {
+      type: String,
+      index: true,
+    },
     shopId: {
       type: Schema.Types.ObjectId,
       ref: 'ShopFromImage',
@@ -136,14 +154,6 @@ const AnalyticsSchema = new Schema<IAnalytics>(
       type: String,
       index: true,
     },
-    area: {
-      type: String,
-      index: true,
-    },
-    pincode: {
-      type: String,
-      index: true,
-    },
     sessionId: {
       type: String,
       index: true,
@@ -151,6 +161,15 @@ const AnalyticsSchema = new Schema<IAnalytics>(
     isNewSession: {
       type: Boolean,
       default: true,
+    },
+    sessionDuration: {
+      type: Number, // Total session duration in seconds
+    },
+    sessionStartTime: {
+      type: Date,
+    },
+    sessionEndTime: {
+      type: Date,
     },
     timeOnPage: {
       type: Number,
@@ -161,9 +180,11 @@ const AnalyticsSchema = new Schema<IAnalytics>(
     actions: [{
       type: {
         type: String,
-        enum: ['click', 'call', 'whatsapp', 'direction', 'share', 'visit'],
+        enum: ['click', 'call', 'whatsapp', 'direction', 'share', 'visit', 'shop_click'],
       },
       element: String,
+      shopId: String,
+      shopName: String,
       timestamp: Date,
     }],
     visitedAt: {
@@ -182,9 +203,14 @@ const AnalyticsSchema = new Schema<IAnalytics>(
 AnalyticsSchema.index({ visitedAt: -1, source: 1 });
 AnalyticsSchema.index({ visitedAt: -1, device: 1 });
 AnalyticsSchema.index({ visitedAt: -1, country: 1 });
+AnalyticsSchema.index({ visitedAt: -1, region: 1 });
+AnalyticsSchema.index({ visitedAt: -1, district: 1 });
+AnalyticsSchema.index({ visitedAt: -1, city: 1 });
+AnalyticsSchema.index({ visitedAt: -1, area: 1 });
 AnalyticsSchema.index({ pageType: 1, visitedAt: -1 });
 AnalyticsSchema.index({ shopId: 1, visitedAt: -1 });
 AnalyticsSchema.index({ category: 1, visitedAt: -1 });
+AnalyticsSchema.index({ sessionId: 1, visitedAt: -1 });
 
 const Analytics: Model<IAnalytics> = mongoose.models.Analytics || mongoose.model<IAnalytics>('Analytics', AnalyticsSchema);
 

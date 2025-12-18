@@ -23,6 +23,9 @@ interface AnalyticsData {
   summary: {
     totalVisits: number;
     uniqueSessions: number;
+    avgSessionDuration?: number;
+    maxSessionDuration?: number;
+    minSessionDuration?: number;
     dateRange: {
       start: string;
       end: string;
@@ -32,10 +35,20 @@ interface AnalyticsData {
   trafficByDevice: Array<{ device: string; visits: number }>;
   trafficByBrowser: Array<{ browser: string; visits: number }>;
   trafficByCountry: Array<{ country: string; visits: number }>;
+  trafficByState?: Array<{ state: string; visits: number }>;
+  trafficByDistrict?: Array<{ district: string; visits: number }>;
+  trafficByArea?: Array<{ area: string; visits: number }>;
   trafficByPageType: Array<{ pageType: string; visits: number }>;
   topPages: Array<{ page: string; pageTitle?: string; visits: number }>;
   topShops: Array<{ shopId: string; shopName?: string; visits: number }>;
   topCategories: Array<{ category: string; visits: number }>;
+  shopClicks?: Array<{ 
+    shopId: string; 
+    shopName?: string; 
+    clicks: number; 
+    locations: Array<{ country?: string; state?: string; district?: string; area?: string }> 
+  }>;
+  sessionDurationDistribution?: Array<{ _id: string | number; count: number }>;
   timeSeriesData: Array<{ date: string; visits: number; sessions: number }>;
   topReferrers: Array<{ referrer: string; visits: number }>;
 }
@@ -128,10 +141,15 @@ export default function AnalyticsPage() {
   const trafficByDevice = data.trafficByDevice || [];
   const trafficByBrowser = data.trafficByBrowser || [];
   const trafficByCountry = data.trafficByCountry || [];
+  const trafficByState = data.trafficByState || [];
+  const trafficByDistrict = data.trafficByDistrict || [];
+  const trafficByArea = data.trafficByArea || [];
   const trafficByPageType = data.trafficByPageType || [];
   const topPages = data.topPages || [];
   const topShops = data.topShops || [];
   const topCategories = data.topCategories || [];
+  const shopClicks = data.shopClicks || [];
+  const sessionDurationDistribution = data.sessionDurationDistribution || [];
   const timeSeriesData = data.timeSeriesData || [];
   const topReferrers = data.topReferrers || [];
 
@@ -164,7 +182,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
             <div className="bg-blue-50 p-6 rounded-lg">
               <h3 className="text-sm font-medium text-blue-600 mb-2">Total Visits</h3>
               <p className="text-3xl font-bold text-blue-900">{data.summary.totalVisits.toLocaleString()}</p>
@@ -174,8 +192,24 @@ export default function AnalyticsPage() {
               <p className="text-3xl font-bold text-green-900">{data.summary.uniqueSessions.toLocaleString()}</p>
             </div>
             <div className="bg-purple-50 p-6 rounded-lg">
-              <h3 className="text-sm font-medium text-purple-600 mb-2">Avg. Visits/Day</h3>
+              <h3 className="text-sm font-medium text-purple-600 mb-2">Avg. Session Duration</h3>
               <p className="text-3xl font-bold text-purple-900">
+                {data.summary.avgSessionDuration 
+                  ? `${Math.round(data.summary.avgSessionDuration / 60)}m ${Math.round(data.summary.avgSessionDuration % 60)}s`
+                  : 'N/A'}
+              </p>
+            </div>
+            <div className="bg-orange-50 p-6 rounded-lg">
+              <h3 className="text-sm font-medium text-orange-600 mb-2">Max Session</h3>
+              <p className="text-3xl font-bold text-orange-900">
+                {data.summary.maxSessionDuration 
+                  ? `${Math.round(data.summary.maxSessionDuration / 60)}m`
+                  : 'N/A'}
+              </p>
+            </div>
+            <div className="bg-pink-50 p-6 rounded-lg">
+              <h3 className="text-sm font-medium text-pink-600 mb-2">Avg. Visits/Day</h3>
+              <p className="text-3xl font-bold text-pink-900">
                 {Math.round(data.summary.totalVisits / 30).toLocaleString()}
               </p>
             </div>
@@ -365,6 +399,124 @@ export default function AnalyticsPage() {
               </div>
             </div>
           </div>
+
+          {/* Location-Based Traffic */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Traffic by State</h2>
+              {trafficByState.length > 0 ? (
+                <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                  {trafficByState.map((item, index) => (
+                    <div key={index} className="mb-3 pb-3 border-b last:border-0">
+                      <p className="font-medium text-sm">{item.state || 'Unknown'}</p>
+                      <p className="text-sm font-semibold text-blue-600">{item.visits} visits</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">No state data available</div>
+              )}
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Traffic by District</h2>
+              {trafficByDistrict.length > 0 ? (
+                <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                  {trafficByDistrict.map((item, index) => (
+                    <div key={index} className="mb-3 pb-3 border-b last:border-0">
+                      <p className="font-medium text-sm">{item.district || 'Unknown'}</p>
+                      <p className="text-sm font-semibold text-green-600">{item.visits} visits</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">No district data available</div>
+              )}
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Traffic by Area</h2>
+              {trafficByArea.length > 0 ? (
+                <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                  {trafficByArea.map((item, index) => (
+                    <div key={index} className="mb-3 pb-3 border-b last:border-0">
+                      <p className="font-medium text-sm">{item.area || 'Unknown'}</p>
+                      <p className="text-sm font-semibold text-purple-600">{item.visits} visits</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">No area data available</div>
+              )}
+            </div>
+          </div>
+
+          {/* Shop Clicks with Location */}
+          {shopClicks.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold mb-4">Shop Clicks (कौन से Shop पर Click हुआ)</h2>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">Shop Name</th>
+                        <th className="text-right p-2">Total Clicks</th>
+                        <th className="text-left p-2">Locations (Country, State, District, Area)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {shopClicks.map((shop, index) => (
+                        <tr key={index} className="border-b">
+                          <td className="p-2 font-medium">{shop.shopName || shop.shopId || 'Unknown Shop'}</td>
+                          <td className="text-right p-2 font-semibold text-green-600">{shop.clicks}</td>
+                          <td className="p-2">
+                            <div className="flex flex-wrap gap-1">
+                              {shop.locations && shop.locations.length > 0 ? (
+                                shop.locations.slice(0, 5).map((loc, locIndex) => (
+                                  <span key={locIndex} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                    {[loc.country, loc.state, loc.district, loc.area].filter(Boolean).join(', ') || 'Unknown'}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-xs text-gray-500">No location data</span>
+                              )}
+                              {shop.locations && shop.locations.length > 5 && (
+                                <span className="text-xs text-gray-500">+{shop.locations.length - 5} more</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Session Duration Distribution */}
+          {sessionDurationDistribution.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold mb-4">Session Duration Distribution (कितना देर Site पर रहे)</h2>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={sessionDurationDistribution.map(item => ({
+                  duration: typeof item._id === 'number' 
+                    ? `${Math.round(item._id / 60)}m` 
+                    : item._id === '3600+' 
+                    ? '60m+' 
+                    : `${item._id}s`,
+                  count: item.count,
+                }))}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="duration" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
 
           {/* Top Referrers */}
           <div className="mb-8">

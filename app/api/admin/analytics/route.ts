@@ -255,12 +255,126 @@ export async function GET(request: NextRequest) {
       { $limit: 20 },
     ]);
 
+    // Get traffic by state/region
+    const trafficByState = await Analytics.aggregate([
+      { $match: { ...dateFilter, region: { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: '$region',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          state: '$_id',
+          visits: '$count',
+        },
+      },
+      { $sort: { visits: -1 } },
+      { $limit: 20 },
+    ]);
+
+    // Get traffic by district
+    const trafficByDistrict = await Analytics.aggregate([
+      { $match: { ...dateFilter, district: { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: '$district',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          district: '$_id',
+          visits: '$count',
+        },
+      },
+      { $sort: { visits: -1 } },
+      { $limit: 20 },
+    ]);
+
+    // Get traffic by area
+    const trafficByArea = await Analytics.aggregate([
+      { $match: { ...dateFilter, area: { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: '$area',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          area: '$_id',
+          visits: '$count',
+        },
+      },
+      { $sort: { visits: -1 } },
+      { $limit: 20 },
+    ]);
+
+    // Get shop clicks (actions with type 'shop_click')
+    const shopClicks = await Analytics.aggregate([
+      { $match: { ...dateFilter, 'actions.type': 'shop_click' } },
+      { $unwind: '$actions' },
+      { $match: { 'actions.type': 'shop_click' } },
+      {
+        $group: {
+          _id: '$actions.shopId',
+          shopName: { $first: '$actions.shopName' },
+          count: { $sum: 1 },
+          locations: { $addToSet: { country: '$country', state: '$region', district: '$district', area: '$area' } },
+        },
+      },
+      {
+        $project: {
+          shopId: '$_id',
+          shopName: 1,
+          clicks: '$count',
+          locations: 1,
+        },
+      },
+      { $sort: { clicks: -1 } },
+      { $limit: 50 },
+    ]);
+
+    // Get average session duration
+    const sessionStats = await Analytics.aggregate([
+      { $match: { ...dateFilter, sessionDuration: { $exists: true, $ne: null } } },
+      {
+        $group: {
+          _id: null,
+          avgDuration: { $avg: '$sessionDuration' },
+          maxDuration: { $max: '$sessionDuration' },
+          minDuration: { $min: '$sessionDuration' },
+          totalSessions: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Get session duration distribution
+    const sessionDurationDistribution = await Analytics.aggregate([
+      { $match: { ...dateFilter, sessionDuration: { $exists: true, $ne: null } } },
+      {
+        $bucket: {
+          groupBy: '$sessionDuration',
+          boundaries: [0, 30, 60, 120, 300, 600, 1800, 3600], // 0-30s, 30-60s, 1-2min, 2-5min, 5-10min, 10-30min, 30-60min, 60min+
+          default: '3600+',
+          output: {
+            count: { $sum: 1 },
+          },
+        },
+      },
+    ]);
+
     return NextResponse.json(
       {
         success: true,
         summary: {
           totalVisits,
           uniqueSessions,
+          avgSessionDuration: sessionStats[0]?.avgDuration || 0,
+          maxSessionDuration: sessionStats[0]?.maxDuration || 0,
+          minSessionDuration: sessionStats[0]?.minDuration || 0,
           dateRange: {
             start: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
             end: endDate || new Date().toISOString(),
@@ -270,10 +384,15 @@ export async function GET(request: NextRequest) {
         trafficByDevice,
         trafficByBrowser,
         trafficByCountry,
+        trafficByState,
+        trafficByDistrict,
+        trafficByArea,
         trafficByPageType,
         topPages,
         topShops,
         topCategories,
+        shopClicks,
+        sessionDurationDistribution,
         timeSeriesData,
         topReferrers,
       },

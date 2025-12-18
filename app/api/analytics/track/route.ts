@@ -21,16 +21,24 @@ export async function POST(request: NextRequest) {
       category,
       area,
       pincode,
+      district,
+      state,
+      country,
+      city,
       timeOnPage,
       scrollDepth,
+      sessionDuration,
+      sessionStartTime,
+      sessionEndTime,
       actions,
     } = body;
 
     // Get request headers
     const userAgent = request.headers.get('user-agent') || '';
     const referer = request.headers.get('referer') || '';
-    const ipAddress = request.headers.get('x-forwarded-for') || 
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] || 
                      request.headers.get('x-real-ip') || 
+                     request.headers.get('cf-connecting-ip') ||
                      'unknown';
 
     // Parse user agent to get device, browser, OS
@@ -41,6 +49,22 @@ export async function POST(request: NextRequest) {
 
     // Generate or get session ID
     const sessionId = body.sessionId || generateSessionId();
+
+    // Get location from IP (if not provided in body)
+    let locationData: { country?: string; region?: string; city?: string; district?: string } = {};
+    if (country || state || district || city) {
+      // Use provided location data
+      locationData = {
+        country: country,
+        region: state,
+        city: city,
+        district: district,
+      };
+    } else if (ipAddress && ipAddress !== 'unknown') {
+      // Try to get location from IP (basic implementation)
+      // In production, use a proper geolocation service like ipapi.co, ip-api.com, etc.
+      locationData = await getLocationFromIP(ipAddress);
+    }
 
     // Create analytics entry
     const analyticsEntry = await Analytics.create({
@@ -56,13 +80,20 @@ export async function POST(request: NextRequest) {
       device: deviceInfo.device,
       browser: deviceInfo.browser,
       os: deviceInfo.os,
+      country: locationData.country || country || undefined,
+      region: locationData.region || state || undefined,
+      city: locationData.city || city || undefined,
+      district: locationData.district || district || undefined,
+      area: area || undefined,
+      pincode: pincode || undefined,
       shopId: shopId || undefined,
       shopName: shopName || undefined,
       category: category || undefined,
-      area: area || undefined,
-      pincode: pincode || undefined,
       sessionId,
       isNewSession: body.isNewSession !== false,
+      sessionDuration: sessionDuration || undefined,
+      sessionStartTime: sessionStartTime ? new Date(sessionStartTime) : undefined,
+      sessionEndTime: sessionEndTime ? new Date(sessionEndTime) : undefined,
       timeOnPage,
       scrollDepth,
       actions: actions || [],
@@ -242,5 +273,40 @@ function hashIP(ip: string): string {
  */
 function generateSessionId(): string {
   return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Get location from IP address
+ * Note: This is a basic implementation. In production, use a proper geolocation service.
+ */
+async function getLocationFromIP(ip: string): Promise<{ country?: string; region?: string; city?: string; district?: string }> {
+  try {
+    // Skip localhost/private IPs
+    if (ip === 'unknown' || ip.startsWith('127.') || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
+      return {};
+    }
+
+    // Use ipapi.co free tier (1000 requests/day)
+    // You can also use ip-api.com, ipgeolocation.io, etc.
+    const response = await fetch(`https://ipapi.co/${ip}/json/`, {
+      headers: {
+        'User-Agent': '8rupiya-analytics',
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        country: data.country_name || data.country_code || undefined,
+        region: data.region || data.region_code || undefined,
+        city: data.city || undefined,
+        district: data.district || undefined,
+      };
+    }
+  } catch (error) {
+    console.error('Error fetching location from IP:', error);
+  }
+
+  return {};
 }
 
