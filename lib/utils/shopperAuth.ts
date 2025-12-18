@@ -35,3 +35,4 @@ export function getShopperTokenFromRequest(request: NextRequest): string | null 
   return token || null;
 }
 
+

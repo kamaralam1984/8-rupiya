@@ -416,6 +416,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
 
         // Remove duplicates and ensure unique shops across all sections
         const usedShopIds = new Set<string>();
+        const usedShopNames = new Set<string>(); // Track shop names to prevent duplicates by name
         
         // Convert all shops data for homepage (all locations)
         const allShops = (allShopsData?.shops || []) as Array<{
@@ -438,39 +439,191 @@ export default function HeroSection({ category }: HeroSectionProps) {
         
         console.log(`🌍 Total shops from all locations: ${allShops.length}`);
         
-        // Step 1: Deduplicate all shops by shopName + ownerName + mobile (combine all sources and remove duplicates)
-        // IMPORTANT: सिर्फ AgentShop से shops आ रहे हैं, duplicate prevention के लिए shopName + ownerName + mobile use करें
-        const allUniqueShops = new Map<string, any>();
+        // Step 1: Deduplicate all shops by shop ID (primary) AND shop name (secondary)
+        // IMPORTANT: सिर्फ AgentShop से shops आ रहे हैं, duplicate prevention के लिए shop ID aur name dono use करें
+        const allUniqueShopsById = new Map<string, any>();
+        const allUniqueShopsByName = new Map<string, any>();
+        const seenNames = new Set<string>();
         
-        // Add shops from all sources, keeping unique shops based on shopName + ownerName + mobile + ID
+        // Add shops from all sources, using ID as primary key, name as secondary check
         [...allShops, ...nearbyShops, ...patnaAreaShops].forEach((shop: any) => {
-          if (shop && shop.id) {
-            const shopName = (shop.name || shop.shopName || '').trim();
-            const ownerName = (shop.ownerName || '').trim();
-            const mobile = (shop.phone || shop.mobile || '').trim();
-            const shopId = shop.id || shop._id || '';
-            
-            // Create unique key from shopName + ownerName + mobile + ID
-            // Use ID as part of key to ensure uniqueness even if other fields are empty
-            const uniqueKey = shopId 
-              ? `${shopName.toLowerCase()}_${ownerName.toLowerCase()}_${mobile}_${shopId}`
-              : `${shopName.toLowerCase()}_${ownerName.toLowerCase()}_${mobile}`;
-            
-            // अगर पहले से नहीं है, तो add करें
-            // अगर है, तो latest (higher visitorCount) को keep करें
-            if (!allUniqueShops.has(uniqueKey)) {
-              allUniqueShops.set(uniqueKey, shop);
+          if (!shop) return;
+          
+          const shopName = (shop.name || shop.shopName || '').trim().toLowerCase();
+          const ownerName = (shop.ownerName || '').trim().toLowerCase();
+          const mobile = (shop.phone || shop.mobile || '').trim();
+          const shopId = shop.id || shop._id || '';
+          
+          // Skip shops without any identifying information
+          if (!shopId && !shopName) {
+            return;
+          }
+          
+          // CRITICAL: If shop name already seen (even with different ID), skip it to prevent duplicates
+          if (shopName && seenNames.has(shopName)) {
+            // Check if this shop has higher visitorCount than the existing one
+            const existingByName = allUniqueShopsByName.get(shopName);
+            if (existingByName && (shop.visitorCount || 0) > (existingByName?.visitorCount || 0)) {
+              // Replace with higher visitorCount shop
+              allUniqueShopsByName.set(shopName, shop);
+              // Also update in ID map if it exists there
+              if (shopId && allUniqueShopsById.has(shopId)) {
+                allUniqueShopsById.set(shopId, shop);
+              }
+            }
+            return; // Skip this shop - duplicate name
+          }
+          
+          // Primary deduplication: Use shop ID if available
+          if (shopId) {
+            if (!allUniqueShopsById.has(shopId)) {
+              allUniqueShopsById.set(shopId, shop);
+              if (shopName) {
+                seenNames.add(shopName);
+                allUniqueShopsByName.set(shopName, shop);
+              }
             } else {
-              const existingShop = allUniqueShops.get(uniqueKey);
-              // Keep the one with higher visitorCount (more popular)
+              // If duplicate ID found, keep the one with higher visitorCount
+              const existingShop = allUniqueShopsById.get(shopId);
               if ((shop.visitorCount || 0) > (existingShop?.visitorCount || 0)) {
-                allUniqueShops.set(uniqueKey, shop);
+                allUniqueShopsById.set(shopId, shop);
+                if (shopName) {
+                  allUniqueShopsByName.set(shopName, shop);
+                }
+              }
+            }
+          } else if (shopName) {
+            // Fallback: Use shopName for shops without ID
+            if (!allUniqueShopsByName.has(shopName)) {
+              allUniqueShopsByName.set(shopName, shop);
+              seenNames.add(shopName);
+            } else {
+              // If duplicate name found, keep the one with higher visitorCount
+              const existingShop = allUniqueShopsByName.get(shopName);
+              if ((shop.visitorCount || 0) > (existingShop?.visitorCount || 0)) {
+                allUniqueShopsByName.set(shopName, shop);
               }
             }
           }
         });
         
+        // Combine both maps - ID-based shops take priority, but ensure no duplicate names
+        const allUniqueShops = new Map<string, any>();
+        const finalSeenNames = new Set<string>();
+        
+        // First add shops with IDs
+        allUniqueShopsById.forEach((shop, id) => {
+          const shopName = (shop.name || shop.shopName || '').trim().toLowerCase();
+          // Only add if name not already seen
+          if (!shopName || !finalSeenNames.has(shopName)) {
+            allUniqueShops.set(id, shop);
+            if (shopName) {
+              finalSeenNames.add(shopName);
+            }
+          }
+        });
+        
+        // Then add shops without IDs (only if they don't already exist by name match)
+        allUniqueShopsByName.forEach((shop, shopName) => {
+          const shopId = shop.id || shop._id || '';
+          // Only add if not already added by ID and name not already seen
+          if ((!shopId || !allUniqueShops.has(shopId)) && !finalSeenNames.has(shopName)) {
+            allUniqueShops.set(`name_${shopName}`, shop);
+            finalSeenNames.add(shopName);
+          }
+        });
+        
         let uniqueShopsArray = Array.from(allUniqueShops.values());
+        
+        // Final deduplication pass: Ensure no duplicate IDs OR duplicate names in the array
+        // CRITICAL: Even if shops have different IDs, if they have the same name, keep only one
+        const finalUniqueShopsById = new Map<string, any>();
+        const finalUniqueShopsByName = new Map<string, any>();
+        const seenShopNames = new Set<string>();
+        
+        uniqueShopsArray.forEach((shop) => {
+          const shopId = shop.id || shop._id || '';
+          const shopName = (shop.name || shop.shopName || '').trim().toLowerCase();
+          
+          // Skip if shop name already seen (even with different ID) - prevent duplicates
+          if (shopName && seenShopNames.has(shopName)) {
+            // Check if this shop has higher visitorCount than the existing one
+            const existingByName = finalUniqueShopsByName.get(shopName);
+            if (existingByName && (shop.visitorCount || 0) > (existingByName?.visitorCount || 0)) {
+              // Replace with higher visitorCount shop
+              finalUniqueShopsByName.set(shopName, shop);
+              // Also update in ID map if it exists there
+              if (shopId && finalUniqueShopsById.has(shopId)) {
+                finalUniqueShopsById.set(shopId, shop);
+              }
+            }
+            return; // Skip this shop - duplicate name
+          }
+          
+          // Primary: Use ID if available
+          if (shopId) {
+            if (!finalUniqueShopsById.has(shopId)) {
+              finalUniqueShopsById.set(shopId, shop);
+              if (shopName) {
+                seenShopNames.add(shopName);
+                finalUniqueShopsByName.set(shopName, shop);
+              }
+            } else {
+              // If duplicate ID found, keep the one with higher visitorCount
+              const existing = finalUniqueShopsById.get(shopId);
+              if ((shop.visitorCount || 0) > (existing?.visitorCount || 0)) {
+                finalUniqueShopsById.set(shopId, shop);
+                if (shopName) {
+                  finalUniqueShopsByName.set(shopName, shop);
+                }
+              }
+            }
+          } else if (shopName) {
+            // Fallback: Use name if no ID
+            if (!finalUniqueShopsByName.has(shopName)) {
+              finalUniqueShopsByName.set(shopName, shop);
+              seenShopNames.add(shopName);
+            } else {
+              // If duplicate name found, keep the one with higher visitorCount
+              const existing = finalUniqueShopsByName.get(shopName);
+              if ((shop.visitorCount || 0) > (existing?.visitorCount || 0)) {
+                finalUniqueShopsByName.set(shopName, shop);
+              }
+            }
+          }
+        });
+        
+        // Combine both maps - ID-based shops take priority, but ensure no duplicate names
+        const finalUniqueShops = new Map<string, any>();
+        const finalPassSeenNames = new Set<string>();
+        
+        // First add shops with IDs
+        finalUniqueShopsById.forEach((shop, id) => {
+          const shopName = (shop.name || shop.shopName || '').trim().toLowerCase();
+          // Only add if name not already seen
+          if (!shopName || !finalPassSeenNames.has(shopName)) {
+            finalUniqueShops.set(id, shop);
+            if (shopName) {
+              finalPassSeenNames.add(shopName);
+            }
+          }
+        });
+        
+        // Add name-based shops only if they don't already exist by ID or name
+        finalUniqueShopsByName.forEach((shop, name) => {
+          const shopId = shop.id || shop._id || '';
+          // Skip if already added by ID or if name already exists
+          if ((!shopId || !finalUniqueShops.has(shopId)) && !finalPassSeenNames.has(name)) {
+            finalUniqueShops.set(`name_${name}`, shop);
+            finalPassSeenNames.add(name);
+          }
+        });
+        
+        uniqueShopsArray = Array.from(finalUniqueShops.values());
+        
+        // Log deduplication results
+        console.log(`🔍 Final deduplication: ${uniqueShopsArray.length} unique shops (by ID and name)`);
+        
         const totalBeforeDedup = allShops.length + nearbyShops.length + patnaAreaShops.length;
         console.log(`✅ Deduplicated shops: ${uniqueShopsArray.length} unique shops from ${totalBeforeDedup} total (removed ${totalBeforeDedup - uniqueShopsArray.length} duplicates)`);
         
@@ -537,22 +690,30 @@ export default function HeroSection({ category }: HeroSectionProps) {
         const heroShops = heroShopCandidates
           .filter((shop) => shop.planType === 'HERO')
           .slice(0, 10)
-          .map((shop) => ({
-            bannerId: shop.id,
-            imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
-            alt: shop.name || shop.shopName || 'Shop',
-            link: shop.website || shop.shopUrl || `/shop/${shop.id}` || `/contact/${shop.id}`,
-            title: shop.name || shop.shopName || 'Shop',
-            ctaText: 'View Shop',
-            advertiser: shop.name || shop.shopName || 'Shop',
-            distance: shop.distance || 0,
-            isBusiness: true,
-            lat: shop.latitude,
-            lng: shop.longitude,
-            area: shop.area || '',
-            city: shop.city || '',
-            visitorCount: shop.visitorCount || 0,
-          }));
+          .map((shop) => {
+            // CRITICAL: Mark shop as used IMMEDIATELY to prevent duplicates in left/right rails
+            usedShopIds.add(shop.id);
+            const shopName = (shop.name || shop.shopName || '').trim().toLowerCase();
+            if (shopName) {
+              usedShopNames.add(shopName);
+            }
+            return {
+              bannerId: shop.id,
+              imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
+              alt: shop.name || shop.shopName || 'Shop',
+              link: shop.website || shop.shopUrl || `/shop/${shop.id}` || `/contact/${shop.id}`,
+              title: shop.name || shop.shopName || 'Shop',
+              ctaText: 'View Shop',
+              advertiser: shop.name || shop.shopName || 'Shop',
+              distance: shop.distance || 0,
+              isBusiness: true,
+              lat: shop.latitude,
+              lng: shop.longitude,
+              area: shop.area || '',
+              city: shop.city || '',
+              visitorCount: shop.visitorCount || 0,
+            };
+          });
         
         // Fallback: if no HERO shops, use first shop (for backward compatibility)
         const heroShop = heroShopCandidates[0];
@@ -566,13 +727,50 @@ export default function HeroSection({ category }: HeroSectionProps) {
         }
         
         // Step 3: Left Rail - Get shops with planType 'LEFT_BAR' first, but if filters are active and no LEFT_BAR shops found, show any shops
+        // IMPORTANT: Ensure no duplicates by ID and mark shops as used immediately
         const leftBarShopsFiltered = uniqueShopsArray.filter((shop) => {
-          return shop && shop.id && (shop.name || shop.shopName) &&
-                 shop.latitude && shop.longitude;
+          if (!shop || !shop.id || !(shop.name || shop.shopName)) {
+            return false;
+          }
+          // Skip if already used (shouldn't happen, but safety check)
+          if (usedShopIds.has(shop.id)) {
+            return false;
+          }
+          // Latitude/longitude are optional - don't filter them out
+          return true;
+        });
+        
+        // Deduplicate by ID AND name before sorting and mapping
+        const leftBarShopsDeduped = new Map<string, any>();
+        const leftBarSeenNames = new Set<string>();
+        leftBarShopsFiltered.forEach((shop) => {
+          const shopId = shop.id || shop._id || '';
+          const shopName = (shop.name || shop.shopName || '').trim().toLowerCase();
+          
+          // Skip if already used by ID
+          if (usedShopIds.has(shopId)) {
+            return;
+          }
+          
+          // Skip if name already seen (even with different ID) - prevent duplicates
+          if (shopName && leftBarSeenNames.has(shopName)) {
+            return;
+          }
+          
+          if (shopId && !leftBarShopsDeduped.has(shopId)) {
+            leftBarShopsDeduped.set(shopId, shop);
+            if (shopName) {
+              leftBarSeenNames.add(shopName);
+            }
+          } else if (!shopId && shopName && !leftBarShopsDeduped.has(`name_${shopName}`)) {
+            leftBarShopsDeduped.set(`name_${shopName}`, shop);
+            leftBarSeenNames.add(shopName);
+          }
         });
         
         // Prioritize LEFT_BAR plan shops, but if filters are active and no LEFT_BAR shops, show any shops
-        const leftBarShops = leftBarShopsFiltered
+        // Sort by distance (nearest first) for nearby system
+        const leftBarShops = Array.from(leftBarShopsDeduped.values())
           .sort((a, b) => {
             // First, prioritize LEFT_BAR plan shops
             const isLeftBarA = a.planType === 'LEFT_BAR';
@@ -580,19 +778,20 @@ export default function HeroSection({ category }: HeroSectionProps) {
             if (isLeftBarA && !isLeftBarB) return -1;
             if (!isLeftBarA && isLeftBarB) return 1;
             
-            // Then sort by priority rank (higher = first), then by distance (nearest first)
-            const priorityA = a.priorityRank || 0;
-            const priorityB = b.priorityRank || 0;
-            if (priorityB !== priorityA) {
-              return priorityB - priorityA;
-            }
+            // Then sort by distance (nearest first) - nearby system
             const distanceA = a.distance || 999999;
             const distanceB = b.distance || 999999;
-            return distanceA - distanceB;
+            if (distanceA !== distanceB) {
+              return distanceA - distanceB;
+            }
+            // If same distance, sort by priority rank (higher = first)
+            const priorityA = a.priorityRank || 0;
+            const priorityB = b.priorityRank || 0;
+            return priorityB - priorityA;
           })
           .slice(0, 3) // Get exactly 3 shops
           .map((shop) => {
-            usedShopIds.add(shop.id); // Mark as used
+            usedShopIds.add(shop.id); // Mark as used IMMEDIATELY - so it won't appear in right rail or bottom strip
             return {
               bannerId: shop.id,
               imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
@@ -614,14 +813,50 @@ export default function HeroSection({ category }: HeroSectionProps) {
         leftBarShops.forEach((s, idx) => console.log(`  ${idx + 1}. ${s.advertiser} (ID: ${s.bannerId})`));
 
         // Step 4: Right Side - Get shops with planType 'RIGHT_SIDE' first, but if filters are active and no RIGHT_SIDE shops found, show any shops
+        // IMPORTANT: Exclude shops already used in left rail - they should NOT appear here
         const rightBarShopsFiltered = uniqueShopsArray.filter((shop) => {
-          return shop && shop.id && (shop.name || shop.shopName) &&
-                 shop.latitude && shop.longitude &&
-                 !usedShopIds.has(shop.id); // Exclude already used shops
+          if (!shop || !shop.id || !(shop.name || shop.shopName)) {
+            return false;
+          }
+          // CRITICAL: Skip if already used in left rail - no duplicates allowed
+          if (usedShopIds.has(shop.id)) {
+            return false;
+          }
+          // Latitude/longitude are optional - don't filter them out
+          return true;
+        });
+        
+        // Deduplicate by ID AND name before sorting and mapping
+        const rightBarShopsDeduped = new Map<string, any>();
+        const rightBarSeenNames = new Set<string>();
+        rightBarShopsFiltered.forEach((shop) => {
+          const shopId = shop.id || shop._id || '';
+          const shopName = (shop.name || shop.shopName || '').trim().toLowerCase();
+          
+          // Skip if already used by ID
+          if (usedShopIds.has(shopId)) {
+            return;
+          }
+          
+          // Skip if name already seen (even with different ID) - prevent duplicates
+          if (shopName && rightBarSeenNames.has(shopName)) {
+            return;
+          }
+          
+          if (shopId && !rightBarShopsDeduped.has(shopId)) {
+            rightBarShopsDeduped.set(shopId, shop);
+            if (shopName) {
+              rightBarSeenNames.add(shopName);
+            }
+          } else if (!shopId && shopName && !rightBarShopsDeduped.has(`name_${shopName}`)) {
+            rightBarShopsDeduped.set(`name_${shopName}`, shop);
+            rightBarSeenNames.add(shopName);
+          }
         });
         
         // Prioritize RIGHT_SIDE plan shops, but if filters are active and no RIGHT_SIDE shops, show any shops
-        const rightBarShops = rightBarShopsFiltered
+        // Sort by distance (nearest first) for nearby system
+        const rightBarShops = Array.from(rightBarShopsDeduped.values())
           .sort((a, b) => {
             // First, prioritize RIGHT_SIDE plan shops
             const isRightSideA = a.planType === 'RIGHT_SIDE';
@@ -629,19 +864,20 @@ export default function HeroSection({ category }: HeroSectionProps) {
             if (isRightSideA && !isRightSideB) return -1;
             if (!isRightSideA && isRightSideB) return 1;
             
-            // Then sort by priority rank (higher = first), then by distance (nearest first)
-            const priorityA = a.priorityRank || 0;
-            const priorityB = b.priorityRank || 0;
-            if (priorityB !== priorityA) {
-              return priorityB - priorityA;
-            }
+            // Then sort by distance (nearest first) - nearby system
             const distanceA = a.distance || 999999;
             const distanceB = b.distance || 999999;
-            return distanceA - distanceB;
+            if (distanceA !== distanceB) {
+              return distanceA - distanceB;
+            }
+            // If same distance, sort by priority rank (higher = first)
+            const priorityA = a.priorityRank || 0;
+            const priorityB = b.priorityRank || 0;
+            return priorityB - priorityA;
           })
           .slice(0, 3) // Get exactly 3 shops
           .map((shop) => {
-            usedShopIds.add(shop.id); // Mark as used
+            usedShopIds.add(shop.id); // Mark as used IMMEDIATELY - so it won't appear in bottom strip
             return {
               bannerId: shop.id,
               imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
@@ -662,61 +898,116 @@ export default function HeroSection({ category }: HeroSectionProps) {
         console.log(`🏪 Right side shops (RIGHT_SIDE plan): ${rightBarShops.length} shops`);
         rightBarShops.forEach((s, idx) => console.log(`  ${idx + 1}. ${s.advertiser} (ID: ${s.bannerId})`));
         
-        // Step 5: Bottom Strip - Prioritize BASIC and HERO plan shops, but if filters are active and none found, show any shops (except LEFT_BAR and RIGHT_SIDE)
-        // Hero shops appear in both Hero section AND Bottom Strip
-        // But exclude LEFT_BAR and RIGHT_SIDE shops from bottom (they only appear in their respective rails)
+        // Step 5: Bottom Strip - Show remaining shops (excluding LEFT_BAR and RIGHT_SIDE plans, and shops already used in left/right rails)
+        // CRITICAL: Exclude shops already used in left rail OR right rail (by ID or name) - NO DUPLICATES ALLOWED
+        // Track shop names used in left/right rails to prevent duplicates by name
+        // Note: usedShopNames is already initialized at the top level, just populate it here
+        leftBarShops.forEach((s) => {
+          const name = (s.advertiser || s.alt || '').trim().toLowerCase();
+          if (name) usedShopNames.add(name);
+        });
+        rightBarShops.forEach((s) => {
+          const name = (s.advertiser || s.alt || '').trim().toLowerCase();
+          if (name) usedShopNames.add(name);
+        });
+        
         const bottomShopsFiltered = uniqueShopsArray.filter((shop) => {
+          if (!shop || !shop.id || !(shop.name || shop.shopName)) {
+            return false;
+          }
+          // CRITICAL: Skip if already used in left rail OR right rail (by ID) - no duplicates allowed
+          if (usedShopIds.has(shop.id)) {
+            return false;
+          }
+          // CRITICAL: Skip if name already used in left rail OR right rail - prevent duplicates by name
+          const shopName = (shop.name || shop.shopName || '').trim().toLowerCase();
+          if (shopName && usedShopNames.has(shopName)) {
+            return false;
+          }
           // Exclude LEFT_BAR and RIGHT_SIDE from bottom strip (they only appear in their respective rails)
           const isLeftOrRight = shop.planType === 'LEFT_BAR' || shop.planType === 'RIGHT_SIDE';
-          return !isLeftOrRight &&
-                 shop && shop.id && (shop.name || shop.shopName);
+          if (isLeftOrRight) {
+            return false;
+          }
+          return true;
         });
         
         console.log(`🔍 Bottom strip filtering: isSearchActive=${isSearchActive}, filteredShops=${bottomShopsFiltered.length}`);
         
-        const bottomShops = bottomShopsFiltered
+        // Deduplicate bottom shops by ID AND name before sorting
+        const bottomShopsDeduped = new Map<string, any>();
+        const bottomSeenNames = new Set<string>();
+        bottomShopsFiltered.forEach((shop) => {
+          const shopId = shop.id || shop._id || '';
+          const shopName = (shop.name || shop.shopName || '').trim().toLowerCase();
+          
+          // Skip if already used by ID
+          if (usedShopIds.has(shopId)) {
+            return;
+          }
+          
+          // Skip if name already seen (even with different ID) - prevent duplicates
+          if (shopName && bottomSeenNames.has(shopName)) {
+            return;
+          }
+          
+          if (shopId && !bottomShopsDeduped.has(shopId)) {
+            bottomShopsDeduped.set(shopId, shop);
+            if (shopName) {
+              bottomSeenNames.add(shopName);
+            }
+          } else if (!shopId && shopName && !bottomShopsDeduped.has(`name_${shopName}`)) {
+            bottomShopsDeduped.set(`name_${shopName}`, shop);
+            bottomSeenNames.add(shopName);
+          }
+        });
+        
+        // Plan priority order (higher number = higher priority)
+        const planPriority: Record<string, number> = {
+          'HERO': 6,
+          'BOTTOM_RAIL': 5,
+          'PREMIUM': 4,
+          'FEATURED': 3,
+          'BANNER': 2,
+          'BASIC': 1,
+          'LEFT_BAR': 0, // Should not appear in bottom strip
+          'RIGHT_SIDE': 0, // Should not appear in bottom strip
+        };
+        
+        const bottomShops = Array.from(bottomShopsDeduped.values())
           .filter((shop) => {
             // On page load (no filters), show ALL shops from Shop.ts
             // If filters are active, show any shop (already filtered by category/pincode)
             return true; // Show all shops - no plan type filtering
           })
           .sort((a, b) => {
-            // For HERO plan shops, sort by popularityScore (visitorCount) first
-            // For BASIC plan shops, sort by priority rank, then distance
-            const isHeroA = a.planType === 'HERO';
-            const isHeroB = b.planType === 'HERO';
-            
-            if (isHeroA && isHeroB) {
-              // Both HERO: sort by popularityScore (visitorCount) first
-              const popularityA = a.visitorCount || 0;
-              const popularityB = b.visitorCount || 0;
-              if (popularityB !== popularityA) {
-                return popularityB - popularityA;
-              }
-            } else if (isHeroA && !isHeroB) {
-              // HERO shops come first
-              return -1;
-            } else if (!isHeroA && isHeroB) {
-              // HERO shops come first
-              return 1;
+            // Step 1: Sort by PLAN TYPE priority FIRST (plan-wise organization)
+            const planPriorityA = planPriority[a.planType] || 0;
+            const planPriorityB = planPriority[b.planType] || 0;
+            if (planPriorityB !== planPriorityA) {
+              return planPriorityB - planPriorityA; // Higher priority first
             }
             
-            // For BASIC plans or same type, sort by priority rank, then distance
+            // Step 2: If same plan type, sort by distance (nearest first) - nearby system
+            const distanceA = a.distance || 999999;
+            const distanceB = b.distance || 999999;
+            if (distanceA !== distanceB) {
+              return distanceA - distanceB;
+            }
+            
+            // Step 3: If same plan type and distance, sort by priority rank, then visitor count
             const priorityA = a.priorityRank || 0;
             const priorityB = b.priorityRank || 0;
             if (priorityB !== priorityA) {
               return priorityB - priorityA;
             }
-            const distanceA = a.distance || 999999;
-            const distanceB = b.distance || 999999;
-            return distanceA - distanceB;
+            const popularityA = a.visitorCount || 0;
+            const popularityB = b.visitorCount || 0;
+            return popularityB - popularityA;
           })
-          .slice(0, 30) // Get exactly 30 shops from AgentShop
+          .slice(0, 30) // Limit to 30 shops
           .map((shop) => {
-            // Don't mark as used if it's a HERO shop (it's already in hero section)
-            if (shop.planType !== 'HERO') {
-              usedShopIds.add(shop.id);
-            }
+            usedShopIds.add(shop.id); // Mark as used to prevent any future duplicates
             return {
               bannerId: shop.id,
               imageUrl: shop.imageUrl || shop.photoUrl || '/placeholder-shop.jpg',
@@ -844,9 +1135,9 @@ export default function HeroSection({ category }: HeroSectionProps) {
         setData({
           hero: heroDataForDisplay,
           heroShops: heroShops.length > 0 ? heroShops : undefined, // Pass multiple shops for rotation
-          left: combinedLeft,
-          right: combinedRight,
-          bottom: combinedBottom,
+          left: combinedLeft || [],
+          right: combinedRight || [], // Ensure right is always an array, even if empty
+          bottom: combinedBottom || [],
         });
       } catch (error) {
         console.error('Error fetching banners:', error);

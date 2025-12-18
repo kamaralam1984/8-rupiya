@@ -205,6 +205,7 @@ export default function AdminLayout({
     { name: 'Users', href: '/admin/users', icon: '👥', color: 'red', allowedRoles: ['admin'] }, // Sirf Admin
     { name: 'Homepage', href: '/admin/homepage', icon: '🏠', color: 'orange', allowedRoles: ['admin', 'editor'] },
     { name: 'Banners', href: '/admin/banners', icon: '🖼️', color: 'amber', allowedRoles: ['admin', 'editor'] },
+    { name: 'Logo Maker', href: '/admin/logo-maker', icon: '🎨', color: 'pink', allowedRoles: ['admin', 'editor'] },
     { name: 'Categories', href: '/admin/categories', icon: '📁', color: 'purple', allowedRoles: ['admin', 'editor'] },
     { name: 'Offers', href: '/admin/offers', icon: '🎁', color: 'rose', allowedRoles: ['admin', 'editor'] },
     { name: 'Businesses', href: '/admin/businesses', icon: '🏪', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },

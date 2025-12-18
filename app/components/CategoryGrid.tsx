@@ -178,13 +178,20 @@ export default function CategoryGrid() {
         console.log('Categories fetched:', data.categories?.length || 0, 'categories');
         
         // Fetch nearest shop for each category to get distance/time/visitor count
-        const categoriesWithDistance = await Promise.all(
+        // Use Promise.allSettled to handle individual failures gracefully
+        const categoriesWithDistanceResults = await Promise.allSettled(
           (data.categories || []).map(async (category: Category) => {
             try {
-              // Fetch nearest shop in this category
+              // Fetch nearest shop in this category with timeout
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+              
               const shopsResponse = await fetch(
-                `/api/categories/${category.slug}/businesses?type=nearby&userLat=${location.latitude || ''}&userLng=${location.longitude || ''}&limit=1`
+                `/api/categories/${category.slug}/businesses?type=nearby&userLat=${location.latitude || ''}&userLng=${location.longitude || ''}&limit=1`,
+                { signal: controller.signal }
               );
+              
+              clearTimeout(timeoutId);
               
               // Check if shops response is ok
               if (!shopsResponse.ok) {
@@ -211,8 +218,12 @@ export default function CategoryGrid() {
                 distance: 0,
                 visitorCount: 0,
               };
-            } catch (error) {
-              console.error(`Error fetching shop for category ${category.slug}:`, error);
+            } catch (error: any) {
+              // Silently handle errors - don't log every failed category fetch
+              // Only log if it's not an abort error (timeout)
+              if (error?.name !== 'AbortError') {
+                console.warn(`[CategoryGrid] Failed to fetch shops for category "${category.slug}":`, error?.message || 'Unknown error');
+              }
               return {
                 ...category,
                 distance: 0,
@@ -221,6 +232,11 @@ export default function CategoryGrid() {
             }
           })
         );
+        
+        // Extract successful results, filter out rejected promises
+        const categoriesWithDistance = categoriesWithDistanceResults
+          .map((result) => result.status === 'fulfilled' ? result.value : null)
+          .filter((cat): cat is Category & { distance: number; visitorCount: number } => cat !== null);
         
         setCategories(categoriesWithDistance);
       } catch (error) {

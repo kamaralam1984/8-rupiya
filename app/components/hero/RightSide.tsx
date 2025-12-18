@@ -31,20 +31,49 @@ interface RightSideProps {
 }
 
 export default function RightSide({ banners, onBannerClick, height = 'h-[480px]', userLat, userLng, maxCount = 3 }: RightSideProps) {
+  // Ensure banners is always an array
+  const safeBanners = Array.isArray(banners) ? banners : [];
+  
   // Sort banners by distance if user location is available
   const sortedBanners = useMemo(() => {
     if (userLat !== null && userLat !== undefined && userLng !== null && userLng !== undefined) {
-      const sorted = sortBannersByDistance(banners || [], userLat, userLng);
+      const sorted = sortBannersByDistance(safeBanners, userLat, userLng);
       return sorted.map(item => item.banner);
     }
-    return banners || [];
-  }, [banners, userLat, userLng]);
+    return safeBanners;
+  }, [safeBanners, userLat, userLng]);
 
   // Show banners based on maxCount setting
   const currentBanners = useMemo(() => {
     const count = Math.max(0, Math.min(maxCount || 3, 10)); // Limit between 0-10
     return sortedBanners.slice(0, count);
   }, [sortedBanners, maxCount]);
+
+  // If no banners, show placeholder
+  if (!currentBanners || currentBanners.length === 0) {
+    return (
+      <div 
+        className={`flex flex-col gap-1 sm:gap-2 ${height} overflow-hidden`} 
+        aria-live="polite"
+      >
+        {[0, 1, 2].map((index) => (
+          <div
+            key={`right-placeholder-${index}`}
+            className="flex-1 min-h-[56px] sm:min-h-[125px] bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors cursor-pointer"
+            onClick={() => window.location.href = '/advertise'}
+            role="button"
+            tabIndex={0}
+            aria-label={`Advertise here - Right position ${index + 1}`}
+          >
+            <svg className="w-4 h-4 sm:w-6 sm:h-6 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span className="text-[8px] sm:text-[10px] text-gray-500 font-medium">Advertise</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div 

@@ -26,10 +26,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  let slug = '';
   try {
     await connectDB();
 
-    const { slug } = await params;
+    const paramsData = await params;
+    slug = paramsData.slug;
     
     if (!slug || typeof slug !== 'string') {
       return NextResponse.json(
@@ -221,12 +223,17 @@ export async function GET(
                       errorString.includes('tlsv1 alert') ||
                       errorString.includes('Connection pool') ||
                       errorString.includes('98180000') ||
-                      errorString.includes('0A000438');
+                      errorString.includes('0A000438') ||
+                      errorString.includes('MongoNetworkError') ||
+                      errorString.includes('MongoServerError') ||
+                      errorString.includes('ECONNREFUSED') ||
+                      errorString.includes('ETIMEDOUT');
     
-    if (isSSLError) {
-      // Return empty result for SSL errors instead of 500
+    if (isSSLError || errorString.includes('Mongo')) {
+      // Return empty result for database/network errors instead of 500
       // This prevents cascading failures
-      // Don't log SSL errors - they're transient and noisy
+      const slugValue = slug || 'unknown';
+      console.warn(`[Categories API] Database/Network error for slug "${slugValue}":`, errorString.substring(0, 100));
       return NextResponse.json(
         { 
           success: true, 
@@ -244,20 +251,30 @@ export async function GET(
       );
     }
     
-    // Only log critical errors - reduce verbosity
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Error fetching businesses by category:', error.message);
-    }
+    // Log error details for debugging
+    console.error(`[Categories API] Error fetching businesses for category "${slug}":`, {
+      message: error?.message,
+      stack: error?.stack?.substring(0, 200),
+      name: error?.name,
+    });
     
-    // Return a proper error response
+    // Return empty result instead of 500 to prevent frontend errors
+    // This is better UX than showing error pages
     return NextResponse.json(
       { 
-        success: false, 
-        error: 'Internal server error', 
-        details: error.message || 'Unknown error',
-        businesses: [] // Return empty array to prevent frontend errors
+        success: true, 
+        businesses: [],
+        count: 0,
+        totalCount: 0,
+        page: 1,
+        totalPages: 0,
+        hasMore: false,
+        error: 'Unable to fetch businesses at this time'
       },
-      { status: 500 }
+      { 
+        status: 200,
+        headers: CACHE_HEADERS
+      }
     );
   }
 }

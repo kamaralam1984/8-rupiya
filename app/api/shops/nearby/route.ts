@@ -265,16 +265,55 @@ export async function GET(request: NextRequest) {
         // Add default limit to prevent loading too much data - optimized for performance
         const maxLimit = Math.min(limitCount || 50, 100); // Reduced max to 100 for faster queries
         
-        // Use optimized query with proper indexes
-        const agentShops = await (Object.keys(finalQuery).length > 0 
-          ? AgentShop.find(finalQuery).select(projection).limit(maxLimit).lean().hint({ paymentStatus: 1, planType: 1 }).sort({ planType: 1, visitorCount: -1 })
-          : AgentShop.find(baseFilter).select(projection).limit(maxLimit).lean().hint({ paymentStatus: 1, planType: 1 }).sort({ planType: 1, visitorCount: -1 })
-        ).catch(() => []);
+        // Use MongoDB Aggregation to remove duplicates at database level
+        // Group by shopName (or _id) and keep the shop with highest visitorCount
+        const aggregationPipeline: any[] = [];
         
-        console.log(`📍 Fetching shops from AgentShop only: ${agentShops.length} shops found`);
+        // Step 1: Match documents based on filters
+        if (Object.keys(finalQuery).length > 0) {
+          aggregationPipeline.push({ $match: finalQuery });
+        } else {
+          aggregationPipeline.push({ $match: baseFilter });
+        }
+        
+        // Step 2: Sort by visitorCount descending (so highest visitorCount comes first)
+        aggregationPipeline.push({ $sort: { planType: 1, visitorCount: -1, createdAt: -1 } });
+        
+        // Step 3: Group by shopName (normalized to lowercase) and keep first document (highest visitorCount)
+        // Also group by _id to handle shops with same name but different IDs
+        aggregationPipeline.push({
+          $group: {
+            _id: {
+              shopName: { $toLower: { $trim: { input: "$shopName" } } },
+              ownerName: { $toLower: { $trim: { input: { $ifNull: ["$ownerName", ""] } } } },
+              mobile: { $ifNull: ["$mobile", ""] }
+            },
+            doc: { $first: "$$ROOT" }, // Keep first document (highest visitorCount due to sort)
+            count: { $sum: 1 } // Count duplicates for logging
+          }
+        });
+        
+        // Step 4: Replace root with the document
+        aggregationPipeline.push({ $replaceRoot: { newRoot: "$doc" } });
+        
+        // Step 5: Project only needed fields
+        aggregationPipeline.push({ $project: projection });
+        
+        // Step 6: Limit results
+        aggregationPipeline.push({ $limit: maxLimit });
+        
+        // Execute aggregation
+        const agentShops = await AgentShop.aggregate(aggregationPipeline)
+          .hint({ paymentStatus: 1, planType: 1 })
+          .catch((err) => {
+            console.error('Aggregation error:', err);
+            return [];
+          });
+        
+        console.log(`📍 Fetching shops from AgentShop (with deduplication): ${agentShops.length} unique shops found`);
         
         // Transform agent shops - सिर्फ AgentShop से
-        const transformedAgentShops = agentShops.map((shop: any) => ({
+        shops = agentShops.map((shop: any) => ({
           id: shop._id.toString(),
           name: shop.shopName,
           shopName: shop.shopName, // Add shopName for compatibility
@@ -312,43 +351,7 @@ export async function GET(request: NextRequest) {
           ownerName: shop.ownerName, // Add ownerName for compatibility
         }));
         
-        // Remove duplicates - same shopName + ownerName + mobile combination
-        const uniqueShopsMap = new Map<string, any>();
-        transformedAgentShops.forEach((shop: any) => {
-          // Skip shops without enough identifying information
-          const shopName = (shop.name || shop.shopName || '').trim();
-          const ownerName = (shop.ownerName || '').trim();
-          const mobile = (shop.phone || shop.mobile || '').trim();
-          const shopId = shop.id || shop._id || '';
-          
-          // If shop has no name and no ID, skip it
-          if (!shopName && !shopId) {
-            return;
-          }
-          
-          // Create unique key from shopName + ownerName + mobile + ID (fallback)
-          // Use ID as part of key to ensure uniqueness even if other fields are empty
-          const uniqueKey = shopId 
-            ? `${shopName.toLowerCase()}_${ownerName.toLowerCase()}_${mobile}_${shopId}`
-            : `${shopName.toLowerCase()}_${ownerName.toLowerCase()}_${mobile}`;
-          
-          // अगर पहले से नहीं है, तो add करें
-          // अगर है, तो latest (higher visitorCount) को keep करें
-          if (!uniqueShopsMap.has(uniqueKey)) {
-            uniqueShopsMap.set(uniqueKey, shop);
-          } else {
-            const existingShop = uniqueShopsMap.get(uniqueKey);
-            // Keep the one with higher visitorCount (more popular)
-            if ((shop.visitorCount || 0) > (existingShop?.visitorCount || 0)) {
-              uniqueShopsMap.set(uniqueKey, shop);
-            }
-          }
-        });
-        
-        // Convert map back to array
-        shops = Array.from(uniqueShopsMap.values());
-        
-        console.log(`✅ After removing duplicates: ${shops.length} unique shops from AgentShop (removed ${transformedAgentShops.length - shops.length} duplicates)`);
+        console.log(`✅ MongoDB aggregation removed duplicates: ${shops.length} unique shops`);
       } catch (dbError) {
         console.error('MongoDB error:', dbError);
         // Return empty array if MongoDB fails
