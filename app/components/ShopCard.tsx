@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { calculateTravelTime, formatTravelTime } from '../utils/distance';
+import ShopQuickModal from './ShopQuickModal';
 
 interface ShopCardProps {
   id: string;
@@ -35,6 +36,7 @@ export default function ShopCard({
 }: ShopCardProps) {
   // Local state for visitor count that updates after tracking
   const [visitorCount, setVisitorCount] = useState(initialVisitorCount || 0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Update visitor count when prop changes
   useEffect(() => {
@@ -94,7 +96,11 @@ export default function ShopCard({
   const travelTimeText = travelTimeMinutes > 0 ? formatTravelTime(travelTimeMinutes) : '';
 
   return (
-    <article className="group rounded-xl bg-white shadow-md border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 h-full">
+    <>
+      <article 
+        className="group rounded-xl bg-white shadow-md border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 h-full cursor-pointer"
+        onClick={() => setIsModalOpen(true)}
+      >
       <div className="relative h-48 sm:h-52 overflow-hidden">
         <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent z-10" />
         <Image src={imageUrl} alt={name} fill className="object-cover transition-transform duration-500 group-hover:scale-110" sizes="(max-width: 1024px) 50vw, 33vw" />
@@ -191,6 +197,14 @@ export default function ShopCard({
         </div>
       </div>
     </article>
+
+    {/* Quick Modal */}
+    <ShopQuickModal
+      shopId={id}
+      isOpen={isModalOpen}
+      onClose={() => setIsModalOpen(false)}
+    />
+    </>
   );
 }
 

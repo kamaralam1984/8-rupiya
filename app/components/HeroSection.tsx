@@ -14,6 +14,7 @@ import MobileRails from './hero/MobileRails';
 import BestDealsSlider from './hero/BestDealsSlider';
 import SearchPanel from './hero/SearchPanel';
 import ShopFullPageModal from './ShopFullPageModal';
+import ShopQuickModal from './ShopQuickModal';
 
 interface HeroSectionProps {
   category?: string;
@@ -1196,7 +1197,7 @@ export default function HeroSection({ category }: HeroSectionProps) {
     </section>
     
     {/* Full Page Shop Modal */}
-    <ShopFullPageModal
+    <ShopQuickModal
       shopId={selectedShopId}
       isOpen={isModalOpen}
       onClose={() => {

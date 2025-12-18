@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from '../contexts/LocationContext';
 import toast from 'react-hot-toast';
+import ShopQuickModal from '../components/ShopQuickModal';
 
 interface Shop {
   _id: string;
@@ -353,8 +354,14 @@ export default function ShopDirectoryPage() {
 
 // Public Shop Card Component for Grid View
 function PublicShopCard({ shop }: { shop: Shop }) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+    <>
+    <div 
+      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+      onClick={() => setIsModalOpen(true)}
+    >
       {/* Image */}
       <div className="relative h-48 bg-gray-200">
         <img
@@ -385,14 +392,25 @@ function PublicShopCard({ shop }: { shop: Shop }) {
         </div>
 
         {/* View Button */}
-        <a
-          href={`/shop/${shop._id}`}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsModalOpen(true);
+          }}
           className="block w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-center rounded-lg transition-colors"
         >
           View Shop
-        </a>
+        </button>
       </div>
     </div>
+
+    {/* Quick Modal */}
+    <ShopQuickModal
+      shopId={shop._id}
+      isOpen={isModalOpen}
+      onClose={() => setIsModalOpen(false)}
+    />
+    </>
   );
 }
 
