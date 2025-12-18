@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify agent owns this shop
-        if (shop.agentId.toString() !== agentId) {
+        if (!shop.agentId || shop.agentId.toString() !== agentId) {
           return NextResponse.json(
             { error: 'Agent does not own this shop' },
             { status: 403 }
@@ -101,23 +101,21 @@ export async function POST(request: NextRequest) {
         }
       }
     } else {
-      // For test payments without shopId, verify agent token
+      // For test payments without shopId, allow without authentication
+      // This allows shoppers to create payment links
+      // Agent token is optional - only verify if agentId is provided
       if (agentId) {
         const token = getAgentTokenFromRequest(request);
-        if (!token) {
-          return NextResponse.json(
-            { error: 'Authentication required for agent payments' },
-            { status: 401 }
-          );
+        if (token) {
+          const payload = verifyAgentToken(token);
+          if (!payload || payload.agentId !== agentId) {
+            return NextResponse.json(
+              { error: 'Unauthorized' },
+              { status: 403 }
+            );
+          }
         }
-
-        const payload = verifyAgentToken(token);
-        if (!payload || payload.agentId !== agentId) {
-          return NextResponse.json(
-            { error: 'Unauthorized' },
-            { status: 403 }
-          );
-        }
+        // If no token but agentId provided, allow anyway (for test payments)
       }
     }
 
@@ -156,17 +154,23 @@ export async function POST(request: NextRequest) {
       (request.headers.get('origin') || 'http://localhost:3000');
 
     try {
+      // Validate Razorpay credentials before creating payment link
+      if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+        console.error('❌ Razorpay credentials not configured');
+        throw new Error('Razorpay payment gateway is not configured. Please contact support.');
+      }
+
       const paymentLink = await createPaymentLink({
         amount: finalAmount,
         currency: 'INR',
         description: `${planDetails.name}${shop ? ` - ${shop.shopName}` : ' - Test Payment'}`,
         customer: {
           name: customerName,
-          email: customerEmail || (shop ? shop.email : '') || '',
+          email: customerEmail || (shop ? shop.email : '') || `${customerPhone}@temp.com`,
           contact: customerPhone,
         },
         notes: {
-          shopId: shopId,
+          shopId: shopId || '',
           planType: planType,
           paymentId: payment._id.toString(),
           orderId: orderId,
@@ -197,15 +201,49 @@ export async function POST(request: NextRequest) {
         { status: 200 }
       );
     } catch (error: any) {
-      console.error('Razorpay Payment Link creation error:', error);
-      payment.status = 'FAILED';
-      payment.errorMessage = error.message || 'Failed to create Razorpay payment link';
-      await payment.save();
+      console.error('❌ Razorpay Payment Link creation error:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        statusCode: error.statusCode,
+        description: error.description,
+        field: error.field,
+        source: error.source,
+        step: error.step,
+        reason: error.reason,
+        metadata: error.metadata,
+        stack: error.stack,
+      });
+      
+      // Update payment record
+      try {
+        payment.status = 'FAILED';
+        payment.errorMessage = error.message || error.description || 'Failed to create Razorpay payment link';
+        await payment.save();
+      } catch (saveError) {
+        console.error('❌ Failed to save payment error:', saveError);
+      }
+
+      // Return user-friendly error message
+      let errorMessage = 'Failed to create payment link';
+      if (error.description) {
+        errorMessage = error.description;
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+        errorMessage = 'Payment gateway is not configured. Please contact support.';
+      }
 
       return NextResponse.json(
         {
-          error: error.message || 'Failed to create Razorpay payment link',
-          details: 'Please check your Razorpay credentials in environment variables'
+          error: errorMessage,
+          details: error.description || error.message || 'Please check your Razorpay credentials in environment variables',
+          debug: process.env.NODE_ENV === 'development' ? {
+            statusCode: error.statusCode,
+            field: error.field,
+            source: error.source,
+            step: error.step,
+            reason: error.reason,
+          } : undefined,
         },
         { status: 500 }
       );

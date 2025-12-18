@@ -124,11 +124,16 @@ export default function CategoryGrid() {
   const desktopScrollRef = useRef<HTMLDivElement>(null);
   const mobileScrollRef = useRef<HTMLDivElement>(null);
 
-  // Fetch hero section settings
+  // Fetch hero section settings with caching
   useEffect(() => {
     const fetchHeroSettings = async () => {
       try {
-        const res = await fetch('/api/hero-section');
+        const res = await fetch('/api/hero-section', {
+          next: { revalidate: 300 }, // Cache for 5 minutes
+          headers: {
+            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+          },
+        });
         const data = await res.json();
         if (data.success) {
           setHeroSettings(data.settings);
@@ -148,7 +153,12 @@ export default function CategoryGrid() {
           ? `/api/categories?loc=${location.id}`
           : '/api/categories';
         
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          next: { revalidate: 600 }, // Cache for 10 minutes
+          headers: {
+            'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200',
+          },
+        });
         
         // Check if response is ok
         if (!response.ok) {

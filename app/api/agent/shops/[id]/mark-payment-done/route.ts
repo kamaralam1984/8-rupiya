@@ -50,7 +50,7 @@ export async function POST(
     }
 
     // Verify agent owns this shop
-    if (shop.agentId.toString() !== payload.agentId) {
+    if (!shop.agentId || shop.agentId.toString() !== payload.agentId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }

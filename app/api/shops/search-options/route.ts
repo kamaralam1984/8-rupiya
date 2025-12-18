@@ -7,6 +7,9 @@ const CACHE_HEADERS = {
   'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
 };
 
+// Revalidate every 5 minutes
+export const revalidate = 300;
+
 /**
  * GET /api/shops/search-options
  * Get unique pincodes, areas, categories, and cities from AgentShop collection ONLY

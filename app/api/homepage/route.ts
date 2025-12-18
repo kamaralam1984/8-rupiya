@@ -29,23 +29,30 @@ const defaultSettings = {
 };
 
 // GET - Get active homepage settings (public route)
+// Cache for 5 minutes to reduce database load
+export const revalidate = 300;
+
 export async function GET(request: NextRequest) {
   try {
-    // Try to connect to MongoDB with timeout
+    // Try to connect to MongoDB with timeout (reduced to 2 seconds for faster response)
     const connectPromise = connectDB();
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Connection timeout')), 5000)
+      setTimeout(() => reject(new Error('Connection timeout')), 2000)
     );
 
     try {
       await Promise.race([connectPromise, timeoutPromise]);
     } catch (connectError: any) {
-      // If connection fails (SSL error, timeout, etc.), return default settings
-      console.warn('⚠️ MongoDB connection failed, using default settings:', connectError.message);
+      // If connection fails (SSL error, timeout, etc.), return default settings immediately
       return NextResponse.json({
         success: true,
         settings: defaultSettings,
-      }, { status: 200 });
+      }, { 
+        status: 200,
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
+      });
     }
 
     // Check if connection is ready
@@ -59,22 +66,26 @@ export async function GET(request: NextRequest) {
       }, { status: 200 });
     }
 
-    // Try to fetch settings with timeout
+    // Try to fetch settings with timeout (reduced to 1.5 seconds)
     const findPromise = HomepageSettings.findOne({ isActive: true }).lean();
     const findTimeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Query timeout')), 3000)
+      setTimeout(() => reject(new Error('Query timeout')), 1500)
     );
 
     let settings;
     try {
       settings = await Promise.race([findPromise, findTimeoutPromise]);
     } catch (queryError: any) {
-      // If query fails, return default settings
-      console.warn('⚠️ Failed to fetch homepage settings, using default:', queryError.message);
+      // If query fails, return default settings immediately
       return NextResponse.json({
         success: true,
         settings: defaultSettings,
-      }, { status: 200 });
+      }, { 
+        status: 200,
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
+      });
     }
 
     if (!settings) {
@@ -82,7 +93,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         settings: defaultSettings,
-      }, { status: 200 });
+      }, { 
+        status: 200,
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
+      });
     }
 
     // Ensure heroSections exists for backward compatibility
@@ -96,14 +112,26 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    return NextResponse.json({ success: true, settings: settingsWithDefaults }, { status: 200 });
+    return NextResponse.json(
+      { success: true, settings: settingsWithDefaults }, 
+      { 
+        status: 200,
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
+      }
+    );
   } catch (error: any) {
-    // Catch any other errors and return default settings
-    console.error('Error fetching homepage settings:', error.message);
+    // Catch any other errors and return default settings immediately
     return NextResponse.json({
       success: true,
       settings: defaultSettings,
-    }, { status: 200 }); // Return 200 with default settings instead of 500 error
+    }, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
+    });
   }
 }
 

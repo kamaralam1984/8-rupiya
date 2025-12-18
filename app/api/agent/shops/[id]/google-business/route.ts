@@ -43,7 +43,7 @@ export async function POST(
     }
 
     // Verify shop belongs to agent
-    if (shop.agentId.toString() !== agentPayload.agentId) {
+    if (!shop.agentId || shop.agentId.toString() !== agentPayload.agentId) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized to access this shop' },
         { status: 403 }
@@ -177,7 +177,7 @@ export async function GET(
     }
 
     // Verify shop belongs to agent
-    if (shop.agentId.toString() !== agentPayload.agentId) {
+    if (!shop.agentId || shop.agentId.toString() !== agentPayload.agentId) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized to access this shop' },
         { status: 403 }

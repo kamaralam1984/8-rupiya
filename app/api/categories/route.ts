@@ -9,6 +9,9 @@ const CACHE_HEADERS = {
   'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200',
 };
 
+// Revalidate every 10 minutes
+export const revalidate = 600;
+
 /**
  * GET /api/categories
  * Get all active categories with shop counts (public endpoint, no auth required)

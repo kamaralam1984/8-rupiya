@@ -12,6 +12,9 @@ interface AgentRazorpayQRPaymentProps {
   mobile: string;
   email?: string;
   agentId?: string;
+  planType?: PlanType; // Optional - if provided, use this instead of dropdown
+  amount?: number; // Optional - if provided, use this instead of plan amount
+  onPaymentSuccess?: () => void;
 }
 
 export default function AgentRazorpayQRPayment({
@@ -21,8 +24,11 @@ export default function AgentRazorpayQRPayment({
   mobile,
   email,
   agentId,
+  planType: propPlanType,
+  amount: propAmount,
+  onPaymentSuccess,
 }: AgentRazorpayQRPaymentProps) {
-  const [selectedPlan, setSelectedPlan] = useState<PlanType>('BASIC');
+  const [selectedPlan, setSelectedPlan] = useState<PlanType>(propPlanType || 'BASIC');
   const [loading, setLoading] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [paymentLinkUrl, setPaymentLinkUrl] = useState<string>('');
@@ -61,7 +67,11 @@ export default function AgentRazorpayQRPayment({
           setQrCodeUrl('');
           setPaymentLinkUrl('');
           setPaymentLinkId('');
-          window.location.reload();
+          if (onPaymentSuccess) {
+            onPaymentSuccess();
+          } else {
+            window.location.reload();
+          }
         }
       } catch (error) {
         console.error('Error checking payment:', error);
@@ -92,7 +102,7 @@ export default function AgentRazorpayQRPayment({
   };
 
   const handleCreatePaymentLink = async () => {
-    // Get agentId from token if not provided
+    // Get agentId from token if not provided (optional for shopper panel)
     let currentAgentId = agentId;
     if (!currentAgentId && typeof window !== 'undefined') {
       try {
@@ -102,34 +112,73 @@ export default function AgentRazorpayQRPayment({
           currentAgentId = payload.agentId;
         }
       } catch (e) {
-        console.error('Failed to get agentId from token:', e);
+        // Agent ID is optional for shopper panel
+        console.log('No agent token found, proceeding without agentId');
       }
-    }
-
-    if (!currentAgentId) {
-      toast.error('Agent ID not found. Please login again.');
-      return;
     }
 
     setLoading(true);
     try {
-      const planDetails = PRICING_PLANS[selectedPlan];
+      const finalPlanType = propPlanType || selectedPlan;
+      const finalAmount = propAmount || PRICING_PLANS[finalPlanType]?.amount;
+
+      // Validate required fields with detailed error messages
+      if (!finalPlanType) {
+        toast.error('Please select a plan');
+        setLoading(false);
+        return;
+      }
+
+      if (!PRICING_PLANS[finalPlanType]) {
+        toast.error(`Invalid plan type: ${finalPlanType}`);
+        setLoading(false);
+        return;
+      }
+
+      const trimmedOwnerName = (ownerName || '').trim();
+      const trimmedMobile = (mobile || '').trim();
+
+      if (!trimmedOwnerName) {
+        toast.error('Owner name is required. Please fill in shop details first.');
+        setLoading(false);
+        return;
+      }
+
+      if (!trimmedMobile) {
+        toast.error('Mobile number is required. Please fill in shop details first.');
+        setLoading(false);
+        return;
+      }
 
       const requestBody: any = {
-        planType: selectedPlan,
-        customerName: ownerName,
-        customerEmail: email || `${mobile}@test.com`,
-        customerPhone: mobile,
-        agentId: currentAgentId,
+        planType: finalPlanType,
+        amount: finalAmount,
+        customerName: trimmedOwnerName,
+        customerEmail: email || `${trimmedMobile}@test.com`,
+        customerPhone: trimmedMobile,
       };
+
+      console.log('Creating payment link with:', {
+        planType: finalPlanType,
+        customerName: trimmedOwnerName,
+        customerPhone: trimmedMobile,
+        amount: finalAmount,
+      });
+
+      // Only add agentId if it exists
+      if (currentAgentId) {
+        requestBody.agentId = currentAgentId;
+      }
 
       // Only add shopId if provided
       if (shopId) {
         requestBody.shopId = shopId;
       }
 
-      // Get token from localStorage
-      const token = typeof window !== 'undefined' ? localStorage.getItem('agent_token') : null;
+      // Get token from localStorage (try both agent and shopper tokens)
+      const agentToken = typeof window !== 'undefined' ? localStorage.getItem('agent_token') : null;
+      const shopperToken = typeof window !== 'undefined' ? localStorage.getItem('shopper_token') : null;
+      const token = agentToken || shopperToken;
       
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
@@ -149,7 +198,18 @@ export default function AgentRazorpayQRPayment({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create payment link');
+        // Show specific error message
+        const errorMsg = data.error || 'Failed to create payment link';
+        console.error('Payment link creation error:', {
+          error: errorMsg,
+          requestBody: {
+            planType: finalPlanType,
+            customerName: ownerName,
+            customerPhone: mobile,
+            amount: finalAmount,
+          }
+        });
+        throw new Error(errorMsg);
       }
 
       if (!data.success) {
@@ -179,36 +239,39 @@ export default function AgentRazorpayQRPayment({
       </h3>
 
       <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Select Plan
-          </label>
-          <select
-            value={selectedPlan}
-            onChange={(e) => {
-              setSelectedPlan(e.target.value as PlanType);
-              setQrCodeUrl('');
-              setPaymentLinkUrl('');
-              setPaymentLinkId('');
-              setCheckingPayment(false);
-            }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            disabled={loading || !!qrCodeUrl}
-          >
-            {Object.entries(PRICING_PLANS).map(([key, plan]) => (
-              <option key={key} value={key}>
-                {plan.name} - ₹{plan.amount}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Only show plan selector if planType prop is not provided */}
+        {!propPlanType && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Select Plan
+            </label>
+            <select
+              value={selectedPlan}
+              onChange={(e) => {
+                setSelectedPlan(e.target.value as PlanType);
+                setQrCodeUrl('');
+                setPaymentLinkUrl('');
+                setPaymentLinkId('');
+                setCheckingPayment(false);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              disabled={loading || !!qrCodeUrl}
+            >
+              {Object.entries(PRICING_PLANS).map(([key, plan]) => (
+                <option key={key} value={key}>
+                  {plan.name} - ₹{plan.amount}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="bg-blue-50 p-3 rounded-lg">
           <p className="text-sm text-gray-700">
-            <strong>Plan:</strong> {PRICING_PLANS[selectedPlan].name}
+            <strong>Plan:</strong> {PRICING_PLANS[propPlanType || selectedPlan].name}
           </p>
           <p className="text-sm text-gray-700">
-            <strong>Amount:</strong> ₹{PRICING_PLANS[selectedPlan].amount}
+            <strong>Amount:</strong> ₹{propAmount || PRICING_PLANS[propPlanType || selectedPlan].amount}
           </p>
         </div>
 

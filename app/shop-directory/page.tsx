@@ -33,6 +33,8 @@ export default function ShopDirectoryPage() {
   const [filteredShops, setFilteredShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Search and Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -309,7 +311,14 @@ export default function ShopDirectoryPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredShops.map((shop, index) => (
-                  <tr key={shop._id || `shop-${index}`} className="hover:bg-gray-50">
+                  <tr 
+                    key={shop._id || `shop-${index}`} 
+                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => {
+                      setSelectedShopId(shop._id);
+                      setIsModalOpen(true);
+                    }}
+                  >
                     <td className="px-4 py-3">
                       <img
                         src={shop.photoUrl || shop.iconUrl || '/placeholder-shop.jpg'}
@@ -348,6 +357,16 @@ export default function ShopDirectoryPage() {
           </div>
         )}
       </div>
+
+      {/* Shop Quick Modal */}
+      <ShopQuickModal
+        shopId={selectedShopId}
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedShopId(null);
+        }}
+      />
     </div>
   );
 }

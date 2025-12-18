@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify agent owns the shop
-        if (shop.agentId.toString() !== agentId) {
+        if (!shop.agentId || shop.agentId.toString() !== agentId) {
           return NextResponse.json(
             { error: 'Agent does not own this shop' },
             { status: 403 }

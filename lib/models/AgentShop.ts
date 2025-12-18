@@ -19,7 +19,8 @@ export interface IAgentShop extends Document {
   receiptNo: string;
   amount: number;
   sendSmsReceipt: boolean;
-  agentId: Types.ObjectId;
+  agentId?: Types.ObjectId; // Optional - shops can be registered by agents or shoppers
+  shopperId?: Types.ObjectId; // Reference to Shopper who registered this shop directly
   paymentExpiryDate: Date; // 365 days from payment date
   lastPaymentDate: Date; // Date when payment was last made
   visitorCount: number; // Number of visitors/views
@@ -170,7 +171,13 @@ const AgentShopSchema = new Schema<IAgentShop>(
     agentId: {
       type: Schema.Types.ObjectId,
       ref: 'Agent',
-      required: [true, 'Agent ID is required'],
+      required: false, // Optional - shops can be registered by shoppers directly
+    },
+    shopperId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Shopper',
+      required: false,
+      index: true,
     },
     visitorCount: {
       type: Number,

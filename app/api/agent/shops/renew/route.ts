@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Verify agent owns this shop
     if (renewShop.originalAgentShopId) {
       const agentShop = await AgentShop.findById(renewShop.originalAgentShopId);
-      if (!agentShop || agentShop.agentId.toString() !== payload.agentId) {
+      if (!agentShop || !agentShop.agentId || agentShop.agentId.toString() !== payload.agentId) {
         return NextResponse.json(
           { error: 'Unauthorized - This shop does not belong to you' },
           { status: 403 }

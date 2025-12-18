@@ -71,7 +71,9 @@ export async function GET(request: NextRequest) {
 
     const requestMap = new Map();
     pendingRequests.forEach((req: any) => {
-      requestMap.set(req.agentId.toString(), 'PENDING');
+      if (req.agentId) {
+        requestMap.set(req.agentId.toString(), 'PENDING');
+      }
     });
 
     // Transform agents

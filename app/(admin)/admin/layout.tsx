@@ -215,6 +215,7 @@ export default function AdminLayout({
     { name: 'Renew Shops', href: '/admin/shops/renew', icon: '🔄', color: 'orange', allowedRoles: ['admin', 'editor'] },
     { name: 'Agents', href: '/admin/agents', icon: '👤', color: 'violet', allowedRoles: ['admin', 'editor'] },
     { name: 'Operators', href: '/admin/operators', icon: '👔', color: 'green', allowedRoles: ['admin', 'editor'] },
+    { name: 'Shoppers', href: '/admin/shoppers', icon: '🛍️', color: 'pink', allowedRoles: ['admin', 'editor'] }, // Approve/Reject Shoppers - Admin Panel Left Sidebar
     { name: 'Revenue', href: '/admin/revenue', icon: '💰', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
     { name: 'Reports & Analytics', href: '/admin/reports', icon: '📊', color: 'indigo', allowedRoles: ['admin', 'editor', 'operator'] },
     { name: 'Database', href: '/admin/database', icon: '🗄️', color: 'slate', allowedRoles: ['admin'] }, // Sirf Admin

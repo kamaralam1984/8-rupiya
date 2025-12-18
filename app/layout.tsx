@@ -5,6 +5,7 @@ import { LocationProvider } from "./contexts/LocationContext";
 import { DistanceProvider } from "./contexts/DistanceContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AgentAuthProvider } from "./contexts/AgentAuthContext";
+import { ShopperAuthProvider } from "./contexts/ShopperAuthContext";
 import { SearchProvider } from "./contexts/SearchContext";
 import Toaster from "./components/Toaster";
 
@@ -132,10 +133,12 @@ export default function RootLayout({
           <DistanceProvider>
             <AuthProvider>
               <AgentAuthProvider>
-                <SearchProvider>
-                  {children}
-                  <Toaster />
-                </SearchProvider>
+                <ShopperAuthProvider>
+                  <SearchProvider>
+                    {children}
+                    <Toaster />
+                  </SearchProvider>
+                </ShopperAuthProvider>
               </AgentAuthProvider>
             </AuthProvider>
           </DistanceProvider>

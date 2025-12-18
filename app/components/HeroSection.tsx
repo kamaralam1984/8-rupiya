@@ -322,10 +322,13 @@ export default function HeroSection({ category }: HeroSectionProps) {
             if (location.latitude && location.longitude) {
               allLocationsUrl += `&userLat=${location.latitude}&userLng=${location.longitude}`;
             }
-            // Use caching for better performance - cache for 60 seconds
+            // Use aggressive caching for better performance - cache for 5 minutes
             // Don't apply filters on page load - show all shops from AgentShop
             const allLocationsRes = await fetch(allLocationsUrl, {
-              next: { revalidate: 60 } // Cache for 60 seconds
+              next: { revalidate: 300 }, // Cache for 5 minutes
+              headers: {
+                'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+              },
             }).catch(() => null);
             if (allLocationsRes) {
               const parsed = await safeJsonParse(allLocationsRes);

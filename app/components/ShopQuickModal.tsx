@@ -180,9 +180,9 @@ export default function ShopQuickModal({ shopId, isOpen, onClose }: ShopQuickMod
         onClick={onClose}
       />
       
-      {/* Bottom Sheet Modal */}
+      {/* Bottom Sheet Modal - Half Page */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl transform transition-transform duration-300 ease-out max-h-[85vh] flex flex-col ${
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl transform transition-transform duration-300 ease-out h-[50vh] flex flex-col ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
