@@ -6,7 +6,6 @@ import AgentRouteGuard from '@/app/components/AgentRouteGuard';
 import Image from 'next/image';
 import { PRICING_PLANS, PlanType } from '@/app/utils/pricing';
 import SEOModal from '@/app/components/SEOModal';
-import TestRazorpayPayment from '@/app/components/TestRazorpayPayment';
 import AgentRazorpayQRPayment from '@/app/components/AgentRazorpayQRPayment';
 import toast from 'react-hot-toast';
 
@@ -27,7 +26,7 @@ interface FormData {
   latitude: number | null;
   longitude: number | null;
   paymentStatus: 'PAID' | 'PENDING';
-  paymentMode: 'CASH' | 'UPI' | 'NONE';
+  paymentMode: 'ONLINE' | 'NONE';
   receiptNo: string;
   amount: number;
   planType: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_SIDE' | 'BOTTOM_RAIL' | 'BANNER' | 'HERO';
@@ -73,7 +72,7 @@ export default function AddNewShopPage() {
     latitude: null,
     longitude: null,
     paymentStatus: 'PENDING',
-    paymentMode: 'NONE',
+    paymentMode: 'ONLINE',
     receiptNo: '',
     amount: 100,
     planType: 'BASIC', // Default plan, lekin pehle step mein select karna hoga
@@ -1514,25 +1513,9 @@ export default function AddNewShopPage() {
                 </div>
               </div>
 
-              {/* Payment Mode */}
+              {/* Online Payment QR Code - Always show when payment status is PAID */}
               {formData.paymentStatus === 'PAID' && (
                 <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Payment Mode
-                    </label>
-                    <select
-                      value={formData.paymentMode}
-                      onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value as 'CASH' | 'UPI' | 'NONE' })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="NONE">None</option>
-                      <option value="CASH">Cash</option>
-                      <option value="UPI">UPI</option>
-                    </select>
-                  </div>
-
-                  {/* Razorpay QR Code Payment Component */}
                   {formData.shopName && formData.ownerName && formData.mobile && (
                     <div className="mt-4">
                       <AgentRazorpayQRPayment
@@ -1540,18 +1523,7 @@ export default function AddNewShopPage() {
                         ownerName={formData.ownerName}
                         mobile={formData.mobile}
                         email={formData.email}
-                      />
-                    </div>
-                  )}
-
-                  {/* Test Razorpay Payment Component (Checkout) */}
-                  {formData.shopName && formData.ownerName && formData.mobile && (
-                    <div className="mt-4">
-                      <TestRazorpayPayment
-                        shopName={formData.shopName}
-                        ownerName={formData.ownerName}
-                        mobile={formData.mobile}
-                        email={formData.email}
+                        paymentMode="ONLINE"
                       />
                     </div>
                   )}

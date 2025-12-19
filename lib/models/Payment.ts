@@ -17,7 +17,7 @@ export interface IPayment extends Document {
   
   // Payment status
   status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED' | 'REFUNDED';
-  paymentMode: 'CASH' | 'UPI'; // Payment mode
+  paymentMode: 'CASH' | 'UPI' | 'ONLINE'; // Payment mode
   
   // Customer details
   customerName: string;
@@ -102,7 +102,7 @@ const PaymentSchema = new Schema<IPayment>(
     },
     paymentMode: {
       type: String,
-      enum: ['CASH', 'UPI'],
+      enum: ['CASH', 'UPI', 'ONLINE'],
       default: 'CASH',
     },
     customerName: {

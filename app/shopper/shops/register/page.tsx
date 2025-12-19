@@ -34,8 +34,6 @@ export default function RegisterShopPage() {
   const [locationError, setLocationError] = useState('');
   const [categories, setCategories] = useState<Array<{ _id: string; name: string }>>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [demoPaymentEnabled, setDemoPaymentEnabled] = useState(false);
-  const [demoPaymentUntil, setDemoPaymentUntil] = useState<Date | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     shopName: '',
@@ -64,11 +62,6 @@ export default function RegisterShopPage() {
     }
   }, [isAuthenticated, authLoading, router]);
 
-  // Demo payment is always enabled (no time restriction)
-  useEffect(() => {
-    setDemoPaymentEnabled(true);
-    // Demo payment is permanently available
-  }, []);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -250,7 +243,6 @@ export default function RegisterShopPage() {
       return;
     }
 
-    // Demo payment check is handled in payment step, not here
 
     if (formData.paymentStatus === 'PENDING') {
       toast.error('Please complete payment first');
@@ -656,7 +648,7 @@ export default function RegisterShopPage() {
             const currentPlan = PRICING_PLANS[validPlanType];
             
             // Check if required shop details are filled
-            // If payment is already PAID (via demo payment), allow proceeding
+            // If payment is already PAID, allow proceeding
             const hasRequiredDetails = formData.paymentStatus === 'PAID' || 
               (formData.shopName && formData.ownerName && formData.mobile && formData.address && formData.pincode);
             
@@ -683,31 +675,6 @@ export default function RegisterShopPage() {
                         ← Go Back to Shop Details
                       </button>
                     </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Demo Payment Option - Always Available */}
-              {demoPaymentEnabled && (
-                <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-300 rounded-xl p-6 mb-6">
-                  <div className="text-center">
-                    <div className="text-4xl mb-4">🧪</div>
-                    <h3 className="text-xl font-bold text-blue-800 mb-2">Demo Payment Available</h3>
-                    <p className="text-blue-700 mb-4">
-                      Demo payment option is available for testing. Click below to simulate payment completion.
-                    </p>
-                    <button
-                      onClick={() => {
-                        setFormData({ ...formData, paymentStatus: 'PAID' });
-                        toast.success('Demo payment successful! You can now submit your shop.');
-                      }}
-                      className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
-                    >
-                      💳 Complete Demo Payment
-                    </button>
-                    <p className="text-xs text-blue-600 mt-3">
-                      ⚠️ This is a demo payment for testing purposes only.
-                    </p>
                   </div>
                 </div>
               )}

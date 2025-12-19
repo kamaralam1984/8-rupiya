@@ -215,6 +215,7 @@ export default function AdminLayout({
     { name: 'New Shop (Image)', href: '/admin/shops/new-from-image', icon: '📸', color: 'cyan', allowedRoles: ['admin', 'editor'] },
     { name: 'Renew Shops', href: '/admin/shops/renew', icon: '🔄', color: 'orange', allowedRoles: ['admin', 'editor'] },
     { name: 'Agents', href: '/admin/agents', icon: '👤', color: 'violet', allowedRoles: ['admin', 'editor'] },
+    { name: 'Agent Panel Settings', href: '/admin/agent-panel-settings', icon: '⚙️', color: 'indigo', allowedRoles: ['admin', 'editor'] },
     { name: 'Operators', href: '/admin/operators', icon: '👔', color: 'green', allowedRoles: ['admin', 'editor'] },
     { name: 'Shoppers', href: '/admin/shoppers', icon: '🛍️', color: 'pink', allowedRoles: ['admin', 'editor'] }, // Approve/Reject Shoppers - Admin Panel Left Sidebar
     { name: 'Revenue', href: '/admin/revenue', icon: '💰', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
@@ -244,6 +245,15 @@ export default function AdminLayout({
     
     return isAllowed;
   });
+
+  // Debug: Log navigation items (remove in production)
+  useEffect(() => {
+    if (user) {
+      console.log('User role:', user.role);
+      console.log('Navigation items:', filteredNavigation.map(n => n.name));
+      console.log('Agent Panel Settings visible:', filteredNavigation.some(n => n.name === 'Agent Panel Settings'));
+    }
+  }, [user, filteredNavigation]);
 
   const isActive = (href: string) => {
     if (href === '/admin') {
@@ -304,6 +314,7 @@ export default function AdminLayout({
               cyan: active ? 'bg-cyan-50 text-cyan-700 border-l-4 border-cyan-600' : 'text-gray-700 hover:bg-cyan-50 hover:text-cyan-600',
               indigo: active ? 'bg-indigo-50 text-indigo-700 border-l-4 border-indigo-600' : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600',
               pink: active ? 'bg-pink-50 text-pink-700 border-l-4 border-pink-600' : 'text-gray-700 hover:bg-pink-50 hover:text-pink-600',
+              yellow: active ? 'bg-yellow-50 text-yellow-700 border-l-4 border-yellow-600' : 'text-gray-700 hover:bg-yellow-50 hover:text-yellow-600',
               teal: active ? 'bg-teal-50 text-teal-700 border-l-4 border-teal-600' : 'text-gray-700 hover:bg-teal-50 hover:text-teal-600',
               violet: active ? 'bg-violet-50 text-violet-700 border-l-4 border-violet-600' : 'text-gray-700 hover:bg-violet-50 hover:text-violet-600',
               slate: active ? 'bg-slate-50 text-slate-700 border-l-4 border-slate-600' : 'text-gray-700 hover:bg-slate-50 hover:text-slate-600',

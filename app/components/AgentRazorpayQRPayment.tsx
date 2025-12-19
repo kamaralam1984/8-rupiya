@@ -14,6 +14,7 @@ interface AgentRazorpayQRPaymentProps {
   agentId?: string;
   planType?: PlanType; // Optional - if provided, use this instead of dropdown
   amount?: number; // Optional - if provided, use this instead of plan amount
+  paymentMode?: 'CASH' | 'UPI' | 'ONLINE' | 'NONE'; // Payment mode - if UPI/ONLINE, show QR code immediately
   onPaymentSuccess?: () => void;
 }
 
@@ -26,6 +27,7 @@ export default function AgentRazorpayQRPayment({
   agentId,
   planType: propPlanType,
   amount: propAmount,
+  paymentMode,
   onPaymentSuccess,
 }: AgentRazorpayQRPaymentProps) {
   const [selectedPlan, setSelectedPlan] = useState<PlanType>(propPlanType || 'BASIC');
@@ -34,6 +36,9 @@ export default function AgentRazorpayQRPayment({
   const [paymentLinkUrl, setPaymentLinkUrl] = useState<string>('');
   const [paymentLinkId, setPaymentLinkId] = useState<string>('');
   const [checkingPayment, setCheckingPayment] = useState(false);
+
+  // Static Razorpay.me link
+  const RAZORPAY_ME_LINK = 'https://razorpay.me/@8rupiya';
 
   // Get agentId from token if not provided
   useEffect(() => {
@@ -81,11 +86,14 @@ export default function AgentRazorpayQRPayment({
     return () => clearInterval(interval);
   }, [paymentLinkId, checkingPayment]);
 
-  const generateQRCode = async () => {
-    if (!paymentLinkUrl) return;
+  const generateQRCode = async (url?: string) => {
+    const qrUrl = url || paymentLinkUrl || RAZORPAY_ME_LINK;
+    if (!qrUrl) return;
 
     try {
-      const qrDataUrl = await QRCode.toDataURL(paymentLinkUrl, {
+      // Generate QR code with UPI format support
+      // Use static Razorpay.me link or payment link URL
+      const qrDataUrl = await QRCode.toDataURL(qrUrl, {
         width: 400,
         margin: 3,
         color: {
@@ -93,15 +101,82 @@ export default function AgentRazorpayQRPayment({
           light: '#FFFFFF',
         },
         errorCorrectionLevel: 'H',
+        type: 'image/png',
       });
       setQrCodeUrl(qrDataUrl);
+      // Show success message only if not UPI mode (UPI mode auto-generates silently)
+      if (paymentMode !== 'UPI') {
+        toast.success('QR code generated successfully!');
+      }
     } catch (error) {
       console.error('Error generating QR code:', error);
       toast.error('Failed to generate QR code');
     }
   };
 
+  // Generate QR code immediately when paymentMode is UPI or ONLINE
+  useEffect(() => {
+    if (paymentMode === 'UPI' || paymentMode === 'ONLINE') {
+      // Generate QR code with static Razorpay.me link immediately
+      const generateQR = async () => {
+        try {
+          const qrDataUrl = await QRCode.toDataURL(RAZORPAY_ME_LINK, {
+            width: 400,
+            margin: 3,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF',
+            },
+            errorCorrectionLevel: 'H',
+            type: 'image/png',
+          });
+          setQrCodeUrl(qrDataUrl);
+          setPaymentLinkUrl(RAZORPAY_ME_LINK);
+        } catch (error) {
+          console.error('Error generating QR code:', error);
+          toast.error('Failed to generate QR code');
+        }
+      };
+      
+      // Always generate QR code when UPI/ONLINE mode is active
+      generateQR();
+    } else if (paymentMode && paymentLinkUrl === RAZORPAY_ME_LINK) {
+      // Clear QR code if payment mode changes from UPI/ONLINE to something else
+      setQrCodeUrl('');
+      setPaymentLinkUrl('');
+      setPaymentLinkId('');
+      setCheckingPayment(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentMode]);
+
   const handleCreatePaymentLink = async () => {
+    // If UPI or ONLINE mode, generate QR code directly from static link
+    if (paymentMode === 'UPI' || paymentMode === 'ONLINE') {
+      setLoading(true);
+      try {
+        const qrDataUrl = await QRCode.toDataURL(RAZORPAY_ME_LINK, {
+          width: 400,
+          margin: 3,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF',
+          },
+          errorCorrectionLevel: 'H',
+          type: 'image/png',
+        });
+        setQrCodeUrl(qrDataUrl);
+        setPaymentLinkUrl(RAZORPAY_ME_LINK);
+        toast.success('QR code generated successfully!');
+      } catch (error) {
+        console.error('Error generating QR code:', error);
+        toast.error('Failed to generate QR code');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     // Get agentId from token if not provided (optional for shopper panel)
     let currentAgentId = agentId;
     if (!currentAgentId && typeof window !== 'undefined') {
@@ -223,7 +298,7 @@ export default function AgentRazorpayQRPayment({
       toast.success('Payment link created! QR code generating...');
 
       // Generate QR code from payment link URL
-      await generateQRCode();
+      await generateQRCode(data.paymentLinkUrl || data.paymentLink?.short_url || '');
     } catch (error: any) {
       console.error('Payment link error:', error);
       toast.error(error.message || 'Failed to create payment link');
@@ -239,8 +314,8 @@ export default function AgentRazorpayQRPayment({
       </h3>
 
       <div className="space-y-4">
-        {/* Only show plan selector if planType prop is not provided */}
-        {!propPlanType && (
+        {/* Only show plan selector if planType prop is not provided and not UPI/ONLINE mode */}
+        {!propPlanType && paymentMode !== 'UPI' && paymentMode !== 'ONLINE' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Select Plan
@@ -266,48 +341,83 @@ export default function AgentRazorpayQRPayment({
           </div>
         )}
 
-        <div className="bg-blue-50 p-3 rounded-lg">
-          <p className="text-sm text-gray-700">
-            <strong>Plan:</strong> {PRICING_PLANS[propPlanType || selectedPlan].name}
-          </p>
-          <p className="text-sm text-gray-700">
-            <strong>Amount:</strong> ₹{propAmount || PRICING_PLANS[propPlanType || selectedPlan].amount}
-          </p>
-        </div>
+        {/* Only show plan details if not UPI/ONLINE mode */}
+        {paymentMode !== 'UPI' && paymentMode !== 'ONLINE' && (
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <p className="text-sm text-gray-700">
+              <strong>Plan:</strong> {PRICING_PLANS[propPlanType || selectedPlan].name}
+            </p>
+            <p className="text-sm text-gray-700">
+              <strong>Amount:</strong> ₹{propAmount || PRICING_PLANS[propPlanType || selectedPlan].amount}
+            </p>
+          </div>
+        )}
 
-        {!qrCodeUrl && !paymentLinkUrl && (
+        {/* Show Generate QR Code button - works for all modes */}
+        {!qrCodeUrl && (
           <button
             onClick={handleCreatePaymentLink}
             disabled={loading}
             className="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Creating Payment Link...' : 'Generate QR Code'}
+            {loading 
+              ? (paymentMode === 'UPI' || paymentMode === 'ONLINE' ? 'Generating QR Code...' : 'Creating Payment Link...') 
+              : 'Generate QR Code'}
           </button>
+        )}
+
+        {/* Show loading message when UPI/ONLINE mode is active and QR code is generating */}
+        {(paymentMode === 'UPI' || paymentMode === 'ONLINE') && !qrCodeUrl && (
+          <div className="bg-green-50 p-3 rounded-lg text-center">
+            <p className="text-sm text-green-800">
+              🔄 Generating {paymentMode === 'ONLINE' ? 'Online' : 'UPI'} QR Code...
+            </p>
+          </div>
         )}
 
         {qrCodeUrl && (
           <div className="space-y-4">
             <div className="text-center">
               <h4 className="text-md font-semibold text-gray-900 mb-2">
-                Scan QR Code to Pay
+                {paymentMode === 'ONLINE' ? 'Scan QR Code for Online Payment' : 'Scan QR Code to Pay via UPI'}
               </h4>
               <div className="flex justify-center">
-                <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
+                <div className="bg-white p-4 rounded-lg border-2 border-gray-200 shadow-lg">
                   <img
                     src={qrCodeUrl}
-                    alt="Payment QR Code"
-                    className="w-64 h-64"
+                    alt="UPI Payment QR Code"
+                    className="w-64 h-64 mx-auto"
                   />
                 </div>
               </div>
+              <div className="mt-3 flex justify-center gap-4">
+                <div className="text-xs text-gray-600 font-semibold">Supported Apps:</div>
+                <div className="flex gap-2 items-center">
+                  <span className="text-xs bg-blue-50 px-2 py-1 rounded">Google Pay</span>
+                  <span className="text-xs bg-purple-50 px-2 py-1 rounded">PhonePe</span>
+                  <span className="text-xs bg-blue-50 px-2 py-1 rounded">Paytm</span>
+                  <span className="text-xs bg-green-50 px-2 py-1 rounded">BHIM UPI</span>
+                </div>
+              </div>
               <p className="text-xs text-gray-600 mt-2">
-                Scan this QR code with any UPI app (Google Pay, PhonePe, Paytm, etc.)
+                {paymentMode === 'ONLINE' 
+                  ? 'Scan this QR code with any UPI app or payment app to complete online payment'
+                  : 'Scan this QR code with any UPI app to complete payment'}
               </p>
+              <div className="mt-2 bg-blue-50 p-2 rounded-lg">
+                <p className="text-xs text-blue-800 font-semibold">
+                  💡 Tip: Open any UPI app → Scan QR Code → Enter amount → Pay
+                </p>
+              </div>
             </div>
 
             {paymentLinkUrl && (
               <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="text-xs text-gray-600 mb-1">Payment Link:</p>
+                <p className="text-xs text-gray-600 mb-1">
+                  {paymentMode === 'UPI' || paymentMode === 'ONLINE' 
+                    ? `${paymentMode === 'ONLINE' ? 'Online' : 'UPI'} Payment Link:` 
+                    : 'Payment Link:'}
+                </p>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
@@ -325,6 +435,11 @@ export default function AgentRazorpayQRPayment({
                     Copy
                   </button>
                 </div>
+                {(paymentMode === 'UPI' || paymentMode === 'ONLINE') && (
+                  <p className="text-xs text-blue-600 mt-2">
+                    💡 Scan the QR code above or use this link to pay {paymentMode === 'ONLINE' ? 'online' : 'via UPI'}
+                  </p>
+                )}
               </div>
             )}
 
