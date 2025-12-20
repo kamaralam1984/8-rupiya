@@ -167,7 +167,9 @@ export async function POST(request: NextRequest) {
       planAmount: amountInRupees,
     });
   } catch (error: any) {
-    console.error('Create order error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Create order error:', error);
+    }
     return NextResponse.json(
       {
         success: false,

@@ -125,6 +125,13 @@ export async function POST(request: NextRequest) {
     payment.razorpayPaymentId = razorpay_payment_id;
     payment.razorpaySignature = razorpay_signature;
     payment.paidAt = new Date();
+    
+    // Add success message to metadata
+    if (!payment.metadata) {
+      payment.metadata = {};
+    }
+    payment.metadata.successMessage = `Payment Successful`;
+    
     await payment.save();
 
     // Update shop payment status

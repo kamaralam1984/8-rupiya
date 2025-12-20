@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Payment from '@/lib/models/Payment';
+import Agent from '@/lib/models/Agent';
+import Shopper from '@/lib/models/Shopper';
 import { requireAdmin } from '@/lib/auth';
 import mongoose from 'mongoose';
 
@@ -22,27 +24,114 @@ export const GET = requireAdmin(async (request: NextRequest) => {
 
     let query: any = {};
 
-    // Filter by user ID (agent or shopper)
-    if (userId) {
-      const userIdObj = new mongoose.Types.ObjectId(userId);
-      query.$or = [
-        { agentId: userIdObj },
-        { shopperId: userIdObj },
-      ];
+    // Filter by user ID / Code (can be ObjectId, agentCode, orderId, or paymentId)
+    if (userId && userId.trim()) {
+      const userIdTrimmed = userId.trim();
+      let agentIdFound = null;
+      let orderIdFilter = null;
+      let paymentIdFilter = null;
+      
+      // Check if it's an order ID or payment ID (starts with "order_" or "pay_")
+      if (userIdTrimmed.startsWith('order_')) {
+        orderIdFilter = userIdTrimmed;
+        // Search in both orderId and razorpayOrderId fields
+        query.$or = [
+          { orderId: orderIdFilter },
+          { razorpayOrderId: orderIdFilter }
+        ];
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Filtering by orderId:', orderIdFilter);
+        }
+      } else if (userIdTrimmed.startsWith('pay_')) {
+        paymentIdFilter = userIdTrimmed;
+        // Search in both paymentId and razorpayPaymentId fields
+        query.$or = [
+          { paymentId: paymentIdFilter },
+          { razorpayPaymentId: paymentIdFilter }
+        ];
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Filtering by paymentId:', paymentIdFilter);
+        }
+      } else {
+        // Try as ObjectId first
+        if (mongoose.Types.ObjectId.isValid(userIdTrimmed)) {
+          try {
+            const userIdObj = new mongoose.Types.ObjectId(userIdTrimmed);
+            // Verify the ObjectId exists as an agent
+            const agent = await Agent.findById(userIdObj).select('_id').lean();
+            if (agent) {
+              agentIdFound = userIdObj;
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Found agent by ObjectId:', agentIdFound);
+              }
+            }
+          } catch (error) {
+            if (process.env.NODE_ENV === 'development') {
+              console.error('Error finding agent by ObjectId:', error);
+            }
+          }
+        }
+        
+        // If not found as ObjectId, try as agentCode
+        if (!agentIdFound) {
+          try {
+            const agent = await Agent.findOne({ 
+              agentCode: userIdTrimmed.toUpperCase().trim() 
+            }).select('_id').lean();
+            
+            if (agent) {
+              agentIdFound = agent._id;
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Found agent by agentCode:', agentIdFound, 'for code:', userIdTrimmed.toUpperCase());
+              }
+            } else {
+              if (process.env.NODE_ENV === 'development') {
+                console.log('No agent found for code:', userIdTrimmed.toUpperCase());
+              }
+            }
+          } catch (searchError) {
+            if (process.env.NODE_ENV === 'development') {
+              console.error('Error searching by agentCode:', searchError);
+            }
+          }
+        }
+        
+        // If agent found, apply filter; otherwise return empty results
+        if (agentIdFound) {
+          query.agentId = agentIdFound;
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Applying agentId filter:', agentIdFound);
+          }
+        } else {
+          // No matching agent found, return empty results
+          if (process.env.NODE_ENV === 'development') {
+            console.log('No agent found for userId:', userIdTrimmed, '- returning empty results');
+          }
+          return NextResponse.json(
+            {
+              success: true,
+              payments: [],
+              count: 0,
+              message: `No agent found with ID/Code: ${userIdTrimmed}`,
+            },
+            { status: 200 }
+          );
+        }
+      }
     }
 
     // Filter by plan type
-    if (planType && planType !== 'all') {
+    if (planType && planType !== 'all' && planType !== 'none') {
       query.planType = planType;
     }
 
     // Filter by status
-    if (status && status !== 'all') {
+    if (status && status !== 'all' && status !== 'none') {
       query.status = status;
     }
 
     // Filter by date range
-    if (dateRange !== 'all' || startDate || endDate) {
+    if ((dateRange && dateRange !== 'all' && dateRange !== 'none') || startDate || endDate) {
       query.createdAt = {};
       
       if (dateRange === 'today') {
@@ -71,14 +160,28 @@ export const GET = requireAdmin(async (request: NextRequest) => {
       }
     }
 
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Final query:', JSON.stringify(query, null, 2));
+    }
+    
     const payments = await Payment.find(query)
-      .populate('shopId', 'shopName ownerName mobile email')
-      .populate('agentId', 'name agentCode')
-      .populate('shopperId', 'name shopperCode')
-      .populate('subscriptionId', 'status startDate expiryDate')
+      .populate({
+        path: 'shopId',
+        select: 'shopName ownerName mobile email',
+        model: 'AgentShop',
+      })
+      .populate({
+        path: 'agentId',
+        select: 'name agentCode',
+        model: 'Agent',
+      })
       .sort({ createdAt: -1 })
       .limit(1000)
       .lean();
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Found payments:', payments.length);
+    }
 
     return NextResponse.json(
       {
@@ -89,7 +192,9 @@ export const GET = requireAdmin(async (request: NextRequest) => {
       { status: 200 }
     );
   } catch (error: any) {
-    console.error('Error fetching payments:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching payments:', error);
+    }
     return NextResponse.json(
       {
         error: 'Failed to fetch payments',
@@ -99,6 +204,7 @@ export const GET = requireAdmin(async (request: NextRequest) => {
     );
   }
 });
+
 
 
 

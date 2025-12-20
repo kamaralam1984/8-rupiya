@@ -38,6 +38,12 @@ interface PaymentRecord {
     startDate: string;
     expiryDate: string;
   };
+  metadata?: {
+    successMessage?: string;
+    screenshotUrl?: string;
+    receiptNo?: string;
+    notes?: string;
+  };
 }
 
 export default function AdminPaymentsPage() {
@@ -47,12 +53,23 @@ export default function AdminPaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     userId: '',
-    dateRange: 'all',
-    planType: 'all',
-    status: 'all',
+    dateRange: 'none',
+    planType: 'none',
+    status: 'none',
     startDate: '',
     endDate: '',
   });
+
+  const clearFilters = () => {
+    setFilters({
+      userId: '',
+      dateRange: 'none',
+      planType: 'none',
+      status: 'none',
+      startDate: '',
+      endDate: '',
+    });
+  };
 
   useEffect(() => {
     if (!token) {
@@ -65,11 +82,28 @@ export default function AdminPaymentsPage() {
   const fetchPayments = async () => {
     try {
       setLoading(true);
+      
+      // Check if all filters are "none" or empty
+      const hasActiveFilters = 
+        (filters.userId && filters.userId.trim()) ||
+        (filters.dateRange && filters.dateRange !== 'none') ||
+        (filters.planType && filters.planType !== 'none') ||
+        (filters.status && filters.status !== 'none') ||
+        filters.startDate ||
+        filters.endDate;
+
+      // If no filters are active, show empty results
+      if (!hasActiveFilters) {
+        setPayments([]);
+        setLoading(false);
+        return;
+      }
+
       const params = new URLSearchParams();
-      if (filters.userId) params.append('userId', filters.userId);
-      if (filters.dateRange !== 'all') params.append('dateRange', filters.dateRange);
-      if (filters.planType !== 'all') params.append('planType', filters.planType);
-      if (filters.status !== 'all') params.append('status', filters.status);
+      if (filters.userId && filters.userId.trim()) params.append('userId', filters.userId.trim());
+      if (filters.dateRange && filters.dateRange !== 'none') params.append('dateRange', filters.dateRange);
+      if (filters.planType && filters.planType !== 'none') params.append('planType', filters.planType);
+      if (filters.status && filters.status !== 'none') params.append('status', filters.status);
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
 
@@ -79,15 +113,22 @@ export default function AdminPaymentsPage() {
         },
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
       if (data.success) {
         setPayments(data.payments || []);
       } else {
         toast.error(data.error || 'Failed to fetch payments');
+        setPayments([]);
       }
     } catch (error) {
       console.error('Error fetching payments:', error);
       toast.error('Failed to load payments');
+      setPayments([]);
     } finally {
       setLoading(false);
     }
@@ -133,13 +174,24 @@ export default function AdminPaymentsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 User ID / Code
               </label>
-              <input
-                type="text"
-                value={filters.userId}
-                onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
-                placeholder="Agent/Shopper ID or Code"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={filters.userId}
+                  onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
+                  placeholder="Agent/Shopper ID or Code"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10"
+                />
+                {filters.userId && (
+                  <button
+                    onClick={() => setFilters({ ...filters, userId: '' })}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    title="Clear"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -150,7 +202,7 @@ export default function AdminPaymentsPage() {
                 onChange={(e) => setFilters({ ...filters, planType: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               >
-                <option value="all">All Plans</option>
+                <option value="none">None</option>
                 <option value="BASIC">Basic</option>
                 <option value="PREMIUM">Premium</option>
                 <option value="FEATURED">Featured</option>
@@ -170,7 +222,7 @@ export default function AdminPaymentsPage() {
                 onChange={(e) => setFilters({ ...filters, status: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               >
-                <option value="all">All Status</option>
+                <option value="none">None</option>
                 <option value="SUCCESS">Success</option>
                 <option value="PENDING">Pending</option>
                 <option value="FAILED">Failed</option>
@@ -186,7 +238,7 @@ export default function AdminPaymentsPage() {
                 onChange={(e) => setFilters({ ...filters, dateRange: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               >
-                <option value="all">All Time</option>
+                <option value="none">None</option>
                 <option value="today">Today</option>
                 <option value="week">This Week</option>
                 <option value="month">This Month</option>
@@ -222,12 +274,20 @@ export default function AdminPaymentsPage() {
             </div>
           )}
 
-          <button
-            onClick={fetchPayments}
-            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
-          >
-            Apply Filters
-          </button>
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={fetchPayments}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            >
+              Apply Filters
+            </button>
+            <button
+              onClick={clearFilters}
+              className="px-6 py-2 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 transition-colors"
+            >
+              Clear
+            </button>
+          </div>
         </div>
 
         {/* Payments Table */}
@@ -266,6 +326,9 @@ export default function AdminPaymentsPage() {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Success Message
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
@@ -345,6 +408,21 @@ export default function AdminPaymentsPage() {
                         {payment.paidAt
                           ? new Date(payment.paidAt).toLocaleDateString('en-IN')
                           : new Date(payment.createdAt).toLocaleDateString('en-IN')}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        {payment.status === 'SUCCESS' && payment.metadata?.successMessage ? (
+                          <div className="max-w-xs">
+                            <p className="text-green-700 font-medium text-xs">
+                              ✅ {payment.metadata.successMessage}
+                            </p>
+                          </div>
+                        ) : payment.status === 'SUCCESS' ? (
+                          <p className="text-green-700 font-medium text-xs">
+                            ✅ Payment Successful
+                          </p>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {payment.status === 'PENDING' && (

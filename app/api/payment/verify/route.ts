@@ -81,6 +81,12 @@ export async function POST(request: NextRequest) {
     payment.paidAt = new Date();
     payment.paymentId = razorpay_payment_id;
     payment.paymentSignature = razorpay_signature;
+    
+    // Save success message in metadata
+    if (!payment.metadata) {
+      payment.metadata = {};
+    }
+    payment.metadata.successMessage = `Payment successful! Order ID: ${razorpay_order_id}, Payment ID: ${razorpay_payment_id}, Amount: ₹${(payment.amount / 100).toFixed(2)}`;
 
     await payment.save();
 
@@ -137,7 +143,9 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('Payment verification error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Payment verification error:', error);
+    }
     return NextResponse.json(
       {
         success: false,

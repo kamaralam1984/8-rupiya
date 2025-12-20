@@ -30,7 +30,8 @@ export default function PendingShopsPage() {
   const router = useRouter();
   const [shops, setShops] = useState<PendingShop[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processingPayment, setProcessingPayment] = useState<string | null>(null);
+  const [processingAccept, setProcessingAccept] = useState<string | null>(null);
+  const [processingDecline, setProcessingDecline] = useState<string | null>(null);
 
   useEffect(() => {
     if (token) {
@@ -61,13 +62,13 @@ export default function PendingShopsPage() {
     }
   };
 
-  const handlePayAmount = async (shop: PendingShop) => {
-    if (!confirm(`Mark payment as done for "${shop.shopName}"?`)) {
+  const handleAccept = async (shop: PendingShop) => {
+    if (!confirm(`Accept and approve shop "${shop.shopName}"?\n\nThis will mark the payment as done and move the shop to regular shops.`)) {
       return;
     }
 
     try {
-      setProcessingPayment(shop._id);
+      setProcessingAccept(shop._id);
       
       const response = await fetch(`/api/admin/shops/${shop._id}/mark-payment-done`, {
         method: 'POST',
@@ -87,10 +88,10 @@ export default function PendingShopsPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to mark payment as done');
+        throw new Error(data.error || 'Failed to accept shop');
       }
 
-      toast.success('Payment marked as done! Shop moved to regular shops.');
+      toast.success('Shop accepted successfully! Shop moved to regular shops.');
       
       // Remove shop from pending list
       setShops(shops.filter(s => s._id !== shop._id));
@@ -100,10 +101,43 @@ export default function PendingShopsPage() {
         router.push('/admin/shops');
       }, 1500);
     } catch (error: any) {
-      console.error('Error marking payment:', error);
-      toast.error(error.message || 'Failed to mark payment as done');
+      console.error('Error accepting shop:', error);
+      toast.error(error.message || 'Failed to accept shop');
     } finally {
-      setProcessingPayment(null);
+      setProcessingAccept(null);
+    }
+  };
+
+  const handleDecline = async (shop: PendingShop) => {
+    if (!confirm(`Decline and delete shop "${shop.shopName}"?\n\nThis action cannot be undone. The shop will be permanently removed.`)) {
+      return;
+    }
+
+    try {
+      setProcessingDecline(shop._id);
+      
+      const response = await fetch(`/api/admin/shops/${shop._id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to decline shop');
+      }
+
+      toast.success('Shop declined and removed successfully.');
+      
+      // Remove shop from pending list
+      setShops(shops.filter(s => s._id !== shop._id));
+    } catch (error: any) {
+      console.error('Error declining shop:', error);
+      toast.error(error.message || 'Failed to decline shop');
+    } finally {
+      setProcessingDecline(null);
     }
   };
 
@@ -210,23 +244,41 @@ export default function PendingShopsPage() {
                   </p>
                 </div>
 
-                {/* Pay Amount Button */}
-                <button
-                  onClick={() => handlePayAmount(shop)}
-                  disabled={processingPayment === shop._id}
-                  className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {processingPayment === shop._id ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      💰 Pay Amount (₹{shop.planAmount || getPlanAmount(shop.planType)})
-                    </>
-                  )}
-                </button>
+                {/* Accept and Decline Buttons */}
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => handleAccept(shop)}
+                    disabled={processingAccept === shop._id || processingDecline === shop._id}
+                    className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {processingAccept === shop._id ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Accepting...
+                      </>
+                    ) : (
+                      <>
+                        ✓ Accept
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleDecline(shop)}
+                    disabled={processingAccept === shop._id || processingDecline === shop._id}
+                    className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {processingDecline === shop._id ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Declining...
+                      </>
+                    ) : (
+                      <>
+                        ✗ Decline
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           ))}

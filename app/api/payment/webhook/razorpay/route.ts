@@ -29,7 +29,9 @@ export async function POST(request: NextRequest) {
     // Verify webhook signature
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
     if (!webhookSecret) {
-      console.error('RAZORPAY_WEBHOOK_SECRET not configured');
+      if (process.env.NODE_ENV === 'development') {
+        console.error('RAZORPAY_WEBHOOK_SECRET not configured');
+      }
       return NextResponse.json(
         { error: 'Webhook secret not configured' },
         { status: 500 }
@@ -43,7 +45,9 @@ export async function POST(request: NextRequest) {
       .digest('hex');
 
     if (webhookSignature !== expectedSignature) {
-      console.error('Invalid Razorpay webhook signature');
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Invalid Razorpay webhook signature');
+      }
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 400 }
@@ -64,7 +68,9 @@ export async function POST(request: NextRequest) {
       });
 
       if (!payment) {
-        console.error('Payment not found for order:', orderId);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Payment not found for order:', orderId);
+        }
         return NextResponse.json(
           { error: 'Payment not found' },
           { status: 404 }
@@ -81,7 +87,9 @@ export async function POST(request: NextRequest) {
         });
 
         if (!isValidSignature) {
-          console.error('Invalid payment signature');
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Invalid payment signature');
+          }
           payment.status = 'FAILED';
           payment.errorMessage = 'Invalid signature';
           await payment.save();
@@ -107,6 +115,13 @@ export async function POST(request: NextRequest) {
         payment.paymentId = paymentEntity.id;
         payment.razorpayPaymentId = paymentEntity.id;
         payment.paidAt = new Date();
+        
+        // Add success message to metadata
+        if (!payment.metadata) {
+          payment.metadata = {};
+        }
+        payment.metadata.successMessage = `Payment Successful`;
+        
         await payment.save();
 
         // Update shop payment status
@@ -150,7 +165,9 @@ export async function POST(request: NextRequest) {
                     await operator.save();
                   }
                 } catch (operatorError: any) {
-                  console.error('Error updating operator commission:', operatorError);
+                  if (process.env.NODE_ENV === 'development') {
+                    console.error('Error updating operator commission:', operatorError);
+                  }
                 }
               }
             }
@@ -176,7 +193,9 @@ export async function POST(request: NextRequest) {
       });
 
       if (!payment) {
-        console.error('Payment not found for payment link:', paymentLinkId);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Payment not found for payment link:', paymentLinkId);
+        }
         return NextResponse.json(
           { error: 'Payment not found' },
           { status: 404 }
@@ -193,7 +212,9 @@ export async function POST(request: NextRequest) {
         });
 
         if (!isValidSignature) {
-          console.error('Invalid payment signature');
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Invalid payment signature');
+          }
           payment.status = 'FAILED';
           payment.errorMessage = 'Invalid signature';
           await payment.save();
@@ -263,7 +284,9 @@ export async function POST(request: NextRequest) {
                     await operator.save();
                   }
                 } catch (operatorError: any) {
-                  console.error('Error updating operator commission:', operatorError);
+                  if (process.env.NODE_ENV === 'development') {
+                    console.error('Error updating operator commission:', operatorError);
+                  }
                 }
               }
             }
@@ -277,7 +300,9 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error: any) {
-    console.error('Razorpay webhook error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Razorpay webhook error:', error);
+    }
     return NextResponse.json(
       {
         error: 'Webhook processing failed',

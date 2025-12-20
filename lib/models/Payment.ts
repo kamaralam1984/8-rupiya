@@ -42,6 +42,8 @@ export interface IPayment extends Document {
   metadata?: {
     receiptNo?: string;
     notes?: string;
+    successMessage?: string; // Success message for admin panel
+    screenshotUrl?: string; // Screenshot URL if uploaded
     [key: string]: any;
   };
   

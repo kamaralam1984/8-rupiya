@@ -124,7 +124,9 @@ export default function RazorpayPayment({
               throw new Error(verifyData.message || 'Payment verification failed');
             }
           } catch (error: any) {
-            console.error('Payment verification error:', error);
+            if (process.env.NODE_ENV === 'development') {
+              console.error('Payment verification error:', error);
+            }
             setIsLoading(false); // Stop loading on error
             alert(`Payment verification failed: ${error.message}`);
             if (onError) {
@@ -147,7 +149,9 @@ export default function RazorpayPayment({
       const rzp = new window.Razorpay(options);
       
       rzp.on('payment.failed', function (response: any) {
-        console.error('Payment failed:', response.error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Payment failed:', response.error);
+        }
         alert(`Payment failed: ${response.error.description}`);
         if (onError) {
           onError(response.error);
@@ -157,7 +161,9 @@ export default function RazorpayPayment({
 
       rzp.open();
     } catch (error: any) {
-      console.error('Payment error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Payment error:', error);
+      }
       alert(`Payment error: ${error.message}`);
       if (onError) {
         onError(error);

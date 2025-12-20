@@ -1,11 +1,39 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 
-// Initialize Razorpay instance
-export const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
-});
+// Initialize Razorpay instance with proper error handling
+let razorpayInstance: Razorpay | null = null;
+
+export function getRazorpayInstance(): Razorpay {
+  if (!razorpayInstance) {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+      throw new Error('Razorpay credentials not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in environment variables.');
+    }
+
+    razorpayInstance = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
+  }
+
+  return razorpayInstance;
+}
+
+// For backward compatibility
+export const razorpay = {
+  get orders() {
+    return getRazorpayInstance().orders;
+  },
+  get payments() {
+    return getRazorpayInstance().payments;
+  },
+  get paymentLink() {
+    return getRazorpayInstance().paymentLink;
+  },
+};
 
 // Plan configurations with amounts in INR
 export const PAYMENT_PLANS = {
@@ -57,6 +85,7 @@ export async function createRazorpayOrder({
   notes?: Record<string, string>;
 }) {
   try {
+    const razorpay = getRazorpayInstance();
     const order = await razorpay.orders.create({
       amount,
       currency,
@@ -66,7 +95,9 @@ export async function createRazorpayOrder({
     });
     return { success: true, order };
   } catch (error: any) {
-    console.error('Razorpay order creation error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Razorpay order creation error:', error);
+    }
     return { 
       success: false, 
       error: error.message || 'Failed to create Razorpay order' 
@@ -87,14 +118,28 @@ export function verifyPaymentSignature({
   signature: string;
 }): boolean {
   try {
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keySecret) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Razorpay key secret not configured');
+      }
+      return false;
+    }
+
     const generatedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+      .createHmac('sha256', keySecret)
       .update(`${orderId}|${paymentId}`)
       .digest('hex');
 
-    return generatedSignature === signature;
+    // Use timing-safe comparison to prevent timing attacks
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(generatedSignature)
+    );
   } catch (error) {
-    console.error('Signature verification error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Signature verification error:', error);
+    }
     return false;
   }
 }
@@ -104,10 +149,13 @@ export function verifyPaymentSignature({
  */
 export async function fetchPaymentDetails(paymentId: string) {
   try {
+    const razorpay = getRazorpayInstance();
     const payment = await razorpay.payments.fetch(paymentId);
     return { success: true, payment };
   } catch (error: any) {
-    console.error('Razorpay payment fetch error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Razorpay payment fetch error:', error);
+    }
     return { 
       success: false, 
       error: error.message || 'Failed to fetch payment details' 
@@ -120,10 +168,13 @@ export async function fetchPaymentDetails(paymentId: string) {
  */
 export async function fetchOrderDetails(orderId: string) {
   try {
+    const razorpay = getRazorpayInstance();
     const order = await razorpay.orders.fetch(orderId);
     return { success: true, order };
   } catch (error: any) {
-    console.error('Razorpay order fetch error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Razorpay order fetch error:', error);
+    }
     return { 
       success: false, 
       error: error.message || 'Failed to fetch order details' 

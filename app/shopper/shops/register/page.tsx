@@ -726,9 +726,9 @@ export default function RegisterShopPage() {
                     buttonClassName="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
                   />
                   
-                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-xs text-yellow-800 text-center">
-                      <strong>Test Mode:</strong> Use card <strong>4111 1111 1111 1111</strong> | CVV: Any 3 digits | Expiry: Any future date
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-800 text-center font-semibold">
+                      Thank you for Online Payment
                     </p>
                   </div>
                 </div>

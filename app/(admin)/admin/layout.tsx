@@ -37,11 +37,11 @@ function RealTimeClock() {
   };
 
   return (
-    <div className="hidden md:flex flex-col items-end px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
-      <div className="text-lg font-bold text-blue-700 font-mono">
+    <div className="hidden md:flex flex-col items-end px-4 py-2 bg-gradient-to-r from-red-100 to-amber-100 rounded-lg border border-red-200">
+      <div className="text-lg font-bold text-red-700 font-mono">
         {formatTime(currentTime)}
       </div>
-      <div className="text-xs text-gray-600 font-medium">
+      <div className="text-xs text-amber-700 font-medium">
         {formatDate(currentTime)}
       </div>
     </div>
@@ -54,23 +54,14 @@ function RealTimeClock() {
 // allowedRoles: ['admin'] - sirf admin ko access
 const NAVIGATION_ITEMS = [
   { name: 'Dashboard', href: '/admin', icon: '📊', color: 'blue', allowedRoles: ['admin', 'editor', 'operator'] },
-  { name: 'Users', href: '/admin/users', icon: '👥', color: 'red', allowedRoles: ['admin'] }, // Sirf Admin
   { name: 'Homepage', href: '/admin/homepage', icon: '🏠', color: 'orange', allowedRoles: ['admin', 'editor'] },
   { name: 'Banners', href: '/admin/banners', icon: '🖼️', color: 'amber', allowedRoles: ['admin', 'editor'] },
   { name: 'Logo Maker', href: '/admin/logo-maker', icon: '🎨', color: 'pink', allowedRoles: ['admin', 'editor'] },
   { name: 'Categories', href: '/admin/categories', icon: '📁', color: 'purple', allowedRoles: ['admin', 'editor'] },
   { name: 'Offers', href: '/admin/offers', icon: '🎁', color: 'rose', allowedRoles: ['admin', 'editor'] },
   { name: 'Businesses', href: '/admin/businesses', icon: '🏪', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
-  { name: 'Shops', href: '/admin/shops', icon: '🏬', color: 'emerald', allowedRoles: ['admin', 'editor', 'operator'] },
-  { name: 'Shop Directory', href: '/admin/shops/directory', icon: '📂', color: 'teal', allowedRoles: ['admin', 'editor', 'operator'] },
-  { name: 'Pending Shops', href: '/admin/shops/pending', icon: '⏳', color: 'orange', allowedRoles: ['admin', 'editor'] },
   { name: 'New Shop (Image)', href: '/admin/shops/new-from-image', icon: '📸', color: 'cyan', allowedRoles: ['admin', 'editor'] },
   { name: 'Renew Shops', href: '/admin/shops/renew', icon: '🔄', color: 'orange', allowedRoles: ['admin', 'editor'] },
-  { name: 'Agents', href: '/admin/agents', icon: '👤', color: 'violet', allowedRoles: ['admin', 'editor'] },
-  { name: 'Agent Panel Settings', href: '/admin/agent-panel-settings', icon: '⚙️', color: 'indigo', allowedRoles: ['admin', 'editor'] },
-  { name: 'Operators', href: '/admin/operators', icon: '👔', color: 'green', allowedRoles: ['admin', 'editor'] },
-  { name: 'Shoppers', href: '/admin/shoppers', icon: '🛍️', color: 'pink', allowedRoles: ['admin', 'editor'] }, // Approve/Reject Shoppers - Admin Panel Left Sidebar
-  { name: 'Revenue', href: '/admin/revenue', icon: '💰', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
   { name: 'Reports & Analytics', href: '/admin/reports', icon: '📊', color: 'indigo', allowedRoles: ['admin', 'editor', 'operator'] },
   { name: 'Database', href: '/admin/database', icon: '🗄️', color: 'slate', allowedRoles: ['admin'] }, // Sirf Admin
   { name: 'Restore', href: '/admin/restore', icon: '🔄', color: 'red', allowedRoles: ['admin'] }, // Sirf Admin
@@ -91,7 +82,8 @@ export default function AdminLayout({
   const pathname = usePathname();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(false);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -227,7 +219,6 @@ export default function AdminLayout({
     if (user && filteredNavigation.length > 0) {
       console.log('User role:', user.role);
       console.log('Navigation items:', filteredNavigation.map(n => n.name));
-      console.log('Agent Panel Settings visible:', filteredNavigation.some(n => n.name === 'Agent Panel Settings'));
     }
   }, [user, filteredNavigation]);
 
@@ -268,39 +259,186 @@ export default function AdminLayout({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
+    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-red-50 via-amber-50 to-yellow-50">
+      {/* Backdrop Blur Overlay - Windows Media Player Style */}
+      {(leftSidebarOpen || rightSidebarOpen) && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => {
+            setLeftSidebarOpen(false);
+            setRightSidebarOpen(false);
+          }}
+          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm transition-all duration-500 ease-in-out"
         />
       )}
 
-      {/* Left Sidebar */}
+      {/* Top Bar - Always Fixed and Visible */}
+      <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-gradient-to-r from-red-50 via-amber-50 to-yellow-50 shadow-lg border-b border-red-200 backdrop-blur-md flex items-center justify-between px-4 sm:px-6">
+        {/* Left Sidebar Toggle Button */}
+        <button
+          onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
+          className="px-3 py-2 rounded-lg bg-gradient-to-r from-red-600 to-amber-600 text-white hover:from-red-700 hover:to-amber-700 transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 flex items-center gap-2"
+          aria-label="Toggle Navigation"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <span className="hidden sm:inline text-sm font-medium">Menu</span>
+        </button>
+
+        {/* Top Bar Navigation Items */}
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+          {/* All Payments */}
+          <Link
+            href="/admin/payments"
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 hover:shadow-sm flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+              pathname === '/admin/payments'
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'text-red-700 hover:text-red-600 hover:bg-red-50'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <span className="hidden sm:inline">All Payments</span>
+            <span className="sm:hidden">Payments</span>
+          </Link>
+
+          {/* Revenue */}
+          <Link
+            href="/admin/revenue"
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 hover:shadow-sm flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+              pathname === '/admin/revenue'
+                ? 'bg-amber-600 text-white hover:bg-amber-700'
+                : 'text-amber-700 hover:text-amber-600 hover:bg-amber-50'
+            }`}
+          >
+            <span>💰</span>
+            <span className="hidden sm:inline">Revenue</span>
+            <span className="sm:hidden">Revenue</span>
+          </Link>
+
+          {/* Shoppers */}
+          <Link
+            href="/admin/shoppers"
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 hover:shadow-sm flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+              pathname === '/admin/shoppers'
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'text-red-700 hover:text-red-600 hover:bg-red-50'
+            }`}
+          >
+            <span>🛍️</span>
+            <span className="hidden sm:inline">Shoppers</span>
+            <span className="sm:hidden">Shoppers</span>
+          </Link>
+
+          {/* Shops */}
+          <Link
+            href="/admin/shops"
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 hover:shadow-sm flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+              pathname === '/admin/shops' || pathname?.startsWith('/admin/shops/')
+                ? 'bg-amber-600 text-white hover:bg-amber-700'
+                : 'text-amber-700 hover:text-amber-600 hover:bg-amber-50'
+            }`}
+          >
+            <span>🏬</span>
+            <span className="hidden sm:inline">Shops</span>
+            <span className="sm:hidden">Shops</span>
+          </Link>
+
+          {/* Shop Directory */}
+          <Link
+            href="/admin/shops/directory"
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 hover:shadow-sm flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+              pathname === '/admin/shops/directory'
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'text-red-700 hover:text-red-600 hover:bg-red-50'
+            }`}
+          >
+            <span>📂</span>
+            <span className="hidden sm:inline">Directory</span>
+            <span className="sm:hidden">Dir</span>
+          </Link>
+
+          {/* Pending Shops */}
+          <Link
+            href="/admin/shops/pending"
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 hover:shadow-sm flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+              pathname === '/admin/shops/pending'
+                ? 'bg-amber-600 text-white hover:bg-amber-700'
+                : 'text-amber-700 hover:text-amber-600 hover:bg-amber-50'
+            }`}
+          >
+            <span>⏳</span>
+            <span className="hidden sm:inline">Pending</span>
+            <span className="sm:hidden">Pending</span>
+          </Link>
+        </div>
+
+        <div className="flex-1"></div>
+
+        {/* Right Side Controls */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <RealTimeClock />
+          <Link
+            href="/"
+            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-sm flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span className="hidden sm:inline">Back to Site</span>
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all duration-200 hover:shadow-sm flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span className="hidden sm:inline">Logout</span>
+          </button>
+          {/* Right Sidebar Toggle Button */}
+          <button
+            onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+            className="px-3 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-600 text-white hover:from-amber-700 hover:to-yellow-700 transition-all duration-200 shadow-md hover:shadow-lg active:scale-95 flex items-center gap-2"
+            aria-label="Toggle Settings"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="hidden sm:inline text-sm font-medium">Settings</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Left Sidebar - Windows Media Player Style Sliding */}
       <aside
         className={`
-          fixed lg:static inset-y-0 left-0 z-50
-          w-64 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 shadow-sm
-          transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          transition-transform duration-300 ease-in-out
-          flex flex-col
+          fixed top-16 left-0 z-30 h-[calc(100vh-4rem)] w-64
+          bg-gradient-to-b from-red-50 to-amber-50 border-r border-red-200 shadow-xl
+          transform transition-transform duration-500 ease-in-out
+          ${leftSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          flex flex-col rounded-r-2xl
         `}
       >
         {/* Sidebar Header */}
-        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 bg-white">
+        <div className="h-16 flex items-center justify-between px-6 border-b border-red-200 bg-gradient-to-r from-red-100 to-amber-100">
           <Link
             href="/admin"
-            className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent hover:opacity-80 transition-all duration-200 hover:scale-105"
-            onClick={() => setSidebarOpen(false)}
+            className="text-xl font-bold bg-gradient-to-r from-red-600 via-amber-600 to-yellow-600 bg-clip-text text-transparent hover:opacity-80 transition-all duration-200 hover:scale-105"
+            onClick={() => setLeftSidebarOpen(false)}
           >
             🚀 Admin Panel
           </Link>
           <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-gray-500 hover:text-gray-700"
+            onClick={() => setLeftSidebarOpen(false)}
+            className="text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-red-100 transition-colors"
+            aria-label="Close Navigation"
           >
-            ✕
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
@@ -329,7 +467,7 @@ export default function AdminLayout({
               <Link
                 key={item.name}
                 href={item.href}
-                onClick={() => setSidebarOpen(false)}
+                onClick={() => setLeftSidebarOpen(false)}
                 className={`
                   flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
                   ${colorClasses[item.color as keyof typeof colorClasses] || colorClasses.blue}
@@ -347,9 +485,9 @@ export default function AdminLayout({
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-gray-200 space-y-2">
+        <div className="p-4 border-t border-red-200 space-y-2">
           {/* User Info */}
-          <div className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-lg">
+          <div className="flex items-center gap-3 px-3 py-2 bg-gradient-to-r from-red-100 to-amber-100 rounded-lg">
             <div className="w-10 h-10 bg-custom-gradient rounded-full flex items-center justify-center text-gray-900 font-semibold text-sm">
               {user.name?.charAt(0).toUpperCase()}
             </div>
@@ -363,9 +501,9 @@ export default function AdminLayout({
           <div className="px-3">
             <div className={`
               px-3 py-1.5 rounded-lg text-xs font-semibold text-center
-              ${user.role === 'admin' ? 'bg-red-100 text-red-800' : ''}
-              ${user.role === 'editor' ? 'bg-blue-100 text-blue-800' : ''}
-              ${user.role === 'operator' ? 'bg-green-100 text-green-800' : ''}
+              ${user.role === 'admin' ? 'bg-red-200 text-red-900' : ''}
+              ${user.role === 'editor' ? 'bg-amber-200 text-amber-900' : ''}
+              ${user.role === 'operator' ? 'bg-yellow-200 text-yellow-900' : ''}
             `}>
               {user.role === 'admin' && '👑 Administrator'}
               {user.role === 'editor' && '✏️ Editor'}
@@ -386,51 +524,126 @@ export default function AdminLayout({
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Header */}
-        <header className="bg-white shadow-md border-b border-gray-200 sticky top-0 z-30 backdrop-blur-sm bg-white/95">
-          <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <div className="flex-1 lg:flex-none"></div>
-            <div className="flex items-center gap-3">
-              <RealTimeClock />
-              <Link
-                href="/"
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:shadow-sm flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back to Site
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all duration-200 hover:shadow-sm flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Logout
-              </button>
-            </div>
-          </div>
-        </header>
+      {/* Main Content Area - Full Width */}
+      <main className="pt-16 min-h-screen overflow-y-auto bg-gradient-to-br from-red-50 via-amber-50 to-yellow-50 w-full">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          {children}
+        </div>
+      </main>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 via-white to-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-            {children}
-          </div>
-        </main>
-      </div>
+      {/* Right Sidebar - Windows Media Player Style Sliding */}
+      <aside
+        className={`
+          fixed top-16 right-0 z-30 h-[calc(100vh-4rem)] w-64
+          bg-gradient-to-b from-amber-50 to-red-50 border-l border-amber-200 shadow-xl
+          transform transition-transform duration-500 ease-in-out
+          ${rightSidebarOpen ? 'translate-x-0' : 'translate-x-full'}
+          flex flex-col rounded-l-2xl
+        `}
+      >
+        {/* Right Sidebar Header */}
+        <div className="h-16 flex items-center justify-between px-6 border-b border-amber-200 bg-gradient-to-r from-amber-100 to-red-100">
+          <h2 className="text-lg font-bold bg-gradient-to-r from-amber-600 via-red-600 to-yellow-600 bg-clip-text text-transparent">
+            Management
+          </h2>
+          <button
+            onClick={() => setRightSidebarOpen(false)}
+            className="text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-amber-100 transition-colors"
+            aria-label="Close Settings"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Right Sidebar Navigation */}
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          {/* Users - Only for Admin */}
+          {user && user.role === 'admin' && (
+            <Link
+              href="/admin/users"
+              onClick={() => setRightSidebarOpen(false)}
+              className={`
+                flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                ${pathname === '/admin/users'
+                  ? 'bg-red-50 text-red-700 border-l-4 border-red-600 shadow-sm scale-[1.02]'
+                  : 'text-gray-700 hover:bg-red-50 hover:text-red-600 hover:scale-[1.01]'
+                }
+              `}
+            >
+              <span className="text-xl">👥</span>
+              <span className="flex-1">Users</span>
+              {pathname === '/admin/users' && (
+                <span className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>
+              )}
+            </Link>
+          )}
+
+          {/* Agents */}
+          {user && (user.role === 'admin' || user.role === 'editor') && (
+            <Link
+              href="/admin/agents"
+              onClick={() => setRightSidebarOpen(false)}
+              className={`
+                flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                ${pathname === '/admin/agents' || pathname?.startsWith('/admin/agents/')
+                  ? 'bg-amber-50 text-amber-700 border-l-4 border-amber-600 shadow-sm scale-[1.02]'
+                  : 'text-gray-700 hover:bg-amber-50 hover:text-amber-600 hover:scale-[1.01]'
+                }
+              `}
+            >
+              <span className="text-xl">👤</span>
+              <span className="flex-1">Agents</span>
+              {(pathname === '/admin/agents' || pathname?.startsWith('/admin/agents/')) && (
+                <span className="w-2 h-2 bg-amber-600 rounded-full animate-pulse"></span>
+              )}
+            </Link>
+          )}
+
+          {/* Operators */}
+          {user && (user.role === 'admin' || user.role === 'editor') && (
+            <Link
+              href="/admin/operators"
+              onClick={() => setRightSidebarOpen(false)}
+              className={`
+                flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                ${pathname === '/admin/operators' || pathname?.startsWith('/admin/operators/')
+                  ? 'bg-yellow-50 text-yellow-700 border-l-4 border-yellow-600 shadow-sm scale-[1.02]'
+                  : 'text-gray-700 hover:bg-yellow-50 hover:text-yellow-600 hover:scale-[1.01]'
+                }
+              `}
+            >
+              <span className="text-xl">👔</span>
+              <span className="flex-1">Operators</span>
+              {(pathname === '/admin/operators' || pathname?.startsWith('/admin/operators/')) && (
+                <span className="w-2 h-2 bg-yellow-600 rounded-full animate-pulse"></span>
+              )}
+            </Link>
+          )}
+
+          {/* Agent Panel Settings */}
+          {user && (user.role === 'admin' || user.role === 'editor') && (
+            <Link
+              href="/admin/agent-panel-settings"
+              onClick={() => setRightSidebarOpen(false)}
+              className={`
+                flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                ${pathname === '/admin/agent-panel-settings'
+                  ? 'bg-red-50 text-red-700 border-l-4 border-red-600 shadow-sm scale-[1.02]'
+                  : 'text-gray-700 hover:bg-red-50 hover:text-red-600 hover:scale-[1.01]'
+                }
+              `}
+            >
+              <span className="text-xl">⚙️</span>
+              <span className="flex-1">Agent Panel Settings</span>
+              {pathname === '/admin/agent-panel-settings' && (
+                <span className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>
+              )}
+            </Link>
+          )}
+        </nav>
+      </aside>
     </div>
   );
 }

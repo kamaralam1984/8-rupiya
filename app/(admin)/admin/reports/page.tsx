@@ -226,10 +226,10 @@ export default function AdminReportsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 w-full">
       {/* Header */}
       <header className={`bg-white shadow-sm sticky top-0 z-10 transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link href="/admin" className="text-gray-600 hover:text-gray-900">
@@ -260,7 +260,7 @@ export default function AdminReportsPage() {
         </div>
       </header>
 
-      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-700 delay-100 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+      <main className={`w-full px-4 sm:px-6 lg:px-8 py-8 transition-all duration-700 delay-100 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Debug Panel - Only show if no data */}
         {(!revenueData || !agentPerformance.length || !shopSummary) && (
           <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 mb-6">

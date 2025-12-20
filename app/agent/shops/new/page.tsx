@@ -261,8 +261,8 @@ export default function AddNewShopPage() {
     setStep(3); // Ab Step 3: Photo Upload
   };
 
-  // Compress and resize image: 1920x1920px, WebP format, max 1MB
-  const compressImage = (file: File, targetWidth: number = 1920, targetHeight: number = 1920, maxSizeKB: number = 1024): Promise<File> => {
+  // Compress and resize image: 1200x800px, WebP format, max 200KB
+  const compressImage = (file: File, targetWidth: number = 1200, targetHeight: number = 800, maxSizeKB: number = 200): Promise<File> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -279,7 +279,7 @@ export default function AddNewShopPage() {
             return;
           }
 
-          // Calculate scaling to fit within 1920x1920 while maintaining aspect ratio (limit mode, no crop)
+          // Calculate scaling to fill 1200x800 while maintaining aspect ratio (crop if needed)
           const imgAspect = img.width / img.height;
           const targetAspect = targetWidth / targetHeight;
           
@@ -288,17 +288,16 @@ export default function AddNewShopPage() {
           let drawX = 0;
           let drawY = 0;
 
-          // Scale to fit within target dimensions (limit mode - maintain aspect ratio, no crop)
           if (imgAspect > targetAspect) {
-            // Image is wider - fit width, scale height proportionally
-            drawWidth = targetWidth;
-            drawHeight = img.height * (targetWidth / img.width);
-            drawY = (targetHeight - drawHeight) / 2; // Center vertically
-          } else {
-            // Image is taller - fit height, scale width proportionally
+            // Image is wider - fit height and crop width
             drawHeight = targetHeight;
             drawWidth = img.width * (targetHeight / img.height);
-            drawX = (targetWidth - drawWidth) / 2; // Center horizontally
+            drawX = (targetWidth - drawWidth) / 2;
+          } else {
+            // Image is taller - fit width and crop height
+            drawWidth = targetWidth;
+            drawHeight = img.height * (targetWidth / img.width);
+            drawY = (targetHeight - drawHeight) / 2;
           }
 
           // Fill background with white (optional, can be transparent)
@@ -366,9 +365,9 @@ export default function AddNewShopPage() {
     setLoading(true);
 
     try {
-      // Always compress and resize image: 1920x1920px, WebP format, max 1MB
-      setError('Processing image (resizing to max 1920x1920px, converting to WebP, max 1MB)...');
-      const fileToUpload = await compressImage(file, 1920, 1920, 1024);
+      // Always compress and resize image: 1200x800px, WebP format, max 200KB
+      setError('Processing image (resizing to 1200x800px, converting to WebP)...');
+      const fileToUpload = await compressImage(file, 1200, 800, 200);
       setError(''); // Clear compression message
 
       // Preview
@@ -435,8 +434,8 @@ export default function AddNewShopPage() {
         if (!file.type.startsWith('image/')) {
           throw new Error(`${file.name} is not an image file`);
         }
-        // Always compress and resize image: 1920x1920px, WebP format, max 1MB
-        const fileToUpload = await compressImage(file, 1920, 1920, 1024);
+        // Always compress and resize image: 1200x800px, WebP format, max 200KB
+        const fileToUpload = await compressImage(file, 1200, 800, 200);
 
         const uploadFormData = new FormData();
         uploadFormData.append('file', fileToUpload);
@@ -1166,7 +1165,7 @@ export default function AddNewShopPage() {
                       <div className="space-y-4">
                     <div className="text-center">
                       <p className="text-gray-700 font-semibold mb-2">Upload Shop Photo (Required)</p>
-                      <p className="text-gray-500 text-sm mb-4">PNG, JPG, WEBP, GIF (MAX. 1MB after compression)</p>
+                      <p className="text-gray-500 text-sm mb-4">Maximum size: 3MB</p>
                           {PRICING_PLANS[formData.planType].maxPhotos === 1 && (
                         <p className="text-xs text-orange-600 mb-4">
                               ⚠️ This plan allows only 1 photo

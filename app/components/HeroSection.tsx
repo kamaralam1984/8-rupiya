@@ -316,7 +316,9 @@ export default function HeroSection({ category }: HeroSectionProps) {
           // IMPORTANT: Homepage पर सिर्फ AgentShop से shops fetch करें (Shop.ts से नहीं)
           // Only fetch all shops if no search filters are active (page load)
           if (!isSearchActive) {
-            console.log('🌍 Page Load: Fetching shops from AgentShop only for homepage...');
+            if (process.env.NODE_ENV === 'development') {
+              console.log('🌍 Page Load: Fetching shops from AgentShop only for homepage...');
+            }
             // Limit to 100 shops max for better performance
             let allLocationsUrl = '/api/shops/nearby?radiusKm=1000&useMongoDB=true&limit=100';
             if (location.latitude && location.longitude) {
@@ -334,7 +336,9 @@ export default function HeroSection({ category }: HeroSectionProps) {
               const parsed = await safeJsonParse(allLocationsRes);
               if (parsed?.shops && parsed.shops.length > 0) {
                 allShopsData = parsed;
-                console.log(`🌍 Page Load: Fetched ${parsed.shops.length} unique shops from AgentShop (ALL shops, duplicates removed) for homepage`);
+                if (process.env.NODE_ENV === 'development') {
+                  console.log(`🌍 Page Load: Fetched ${parsed.shops.length} unique shops from AgentShop (ALL shops, duplicates removed) for homepage`);
+                }
               }
             }
           }
