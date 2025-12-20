@@ -4,13 +4,15 @@ import User from '@/models/User';
 import Agent from '@/lib/models/Agent';
 import { generateToken } from '@/lib/jwt';
 import { generateAgentToken } from '@/lib/utils/agentAuth';
+import { withSecurity } from '@/lib/security/api-security';
+import { isValidEmail } from '@/lib/security/validation';
 
 /**
  * Login endpoint - Direct login with email and password
  * Returns JWT token on successful authentication
  * Supports role-based login: user, admin, editor, operator, agent
  */
-export async function POST(request: NextRequest) {
+async function loginHandler(request: NextRequest) {
   try {
     // Connect to database
     await connectDB();
@@ -19,10 +21,26 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, password, role = 'user' } = body;
 
-    // Validation
+    // Enhanced validation
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    if (!isValidEmail(email)) {
+      return NextResponse.json(
+        { error: 'Invalid email format' },
+        { status: 400 }
+      );
+    }
+
+    // Validate password length
+    if (password.length < 6 || password.length > 128) {
+      return NextResponse.json(
+        { error: 'Invalid password' },
         { status: 400 }
       );
     }
@@ -234,4 +252,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Export with security wrapper - reasonable rate limiting for auth routes
+export const POST = withSecurity(loginHandler, {
+  rateLimit: {
+    maxRequests: 10, // 10 login attempts per 15 minutes (more reasonable)
+    windowMs: 15 * 60 * 1000, // 15 minutes
+  },
+  maxRequestSize: 1024, // 1KB max for login requests
+});
 

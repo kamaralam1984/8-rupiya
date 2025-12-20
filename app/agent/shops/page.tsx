@@ -270,6 +270,18 @@ export default function MyShopsPage() {
                         </p>
                       </div>
                     </Link>
+                    
+                    {/* Payment Button for Pending Shops */}
+                    {shop.paymentStatus === 'PENDING' && (
+                      <div className="p-4 pt-0">
+                        <Link
+                          href={`/agent/shops/${shop._id}/pay`}
+                          className="block w-full px-4 py-2 bg-green-600 text-white text-center rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                        >
+                          💳 Pay Now
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

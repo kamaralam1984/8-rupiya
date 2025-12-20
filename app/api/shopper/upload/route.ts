@@ -57,11 +57,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
+    // Validate file size (max 10MB for upload, will be compressed to 1MB)
+    const maxUploadSize = 10 * 1024 * 1024; // 10MB max upload
+    if (file.size > maxUploadSize) {
       return NextResponse.json(
-        { success: false, error: 'File size too large. Maximum size is 5MB.' },
+        { success: false, error: 'File size too large. Maximum size is 10MB (will be compressed to 1MB).' },
         { status: 400 }
       );
     }
@@ -74,13 +74,24 @@ export async function POST(request: NextRequest) {
     const base64Data = buffer.toString('base64');
     const dataUri = `data:${file.type};base64,${base64Data}`;
 
-    // Upload to Cloudinary
+    // Upload to Cloudinary with compression to max 1MB:
+    // - Resize to max 1920x1920px (maintain aspect ratio)
+    // - Convert to WebP format for better compression
+    // - Compress to max 1MB
     const uploadResult = await cloudinary.uploader.upload(dataUri, {
       folder: 'shops',
       resource_type: 'image',
+      format: 'webp', // Force WebP format for better compression
       transformation: [
-        { width: 1200, height: 800, crop: 'limit' }, // Limit max dimensions
-        { quality: 'auto' }, // Auto quality optimization
+        { 
+          width: 1920, 
+          height: 1920, 
+          crop: 'limit', // Limit max dimensions, maintain aspect ratio
+        },
+        { 
+          quality: 'auto:good', // Auto quality optimization (targets ~1MB)
+          fetch_format: 'webp', // Ensure WebP format
+        },
       ],
     });
 

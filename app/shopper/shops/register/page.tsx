@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useShopperAuth } from '@/app/contexts/ShopperAuthContext';
 import Image from 'next/image';
 import { PRICING_PLANS, PlanType } from '@/app/utils/pricing';
-import AgentRazorpayQRPayment from '@/app/components/AgentRazorpayQRPayment';
+import RazorpayPayment from '@/app/components/RazorpayPayment';
 import toast from 'react-hot-toast';
 
 interface FormData {
@@ -93,8 +93,9 @@ export default function RegisterShopPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image size should be less than 5MB');
+    // Validate file size (10MB max for upload, will be compressed to 1MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size should be less than 10MB (will be compressed to 1MB)');
       return;
     }
 
@@ -243,6 +244,7 @@ export default function RegisterShopPage() {
       return;
     }
 
+    // Demo payment check is handled in payment step, not here
 
     if (formData.paymentStatus === 'PENDING') {
       toast.error('Please complete payment first');
@@ -648,7 +650,7 @@ export default function RegisterShopPage() {
             const currentPlan = PRICING_PLANS[validPlanType];
             
             // Check if required shop details are filled
-            // If payment is already PAID, allow proceeding
+            // If payment is already PAID (via demo payment), allow proceeding
             const hasRequiredDetails = formData.paymentStatus === 'PAID' || 
               (formData.shopName && formData.ownerName && formData.mobile && formData.address && formData.pincode);
             
@@ -679,21 +681,61 @@ export default function RegisterShopPage() {
                 </div>
               )}
 
-              {/* Regular Razorpay Payment - Always Enabled */}
-              {formData.paymentStatus !== 'PAID' ? (
-                <AgentRazorpayQRPayment
-                  shopName={formData.shopName.trim() || 'Shop'}
-                  ownerName={formData.ownerName.trim() || ''}
-                  mobile={formData.mobile.trim() || ''}
-                  email={shopper?.email}
-                  planType={validPlanType}
-                  amount={formData.amount || currentPlan.amount}
-                  onPaymentSuccess={() => {
-                    setFormData({ ...formData, paymentStatus: 'PAID' });
-                    toast.success('Payment successful! You can now submit your shop.');
-                  }}
-                />
-              ) : (
+              {/* Razorpay Online Payment - Show when PENDING */}
+              {formData.paymentStatus !== 'PAID' && shopper && (
+                <div className="p-5 border-2 border-blue-400 rounded-xl bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 shadow-lg mb-4">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-3xl">💳</span>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">
+                        Razorpay Online Payment
+                      </h3>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Secure online payment gateway
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-4 mb-4 border border-blue-200">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-600">Plan:</span>
+                      <span className="font-semibold text-gray-900">{currentPlan.name}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Amount:</span>
+                      <span className="text-2xl font-bold text-blue-600">₹{formData.amount || currentPlan.amount}</span>
+                    </div>
+                  </div>
+
+                  <RazorpayPayment
+                    shopId="" // Empty for new shop registration
+                    planType={validPlanType}
+                    customerName={formData.ownerName.trim() || ''}
+                    customerEmail={shopper?.email}
+                    customerPhone={formData.mobile.trim() || ''}
+                    userType="shopper"
+                    shopperId={shopper.id}
+                    onSuccess={(response) => {
+                      setFormData({ ...formData, paymentStatus: 'PAID' });
+                      toast.success('✅ Payment successful! You can now submit your shop.');
+                    }}
+                    onError={(error) => {
+                      toast.error(error.message || 'Payment failed');
+                    }}
+                    buttonText={`💳 Pay ₹${formData.amount || currentPlan.amount} Securely`}
+                    buttonClassName="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
+                  />
+                  
+                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-xs text-yellow-800 text-center">
+                      <strong>Test Mode:</strong> Use card <strong>4111 1111 1111 1111</strong> | CVV: Any 3 digits | Expiry: Any future date
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Completed Status - Payment Success Message */}
+              {formData.paymentStatus === 'PAID' && (
                 <div className="bg-green-50 border-2 border-green-300 rounded-xl p-6 text-center">
                   <div className="text-4xl mb-2">✅</div>
                   <h3 className="text-lg font-bold text-green-800 mb-2">Payment Completed</h3>

@@ -132,7 +132,7 @@ export default function ShopperDashboard() {
                   )}
                   <h3 className="font-bold text-gray-900 mb-1">{shop.shopName}</h3>
                   <p className="text-sm text-gray-600 mb-2">{shop.category}</p>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-3">
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${
                       shop.paymentStatus === 'PAID'
                         ? 'bg-green-100 text-green-700'
@@ -147,6 +147,16 @@ export default function ShopperDashboard() {
                       View →
                     </Link>
                   </div>
+                  
+                  {/* Payment Button for Pending Shops */}
+                  {shop.paymentStatus === 'PENDING' && (
+                    <Link
+                      href={`/shopper/shops/${shop._id}/pay`}
+                      className="block w-full px-4 py-2 bg-green-600 text-white text-center rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm"
+                    >
+                      💳 Pay Now
+                    </Link>
+                  )}
                 </div>
               ))}
             </div>
@@ -156,5 +166,6 @@ export default function ShopperDashboard() {
     </div>
   );
 }
+
 
 

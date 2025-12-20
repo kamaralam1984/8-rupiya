@@ -7,7 +7,7 @@ export interface IPayment extends Document {
   paymentSignature?: string; // Razorpay payment signature
   
   // Shop and Agent details
-  shopId: Types.ObjectId; // Reference to AgentShop
+  shopId?: Types.ObjectId; // Reference to AgentShop (optional for new shop registration)
   agentId?: Types.ObjectId; // Reference to Agent (optional, for direct shopkeeper payments)
   
   // Payment details
@@ -17,7 +17,7 @@ export interface IPayment extends Document {
   
   // Payment status
   status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED' | 'REFUNDED';
-  paymentMode: 'CASH' | 'UPI' | 'ONLINE'; // Payment mode
+  paymentMode: 'CASH' | 'UPI'; // Payment mode
   
   // Customer details
   customerName: string;
@@ -71,7 +71,7 @@ const PaymentSchema = new Schema<IPayment>(
     shopId: {
       type: Schema.Types.ObjectId,
       ref: 'AgentShop',
-      required: true,
+      required: false, // Optional for new shop registration
       index: true,
     },
     agentId: {
@@ -102,7 +102,7 @@ const PaymentSchema = new Schema<IPayment>(
     },
     paymentMode: {
       type: String,
-      enum: ['CASH', 'UPI', 'ONLINE'],
+      enum: ['CASH', 'UPI'],
       default: 'CASH',
     },
     customerName: {

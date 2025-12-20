@@ -26,11 +26,11 @@ export const POST = requireAdmin(async (request: NextRequest) => {
       );
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
+    // Validate file size (max 10MB for upload, will be compressed to 1MB)
+    const maxUploadSize = 10 * 1024 * 1024; // 10MB max upload
+    if (file.size > maxUploadSize) {
       return NextResponse.json(
-        { error: 'File size too large. Maximum size is 5MB.' },
+        { error: 'File size too large. Maximum size is 10MB (will be compressed to 1MB).' },
         { status: 400 }
       );
     }

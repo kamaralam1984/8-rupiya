@@ -83,10 +83,10 @@ export default function TestRazorpayPayment({
       // Create order - shopId is optional for testing
       const orderBody: any = {
         planType: selectedPlan,
-        gateway: 'RAZORPAY',
         customerName: ownerName,
         customerEmail: email || `${mobile}@test.com`,
         customerPhone: mobile,
+        userType: 'agent',
         agentId: currentAgentId,
       };
 
@@ -116,44 +116,30 @@ export default function TestRazorpayPayment({
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create order');
-      }
-
-      if (!data.success || !data.order) {
-        throw new Error('Invalid response from server');
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || data.error || 'Failed to create order');
       }
 
       // Initialize Razorpay checkout
       const options = {
-        key: data.order.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: data.order.amount,
-        currency: data.order.currency || 'INR',
+        key: data.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: data.amount,
+        currency: data.currency || 'INR',
         name: '8rupiya.com',
         description: `Payment for ${planDetails.name} Plan`,
-        order_id: data.order.id,
+        order_id: data.orderId,
         handler: async function (response: any) {
           try {
-            // Get token for verification
-            const verifyToken = typeof window !== 'undefined' ? localStorage.getItem('agent_token') : null;
-            
-            const verifyHeaders: HeadersInit = {
-              'Content-Type': 'application/json',
-            };
-            
-            if (verifyToken) {
-              verifyHeaders['Authorization'] = `Bearer ${verifyToken}`;
-            }
-
             // Verify payment
-            const verifyResponse = await fetch('/api/payment/verify-razorpay', {
+            const verifyResponse = await fetch('/api/payment/verify', {
               method: 'POST',
-              headers: verifyHeaders,
+              headers: {
+                'Content-Type': 'application/json',
+              },
               body: JSON.stringify({
-                orderId: response.razorpay_order_id,
-                paymentId: response.razorpay_payment_id,
-                signature: response.razorpay_signature,
-                shopId: shopId || '',
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
               }),
             });
 
@@ -163,7 +149,7 @@ export default function TestRazorpayPayment({
               toast.success('Payment successful!');
               window.location.reload();
             } else {
-              toast.error(verifyData.error || 'Payment verification failed');
+              toast.error(verifyData.message || 'Payment verification failed');
             }
           } catch (error: any) {
             toast.error(error.message || 'Payment verification failed');

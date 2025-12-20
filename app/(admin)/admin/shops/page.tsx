@@ -1321,6 +1321,10 @@ export default function ShopsPage() {
 
 // Edit Shop Form Component
 function EditShopForm({ shop, categories, onClose, onSave }: { shop: Shop; categories: Array<{ _id: string; name: string; slug: string }>; onClose: () => void; onSave: (shop: Partial<Shop>) => void }) {
+  const { token } = useAuth();
+  const [uploading, setUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState({
     shopName: shop.shopName || shop.name || '',
     ownerName: shop.ownerName || '',
@@ -1334,6 +1338,57 @@ function EditShopForm({ shop, categories, onClose, onSave }: { shop: Shop; categ
     longitude: shop.longitude?.toString() || '',
     photoUrl: shop.photoUrl || shop.imageUrl || shop.iconUrl || '',
   });
+
+  // Set initial image preview
+  useEffect(() => {
+    if (formData.photoUrl) {
+      setImagePreview(formData.photoUrl);
+    }
+  }, [formData.photoUrl]);
+
+  // Handle image upload
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (10MB max for upload, will be compressed to 1MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB (will be compressed to 1MB)');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+      uploadFormData.append('section', 'shops');
+
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: uploadFormData,
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setFormData({ ...formData, photoUrl: data.url });
+        setImagePreview(data.url);
+        toast.success('Image uploaded successfully');
+      } else {
+        toast.error(data.error || 'Failed to upload image');
+      }
+    } catch (error) {
+      toast.error('Failed to upload image');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1429,14 +1484,69 @@ function EditShopForm({ shop, categories, onClose, onSave }: { shop: Shop; categ
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Photo URL</label>
-          <input
-            type="url"
-            value={formData.photoUrl}
-            onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-          />
+      </div>
+      
+      {/* Shop Image Upload Section */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Shop Image</label>
+        
+        {/* Image Preview */}
+        {imagePreview && (
+          <div className="mb-3">
+            <Image
+              src={imagePreview}
+              alt="Shop preview"
+              width={200}
+              height={200}
+              className="rounded-lg border border-gray-300 object-cover"
+            />
+          </div>
+        )}
+        
+        {/* Image Upload */}
+        <div className="space-y-2">
+          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+              {uploading ? (
+                <>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                  <p className="text-sm text-gray-600">Uploading...</p>
+                </>
+              ) : (
+                <>
+                  <svg className="w-8 h-8 mb-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-semibold">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-gray-500">PNG, JPG, WEBP, GIF (MAX. 1MB after compression)</p>
+                </>
+              )}
+            </div>
+            <input
+              type="file"
+              className="hidden"
+              accept="image/*"
+              onChange={handleImageUpload}
+              disabled={uploading}
+            />
+          </label>
+          
+          {/* Manual URL Input */}
+          <div className="mt-2">
+            <label className="block text-xs text-gray-600 mb-1">Or enter image URL manually:</label>
+            <input
+              type="url"
+              value={formData.photoUrl}
+              onChange={(e) => {
+                setFormData({ ...formData, photoUrl: e.target.value });
+                setImagePreview(e.target.value || null);
+              }}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              placeholder="https://example.com/image.jpg"
+            />
+          </div>
         </div>
       </div>
       <div>

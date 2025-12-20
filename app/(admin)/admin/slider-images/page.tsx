@@ -311,7 +311,7 @@ export default function SliderImagesPage() {
                             Choose image from your computer
                           </span>
                           <span className="mt-1 block text-xs text-gray-500">
-                            PNG, JPG, GIF, WebP up to 5MB
+                            PNG, JPG, GIF, WebP (MAX. 1MB after compression)
                           </span>
                           <input
                             type="file"
@@ -450,16 +450,19 @@ export default function SliderImagesPage() {
                       onChange={(e) => setFormData({ ...formData, transitionEffect: e.target.value as SliderImage['transitionEffect'] })}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all bg-white"
                     >
-                      <option value="fade">Fade</option>
-                      <option value="slide">Slide</option>
-                      <option value="zoom">Zoom</option>
-                      <option value="flip">Flip</option>
-                      <option value="cube">Cube</option>
-                      <option value="coverflow">Coverflow</option>
-                      <option value="cards">Cards</option>
-                      <option value="creative">Creative</option>
-                      <option value="shuffle">Shuffle</option>
+                      <option value="fade">Fade - Smooth fade transition</option>
+                      <option value="slide">Slide - Horizontal slide</option>
+                      <option value="zoom">Zoom - Zoom in/out effect</option>
+                      <option value="flip">Flip - 3D flip effect</option>
+                      <option value="cube">Cube - 3D cube rotation</option>
+                      <option value="coverflow">Coverflow - Cover flow effect</option>
+                      <option value="cards">Cards - Card stack effect</option>
+                      <option value="creative">Creative - Creative transitions</option>
+                      <option value="shuffle">Shuffle - Shuffle animation</option>
                     </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      💡 Choose transition effect for slider animation
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -54,10 +54,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 5MB for original upload, will be compressed)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate file size (max 10MB for original upload, will be compressed to 1MB)
+    if (file.size > 10 * 1024 * 1024) {
       return NextResponse.json(
-        { success: false, error: 'File size must be less than 5MB' },
+        { success: false, error: 'File size must be less than 10MB (will be compressed to 1MB)' },
         { status: 400 }
       );
     }
@@ -70,25 +70,34 @@ export async function POST(request: NextRequest) {
     const base64Data = buffer.toString('base64');
     const dataUri = `data:${file.type};base64,${base64Data}`;
 
-    // Upload to Cloudinary with specific transformations:
-    // - Resize to exactly 1200x800px (fill mode with crop)
-    // - Convert to WebP format
-    // - Compress to max 200KB
+    // Upload to Cloudinary with compression to max 1MB:
+    // - Resize to max 1920x1920px (maintain aspect ratio)
+    // - Convert to WebP format for better compression
+    // - Compress to max 1MB
     const uploadResult = await cloudinary.uploader.upload(dataUri, {
       folder: 'shops',
       resource_type: 'image',
-      format: 'webp', // Force WebP format
+      format: 'webp', // Force WebP format for better compression
       transformation: [
         { 
-          width: 1200, 
-          height: 800, 
-          crop: 'fill', // Fill and crop to exact dimensions
-          gravity: 'center', // Center the crop
+          width: 1920, 
+          height: 1920, 
+          crop: 'limit', // Limit max dimensions, maintain aspect ratio
         },
         { 
-          quality: 'auto:low', // Lower quality to ensure file size under 200KB
+          quality: 'auto:good', // Auto quality optimization (targets ~1MB)
           fetch_format: 'webp', // Ensure WebP format
         },
+      ],
+      // Additional compression settings
+      eager: [
+        {
+          width: 1920,
+          height: 1920,
+          crop: 'limit',
+          quality: 'auto:good',
+          fetch_format: 'webp',
+        }
       ],
     });
 

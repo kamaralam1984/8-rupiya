@@ -6,7 +6,6 @@ import AgentRouteGuard from '@/app/components/AgentRouteGuard';
 import Image from 'next/image';
 import { PRICING_PLANS, PlanType } from '@/app/utils/pricing';
 import SEOModal from '@/app/components/SEOModal';
-import AgentRazorpayQRPayment from '@/app/components/AgentRazorpayQRPayment';
 import toast from 'react-hot-toast';
 
 interface FormData {
@@ -26,7 +25,7 @@ interface FormData {
   latitude: number | null;
   longitude: number | null;
   paymentStatus: 'PAID' | 'PENDING';
-  paymentMode: 'ONLINE' | 'NONE';
+  paymentMode: 'CASH' | 'UPI' | 'NONE';
   receiptNo: string;
   amount: number;
   planType: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_SIDE' | 'BOTTOM_RAIL' | 'BANNER' | 'HERO';
@@ -56,7 +55,6 @@ export default function AddNewShopPage() {
   const [verifyingOTP, setVerifyingOTP] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [showSEOModal, setShowSEOModal] = useState(false);
-  const [pendingSEOData, setPendingSEOData] = useState<{ ranking: number } | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     shopName: '',
@@ -72,7 +70,7 @@ export default function AddNewShopPage() {
     latitude: null,
     longitude: null,
     paymentStatus: 'PENDING',
-    paymentMode: 'ONLINE',
+    paymentMode: 'NONE',
     receiptNo: '',
     amount: 100,
     planType: 'BASIC', // Default plan, lekin pehle step mein select karna hoga
@@ -263,8 +261,8 @@ export default function AddNewShopPage() {
     setStep(3); // Ab Step 3: Photo Upload
   };
 
-  // Compress and resize image: 1200x800px, WebP format, max 200KB
-  const compressImage = (file: File, targetWidth: number = 1200, targetHeight: number = 800, maxSizeKB: number = 200): Promise<File> => {
+  // Compress and resize image: 1920x1920px, WebP format, max 1MB
+  const compressImage = (file: File, targetWidth: number = 1920, targetHeight: number = 1920, maxSizeKB: number = 1024): Promise<File> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -281,7 +279,7 @@ export default function AddNewShopPage() {
             return;
           }
 
-          // Calculate scaling to fill 1200x800 while maintaining aspect ratio (crop if needed)
+          // Calculate scaling to fit within 1920x1920 while maintaining aspect ratio (limit mode, no crop)
           const imgAspect = img.width / img.height;
           const targetAspect = targetWidth / targetHeight;
           
@@ -290,16 +288,17 @@ export default function AddNewShopPage() {
           let drawX = 0;
           let drawY = 0;
 
+          // Scale to fit within target dimensions (limit mode - maintain aspect ratio, no crop)
           if (imgAspect > targetAspect) {
-            // Image is wider - fit height and crop width
-            drawHeight = targetHeight;
-            drawWidth = img.width * (targetHeight / img.height);
-            drawX = (targetWidth - drawWidth) / 2;
-          } else {
-            // Image is taller - fit width and crop height
+            // Image is wider - fit width, scale height proportionally
             drawWidth = targetWidth;
             drawHeight = img.height * (targetWidth / img.width);
-            drawY = (targetHeight - drawHeight) / 2;
+            drawY = (targetHeight - drawHeight) / 2; // Center vertically
+          } else {
+            // Image is taller - fit height, scale width proportionally
+            drawHeight = targetHeight;
+            drawWidth = img.width * (targetHeight / img.height);
+            drawX = (targetWidth - drawWidth) / 2; // Center horizontally
           }
 
           // Fill background with white (optional, can be transparent)
@@ -367,9 +366,9 @@ export default function AddNewShopPage() {
     setLoading(true);
 
     try {
-      // Always compress and resize image: 1200x800px, WebP format, max 200KB
-      setError('Processing image (resizing to 1200x800px, converting to WebP)...');
-      const fileToUpload = await compressImage(file, 1200, 800, 200);
+      // Always compress and resize image: 1920x1920px, WebP format, max 1MB
+      setError('Processing image (resizing to max 1920x1920px, converting to WebP, max 1MB)...');
+      const fileToUpload = await compressImage(file, 1920, 1920, 1024);
       setError(''); // Clear compression message
 
       // Preview
@@ -436,8 +435,8 @@ export default function AddNewShopPage() {
         if (!file.type.startsWith('image/')) {
           throw new Error(`${file.name} is not an image file`);
         }
-        // Always compress and resize image: 1200x800px, WebP format, max 200KB
-        const fileToUpload = await compressImage(file, 1200, 800, 200);
+        // Always compress and resize image: 1920x1920px, WebP format, max 1MB
+        const fileToUpload = await compressImage(file, 1920, 1920, 1024);
 
         const uploadFormData = new FormData();
         uploadFormData.append('file', fileToUpload);
@@ -732,89 +731,6 @@ export default function AddNewShopPage() {
 
       const data = await response.json();
       if (data.success) {
-        // Save SEO data if user has provided it
-        if (pendingSEOData) {
-          try {
-            // First, try to fetch best SEO entry (ranking = 1) for auto-fill
-            let bestSEOData: any = null;
-            try {
-              const bestSEOResponse = await fetch(`/api/seo?category=${encodeURIComponent(trimmedCategory)}${trimmedArea ? `&area=${encodeURIComponent(trimmedArea)}` : ''}`);
-              const bestSEOResult = await bestSEOResponse.json();
-              if (bestSEOResult.success && bestSEOResult.seo && bestSEOResult.seo.length > 0) {
-                // Find entry with ranking = 1
-                const bestSEO = bestSEOResult.seo
-                  .filter((entry: any) => entry.ranking === 1)
-                  .sort((a: any, b: any) => {
-                    if (trimmedArea) {
-                      if (a.area?.toLowerCase() === trimmedArea.toLowerCase()) return -1;
-                      if (b.area?.toLowerCase() === trimmedArea.toLowerCase()) return 1;
-                    }
-                    return 0;
-                  })[0] || bestSEOResult.seo[0];
-                bestSEOData = bestSEO;
-              }
-            } catch (fetchError) {
-              console.log('Could not fetch best SEO for auto-fill, continuing without it');
-            }
-
-            // Merge best SEO data with user's ranking
-            const seoPayload: any = {
-              shopName: trimmedShopName,
-              area: trimmedArea || '',
-              category: trimmedCategory,
-              pincode: trimmedPincode,
-              emailId: trimmedEmail,
-              ranking: pendingSEOData.ranking,
-              shopId: data.shop._id,
-              shopUrl: data.shop.shopUrl,
-            };
-
-            // Auto-fill from best SEO if available
-            if (bestSEOData) {
-              seoPayload.metaTitle = bestSEOData.metaTitle;
-              seoPayload.metaDescription = bestSEOData.metaDescription;
-              seoPayload.metaKeywords = bestSEOData.metaKeywords;
-              seoPayload.ogImage = bestSEOData.ogImage;
-              seoPayload.ogTitle = bestSEOData.ogTitle;
-              seoPayload.ogDescription = bestSEOData.ogDescription;
-              seoPayload.facebookUrl = bestSEOData.facebookUrl;
-              seoPayload.instagramUrl = bestSEOData.instagramUrl;
-              seoPayload.twitterUrl = bestSEOData.twitterUrl;
-              seoPayload.linkedinUrl = bestSEOData.linkedinUrl;
-              seoPayload.youtubeUrl = bestSEOData.youtubeUrl;
-              seoPayload.whatsappNumber = bestSEOData.whatsappNumber;
-              seoPayload.googleBusinessId = bestSEOData.googleBusinessId;
-              seoPayload.googleMapsUrl = bestSEOData.googleMapsUrl;
-              seoPayload.enableSocialSharing = bestSEOData.enableSocialSharing !== undefined ? bestSEOData.enableSocialSharing : true;
-              seoPayload.socialSharingMessage = bestSEOData.socialSharingMessage;
-              seoPayload.enableWhatsAppSharing = bestSEOData.enableWhatsAppSharing !== undefined ? bestSEOData.enableWhatsAppSharing : true;
-              seoPayload.enableFacebookSharing = bestSEOData.enableFacebookSharing !== undefined ? bestSEOData.enableFacebookSharing : true;
-              seoPayload.enableTwitterSharing = bestSEOData.enableTwitterSharing !== undefined ? bestSEOData.enableTwitterSharing : true;
-              seoPayload.enableLinkedInSharing = bestSEOData.enableLinkedInSharing !== undefined ? bestSEOData.enableLinkedInSharing : true;
-              seoPayload.googleAnalyticsId = bestSEOData.googleAnalyticsId;
-              seoPayload.facebookPixelId = bestSEOData.facebookPixelId;
-            }
-
-            const seoResponse = await fetch('/api/seo', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(seoPayload),
-            });
-
-            const seoResult = await seoResponse.json();
-            if (seoResult.success) {
-              console.log('✅ SEO entry created successfully after shop creation');
-            } else {
-              console.error('⚠️ Failed to create SEO entry (non-critical):', seoResult.error);
-            }
-          } catch (seoError: any) {
-            // Don't fail shop creation if SEO save fails
-            console.error('⚠️ Failed to save SEO entry (non-critical):', seoError);
-          }
-        }
-        
         // Success - show success screen
         router.push(`/agent/shops/new/success?id=${data.shop._id}`);
       } else {
@@ -1150,6 +1066,34 @@ export default function AddNewShopPage() {
                 />
               </div>
 
+              {/* SEO Button */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Area is optional - removed from required fields
+                    if (!formData.shopName || !formData.category || !formData.pincode || !formData.email) {
+                      toast.error('Please fill all required fields before adding SEO');
+                      return;
+                    }
+                    // Skip OTP verification if disabled
+                    if (!isOTPDisabled && !isEmailVerified) {
+                      toast.error('Please verify your email address before adding SEO');
+                      return;
+                    }
+                    setShowSEOModal(true);
+                  }}
+                  disabled={!formData.shopName || !formData.category || !formData.pincode || !formData.email || (!isOTPDisabled && !isEmailVerified)}
+                  className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <span>🔍</span>
+                  <span>Add SEO</span>
+                </button>
+                <p className="text-xs text-gray-500 mt-1 text-center">
+                  Add SEO entry to improve search visibility (Shop Name, Category, Pincode, Email)
+                </p>
+              </div>
+
               <div className="flex gap-4">
                 <button
                   onClick={() => setStep(1)}
@@ -1222,7 +1166,7 @@ export default function AddNewShopPage() {
                       <div className="space-y-4">
                     <div className="text-center">
                       <p className="text-gray-700 font-semibold mb-2">Upload Shop Photo (Required)</p>
-                      <p className="text-gray-500 text-sm mb-4">Maximum size: 3MB</p>
+                      <p className="text-gray-500 text-sm mb-4">PNG, JPG, WEBP, GIF (MAX. 1MB after compression)</p>
                           {PRICING_PLANS[formData.planType].maxPhotos === 1 && (
                         <p className="text-xs text-orange-600 mb-4">
                               ⚠️ This plan allows only 1 photo
@@ -1413,45 +1357,19 @@ export default function AddNewShopPage() {
                 )}
               </div>
 
-              {/* Location Capture and SEO */}
+              {/* Location Capture */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Location <span className="text-red-500">*</span>
                 </label>
-                <div className="flex gap-4">
-                  <button
-                    type="button"
-                    onClick={handleCaptureLocation}
-                    disabled={loading}
-                    className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
-                  >
-                    {loading ? 'Capturing...' : 'Capture Current Location'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // Area is optional - removed from required fields
-                      if (!formData.shopName || !formData.category || !formData.pincode || !formData.email) {
-                        toast.error('Please fill all required fields before adding SEO');
-                        return;
-                      }
-                      // Skip OTP verification if disabled
-                      if (!isOTPDisabled && !isEmailVerified) {
-                        toast.error('Please verify your email address before adding SEO');
-                        return;
-                      }
-                      setShowSEOModal(true);
-                    }}
-                    disabled={!formData.shopName || !formData.category || !formData.pincode || !formData.email || (!isOTPDisabled && !isEmailVerified)}
-                    className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    <span>🔍</span>
-                    <span>Add SEO</span>
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1 text-center">
-                  Add SEO entry to improve search visibility (Shop Name, Category, Pincode, Email)
-                </p>
+                <button
+                  type="button"
+                  onClick={handleCaptureLocation}
+                  disabled={loading}
+                  className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Capturing...' : 'Capture Current Location'}
+                </button>
                 {locationError && (
                   <p className="text-red-600 text-sm mt-2">{locationError}</p>
                 )}
@@ -1513,20 +1431,24 @@ export default function AddNewShopPage() {
                 </div>
               </div>
 
-              {/* Online Payment QR Code - Always show when payment status is PAID */}
+              {/* Payment Mode */}
               {formData.paymentStatus === 'PAID' && (
                 <>
-                  {formData.shopName && formData.ownerName && formData.mobile && (
-                    <div className="mt-4">
-                      <AgentRazorpayQRPayment
-                        shopName={formData.shopName}
-                        ownerName={formData.ownerName}
-                        mobile={formData.mobile}
-                        email={formData.email}
-                        paymentMode="ONLINE"
-                      />
-                    </div>
-                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Payment Mode
+                    </label>
+                    <select
+                      value={formData.paymentMode}
+                      onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value as 'CASH' | 'UPI' | 'NONE' })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="NONE">None</option>
+                      <option value="CASH">Cash</option>
+                      <option value="UPI">UPI</option>
+                    </select>
+                  </div>
+
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1606,10 +1528,8 @@ export default function AddNewShopPage() {
           pincode={formData.pincode}
           email={formData.email}
           onSave={(seoData) => {
-            // Store SEO data temporarily - will be saved after shop creation
-            setPendingSEOData(seoData);
-            toast.success('SEO data will be saved when shop is created');
-            setShowSEOModal(false);
+            console.log('SEO saved:', seoData);
+            // SEO data is already saved via API, just close modal
           }}
         />
       </div>

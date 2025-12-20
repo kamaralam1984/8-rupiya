@@ -157,8 +157,19 @@ export async function POST(request: NextRequest) {
       // Validate Razorpay credentials before creating payment link
       if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
         console.error('❌ Razorpay credentials not configured');
-        throw new Error('Razorpay payment gateway is not configured. Please contact support.');
+        console.error('❌ RAZORPAY_KEY_ID:', process.env.RAZORPAY_KEY_ID ? 'Present' : 'Missing');
+        console.error('❌ RAZORPAY_KEY_SECRET:', process.env.RAZORPAY_KEY_SECRET ? 'Present' : 'Missing');
+        throw new Error('Razorpay payment gateway is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in environment variables.');
       }
+
+      console.log('✅ Razorpay credentials found, creating payment link...');
+      console.log('📋 Payment link params:', {
+        amount: finalAmount,
+        currency: 'INR',
+        description: `${planDetails.name}${shop ? ` - ${shop.shopName}` : ' - Test Payment'}`,
+        customerName,
+        customerPhone,
+      });
 
       const paymentLink = await createPaymentLink({
         amount: finalAmount,
@@ -202,6 +213,7 @@ export async function POST(request: NextRequest) {
       );
     } catch (error: any) {
       console.error('❌ Razorpay Payment Link creation error:', error);
+      console.error('❌ Error type:', error.constructor?.name);
       console.error('❌ Error details:', {
         message: error.message,
         statusCode: error.statusCode,
@@ -211,8 +223,15 @@ export async function POST(request: NextRequest) {
         step: error.step,
         reason: error.reason,
         metadata: error.metadata,
-        stack: error.stack,
+        code: error.code,
+        error: error.error,
+        stack: error.stack?.substring(0, 500), // First 500 chars of stack
       });
+      
+      // Check if it's a Razorpay API error
+      if (error.error) {
+        console.error('❌ Razorpay API Error:', error.error);
+      }
       
       // Update payment record
       try {
@@ -225,24 +244,40 @@ export async function POST(request: NextRequest) {
 
       // Return user-friendly error message
       let errorMessage = 'Failed to create payment link';
-      if (error.description) {
+      let errorDetails = '';
+      
+      // Check for Razorpay credentials first
+      if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+        errorMessage = 'Razorpay credentials not configured';
+        errorDetails = 'Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to your .env.local file';
+      } else if (error.description) {
         errorMessage = error.description;
+        errorDetails = error.message || 'Razorpay API error';
       } else if (error.message) {
         errorMessage = error.message;
-      } else if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-        errorMessage = 'Payment gateway is not configured. Please contact support.';
+        errorDetails = 'Please check Razorpay configuration';
+      } else if (error.error?.description) {
+        errorMessage = error.error.description;
+        errorDetails = error.error.message || 'Razorpay API error';
+      } else {
+        errorMessage = 'Failed to create payment link';
+        errorDetails = error.message || 'Unknown error occurred';
       }
 
       return NextResponse.json(
         {
+          success: false,
           error: errorMessage,
-          details: error.description || error.message || 'Please check your Razorpay credentials in environment variables',
+          details: errorDetails,
+          message: errorMessage, // For backward compatibility
           debug: process.env.NODE_ENV === 'development' ? {
+            hasCredentials: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
             statusCode: error.statusCode,
             field: error.field,
             source: error.source,
             step: error.step,
             reason: error.reason,
+            errorCode: error.code,
           } : undefined,
         },
         { status: 500 }

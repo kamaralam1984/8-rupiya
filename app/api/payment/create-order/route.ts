@@ -2,26 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Payment from '@/lib/models/Payment';
 import AgentShop from '@/lib/models/AgentShop';
-import { createRazorpayOrder } from '@/lib/utils/razorpay';
-import { createPhonePeOrder } from '@/lib/utils/phonepe';
-import { PRICING_PLANS, PlanType } from '@/app/utils/pricing';
-import { verifyAgentToken, getAgentTokenFromRequest } from '@/lib/utils/agentAuth';
-import mongoose from 'mongoose';
+import Agent from '@/lib/models/Agent';
+import Shopper from '@/lib/models/Shopper';
+import {
+  createRazorpayOrder,
+  rupeesToPaise,
+  getPlanDetails,
+  generateReceiptNumber,
+  PlanType,
+} from '@/lib/razorpay';
 
-/**
- * POST /api/payment/create-order
- * Create payment order for Razorpay or PhonePe
- * 
- * Body:
- * - shopId: string (AgentShop ID)
- * - planType: PlanType
- * - gateway: 'RAZORPAY' | 'PHONEPE'
- * - amount?: number (optional, defaults to plan amount)
- * - customerName: string
- * - customerEmail?: string
- * - customerPhone: string
- * - agentId?: string (optional, for agent-initiated payments)
- */
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
@@ -29,273 +19,161 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       shopId,
+      agentId,
+      shopperId,
       planType,
-      gateway = 'RAZORPAY',
-      amount,
       customerName,
       customerEmail,
       customerPhone,
-      agentId,
+      userType, // 'agent' or 'shopper'
     } = body;
 
-    // Validate required fields (shopId is optional for testing)
+    // Validation - shopId is optional for new shop registration
     if (!planType || !customerName || !customerPhone) {
       return NextResponse.json(
-        { error: 'Missing required fields: planType, customerName, customerPhone' },
+        { success: false, message: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Validate plan type
-    if (!PRICING_PLANS[planType as PlanType]) {
+    if (!userType || !['agent', 'shopper'].includes(userType)) {
       return NextResponse.json(
-        { error: `Invalid plan type: ${planType}` },
+        { success: false, message: 'Invalid user type' },
         { status: 400 }
       );
     }
 
-    // Validate gateway
-    if (gateway !== 'RAZORPAY' && gateway !== 'PHONEPE') {
-      return NextResponse.json(
-        { error: 'Invalid gateway. Must be RAZORPAY or PHONEPE' },
-        { status: 400 }
-      );
-    }
-
-    // Get plan details
-    const planDetails = PRICING_PLANS[planType as PlanType];
-    const finalAmount = amount || planDetails.amount;
-
-    // Validate amount (minimum should be plan amount)
-    if (finalAmount < planDetails.amount) {
-      return NextResponse.json(
-        { error: `Amount must be at least ₹${planDetails.amount} for ${planDetails.name}` },
-        { status: 400 }
-      );
-    }
-
-    // Verify shop exists (if shopId is provided)
+    // Verify shop exists only if shopId is provided
     let shop = null;
     if (shopId) {
       shop = await AgentShop.findById(shopId);
       if (!shop) {
         return NextResponse.json(
-          { error: 'Shop not found' },
+          { success: false, message: 'Shop not found' },
           { status: 404 }
         );
       }
+    }
 
-      // If agentId is provided, verify agent token
-      if (agentId) {
-        const token = getAgentTokenFromRequest(request);
-        if (!token) {
-          return NextResponse.json(
-            { error: 'Authentication required for agent payments' },
-            { status: 401 }
-          );
-        }
-
-        const payload = verifyAgentToken(token);
-        if (!payload || payload.agentId !== agentId) {
-          return NextResponse.json(
-            { error: 'Unauthorized' },
-            { status: 403 }
-          );
-        }
-
-        // Verify agent owns the shop
-        if (!shop.agentId || shop.agentId.toString() !== agentId) {
-          return NextResponse.json(
-            { error: 'Agent does not own this shop' },
-            { status: 403 }
-          );
-        }
+    // Verify agent or shopper exists
+    if (userType === 'agent' && agentId) {
+      const agent = await Agent.findById(agentId);
+      if (!agent) {
+        return NextResponse.json(
+          { success: false, message: 'Agent not found' },
+          { status: 404 }
+        );
       }
-    } else {
-      // For test payments without shopId, verify agent token
-      if (agentId) {
-        const token = getAgentTokenFromRequest(request);
-        if (!token) {
-          return NextResponse.json(
-            { error: 'Authentication required for agent payments' },
-            { status: 401 }
-          );
-        }
-
-        const payload = verifyAgentToken(token);
-        if (!payload || payload.agentId !== agentId) {
-          return NextResponse.json(
-            { error: 'Unauthorized' },
-            { status: 403 }
-          );
-        }
+    } else if (userType === 'shopper' && shopperId) {
+      const shopper = await Shopper.findById(shopperId);
+      if (!shopper) {
+        return NextResponse.json(
+          { success: false, message: 'Shopper not found' },
+          { status: 404 }
+        );
       }
     }
 
-    // Generate unique order ID
-    const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const merchantTransactionId = `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Get plan details
+    const planDetails = getPlanDetails(planType as PlanType);
+    if (!planDetails) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid plan type' },
+        { status: 400 }
+      );
+    }
 
-    // Create payment record
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 30); // 30 minutes expiry
+    const amountInRupees = planDetails.amount;
+    const amountInPaise = rupeesToPaise(amountInRupees);
 
-    // For test payments without shopId, we need to create a temporary shop reference
-    // Use a dummy ObjectId that won't conflict with real shops
-    const testShopId = shopId 
-      ? new mongoose.Types.ObjectId(shopId) 
-      : new mongoose.Types.ObjectId('507f1f77bcf86cd799439011'); // Dummy ObjectId for test payments
-    
-    const payment = await Payment.create({
-      orderId,
-      shopId: testShopId,
-      agentId: agentId ? new mongoose.Types.ObjectId(agentId) : (shop ? shop.agentId : undefined),
-      amount: Math.round(finalAmount * 100), // Convert to paise
+    // Generate receipt number
+    const receiptNo = generateReceiptNumber('SHOP');
+
+    // Create Razorpay order
+    const orderResult = await createRazorpayOrder({
+      amount: amountInPaise,
       currency: 'INR',
-      planType: planType as PlanType,
-      status: 'PENDING',
-      paymentMode: 'NONE',
-      customerName,
-      customerEmail,
-      customerPhone,
-      razorpayOrderId: gateway === 'RAZORPAY' ? orderId : merchantTransactionId,
-      gateway: gateway as 'RAZORPAY' | 'PHONEPE',
-      expiresAt,
-      metadata: {
-        receiptNo: `REC${Date.now()}`,
-        notes: `Payment for ${planDetails.name}`,
+      receipt: receiptNo,
+      notes: {
+        ...(shopId && { shopId: shopId.toString() }),
+        ...(shop && { shopName: shop.shopName }),
+        planType,
+        userType,
+        ...(agentId && { agentId: agentId.toString() }),
+        ...(shopperId && { shopperId: shopperId.toString() }),
       },
-      retryCount: 0,
     });
 
-    // Create payment order with gateway
-    let gatewayResponse: any = null;
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-      (request.headers.get('origin') || 'http://localhost:3000');
-
-    if (gateway === 'RAZORPAY') {
-      try {
-        // Create Razorpay order
-        const razorpayOrder = await createRazorpayOrder({
-          amount: finalAmount,
-          currency: 'INR',
-          receipt: orderId,
-          notes: {
-            shopId: shopId,
-            planType: planType,
-            customerName: customerName,
-            customerPhone: customerPhone,
-          },
-        });
-
-        const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
-        if (!razorpayKeyId || razorpayKeyId.includes('your_key')) {
-          throw new Error('Razorpay credentials not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in environment variables.');
-        }
-
-        gatewayResponse = {
-          orderId: razorpayOrder.id,
-          amount: razorpayOrder.amount,
-          currency: razorpayOrder.currency,
-          key: razorpayKeyId,
-          name: '8Rupiya',
-          description: `${planDetails.name}${shop ? ` - ${shop.shopName}` : ' - Test Payment'}`,
-          prefill: {
-            name: customerName,
-            email: customerEmail || (shop ? shop.email : '') || '',
-            contact: customerPhone,
-          },
-          theme: {
-            color: '#2563eb',
-          },
-          handler: async function(response: any) {
-            // This will be handled by the frontend
-          },
-        };
-      } catch (error: any) {
-        console.error('Razorpay order creation error:', error);
-        payment.status = 'FAILED';
-        payment.errorMessage = error.message || 'Failed to create Razorpay order';
-        await payment.save();
-        
-        return NextResponse.json(
-          { 
-            error: error.message || 'Failed to create Razorpay order',
-            details: 'Please check your Razorpay credentials in environment variables'
-          },
-          { status: 500 }
-        );
-      }
-    } else if (gateway === 'PHONEPE') {
-      // Create PhonePe order
-      const phonePeResult = await createPhonePeOrder({
-        merchantTransactionId,
-        amount: finalAmount,
-        merchantUserId: customerPhone,
-        mobileNumber: customerPhone,
-        redirectUrl: `${baseUrl}/payment/callback?paymentId=${payment._id}`,
-        callbackUrl: `${baseUrl}/api/payment/webhook/phonepe`,
-      });
-
-      if (!phonePeResult.success) {
-        // Mark payment as failed
-        payment.status = 'FAILED';
-        payment.errorMessage = phonePeResult.error;
-        await payment.save();
-
-        return NextResponse.json(
-          { error: phonePeResult.error || 'Failed to create PhonePe order' },
-          { status: 500 }
-        );
-      }
-
-      gatewayResponse = {
-        merchantTransactionId,
-        redirectUrl: phonePeResult.data?.data?.instrumentResponse?.redirectInfo?.url,
-        deeplink: phonePeResult.data?.data?.instrumentResponse?.redirectInfo?.deeplink,
-      };
-    }
-
-    // Validate gatewayResponse exists
-    if (!gatewayResponse) {
-      payment.status = 'FAILED';
-      payment.errorMessage = 'Failed to create payment order with gateway';
-      await payment.save();
-      
+    if (!orderResult.success) {
       return NextResponse.json(
-        { error: 'Failed to create payment order. Gateway response is missing.' },
+        {
+          success: false,
+          message: orderResult.error || 'Failed to create order',
+        },
         { status: 500 }
       );
     }
 
-    // Update payment with gateway order ID
-    if (gateway === 'RAZORPAY' && gatewayResponse.orderId) {
-      payment.razorpayOrderId = gatewayResponse.orderId;
-      await payment.save();
+    // Extract order from result
+    const razorpayOrder = (orderResult as { success: true; order: any }).order;
+    
+    if (!razorpayOrder) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Failed to create Razorpay order',
+        },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        paymentId: payment._id,
-        orderId: gateway === 'RAZORPAY' ? gatewayResponse.orderId : merchantTransactionId,
-        amount: finalAmount,
-        currency: 'INR',
-        gateway,
-        gatewayResponse,
-        expiresAt: payment.expiresAt,
+    // Calculate expiry (30 minutes from now)
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 30);
+
+    // Save payment record in database (shopId is optional for new registrations)
+    const payment = new Payment({
+      orderId: razorpayOrder.id,
+      razorpayOrderId: razorpayOrder.id,
+      ...(shopId && { shopId }),
+      agentId: agentId || undefined,
+      amount: amountInPaise,
+      currency: 'INR',
+      planType,
+      status: 'PENDING',
+      paymentMode: 'UPI',
+      customerName,
+      customerEmail: customerEmail || undefined,
+      customerPhone,
+      gateway: 'RAZORPAY',
+      expiresAt,
+      metadata: {
+        receiptNo,
+        userType,
+        ...(shopId && { shopId: shopId.toString() }),
       },
-      { status: 200 }
-    );
+    });
+
+    await payment.save();
+
+    return NextResponse.json({
+      success: true,
+      orderId: razorpayOrder.id,
+      amount: amountInPaise,
+      currency: razorpayOrder.currency,
+      keyId: process.env.RAZORPAY_KEY_ID,
+      receiptNo,
+      planName: planDetails.name,
+      planAmount: amountInRupees,
+    });
   } catch (error: any) {
-    console.error('Payment order creation error:', error);
+    console.error('Create order error:', error);
     return NextResponse.json(
       {
-        error: 'Failed to create payment order',
-        details: error.message || 'Unknown error occurred',
+        success: false,
+        message: error.message || 'Internal server error',
       },
       { status: 500 }
     );
   }
 }
-

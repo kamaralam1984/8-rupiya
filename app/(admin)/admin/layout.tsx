@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
@@ -47,6 +47,39 @@ function RealTimeClock() {
     </div>
   );
 }
+
+// Role-based navigation menu - Defined outside component to prevent recreation
+// allowedRoles: ['admin', 'editor', 'operator'] - sab ko access
+// allowedRoles: ['admin', 'editor'] - admin aur editor ko access
+// allowedRoles: ['admin'] - sirf admin ko access
+const NAVIGATION_ITEMS = [
+  { name: 'Dashboard', href: '/admin', icon: '📊', color: 'blue', allowedRoles: ['admin', 'editor', 'operator'] },
+  { name: 'Users', href: '/admin/users', icon: '👥', color: 'red', allowedRoles: ['admin'] }, // Sirf Admin
+  { name: 'Homepage', href: '/admin/homepage', icon: '🏠', color: 'orange', allowedRoles: ['admin', 'editor'] },
+  { name: 'Banners', href: '/admin/banners', icon: '🖼️', color: 'amber', allowedRoles: ['admin', 'editor'] },
+  { name: 'Logo Maker', href: '/admin/logo-maker', icon: '🎨', color: 'pink', allowedRoles: ['admin', 'editor'] },
+  { name: 'Categories', href: '/admin/categories', icon: '📁', color: 'purple', allowedRoles: ['admin', 'editor'] },
+  { name: 'Offers', href: '/admin/offers', icon: '🎁', color: 'rose', allowedRoles: ['admin', 'editor'] },
+  { name: 'Businesses', href: '/admin/businesses', icon: '🏪', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
+  { name: 'Shops', href: '/admin/shops', icon: '🏬', color: 'emerald', allowedRoles: ['admin', 'editor', 'operator'] },
+  { name: 'Shop Directory', href: '/admin/shops/directory', icon: '📂', color: 'teal', allowedRoles: ['admin', 'editor', 'operator'] },
+  { name: 'Pending Shops', href: '/admin/shops/pending', icon: '⏳', color: 'orange', allowedRoles: ['admin', 'editor'] },
+  { name: 'New Shop (Image)', href: '/admin/shops/new-from-image', icon: '📸', color: 'cyan', allowedRoles: ['admin', 'editor'] },
+  { name: 'Renew Shops', href: '/admin/shops/renew', icon: '🔄', color: 'orange', allowedRoles: ['admin', 'editor'] },
+  { name: 'Agents', href: '/admin/agents', icon: '👤', color: 'violet', allowedRoles: ['admin', 'editor'] },
+  { name: 'Agent Panel Settings', href: '/admin/agent-panel-settings', icon: '⚙️', color: 'indigo', allowedRoles: ['admin', 'editor'] },
+  { name: 'Operators', href: '/admin/operators', icon: '👔', color: 'green', allowedRoles: ['admin', 'editor'] },
+  { name: 'Shoppers', href: '/admin/shoppers', icon: '🛍️', color: 'pink', allowedRoles: ['admin', 'editor'] }, // Approve/Reject Shoppers - Admin Panel Left Sidebar
+  { name: 'Revenue', href: '/admin/revenue', icon: '💰', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
+  { name: 'Reports & Analytics', href: '/admin/reports', icon: '📊', color: 'indigo', allowedRoles: ['admin', 'editor', 'operator'] },
+  { name: 'Database', href: '/admin/database', icon: '🗄️', color: 'slate', allowedRoles: ['admin'] }, // Sirf Admin
+  { name: 'Restore', href: '/admin/restore', icon: '🔄', color: 'red', allowedRoles: ['admin'] }, // Sirf Admin
+  { name: 'Google Business', href: '/admin/google-business', icon: '🏢', color: 'blue', allowedRoles: ['admin', 'editor', 'operator'] }, // Admin, Editor, Operator
+  { name: 'Hero Section', href: '/admin/hero-section', icon: '🎯', color: 'purple', allowedRoles: ['admin', 'editor'] }, // Admin, Editor
+  { name: 'Pages', href: '/admin/pages', icon: '📄', color: 'pink', allowedRoles: ['admin', 'editor'] },
+  { name: 'SEO Management', href: '/admin/seo', icon: '🔍', color: 'emerald', allowedRoles: ['admin', 'editor'] }, // Admin, Editor
+  { name: 'Analytics', href: '/admin/analytics', icon: '📊', color: 'blue', allowedRoles: ['admin', 'editor'] }, // Admin, Editor
+] as const;
 
 export default function AdminLayout({
   children,
@@ -168,6 +201,37 @@ export default function AdminLayout({
     checkAdminAccess();
   }, [token, router, user, updateUser, error]);
 
+  // Filter navigation based on user role - MUST be before early returns (Rules of Hooks)
+  const isOperatorsPage = pathname === '/admin/operators' || pathname?.startsWith('/admin/operators/');
+  
+  // Use useMemo to ensure hooks order consistency - MUST be before early returns
+  // Always call useMemo, even if user is null (return empty array)
+  const filteredNavigation = useMemo(() => {
+    if (!user) return [];
+    
+    return NAVIGATION_ITEMS.filter((item) => {
+      const isAllowed = (item.allowedRoles as readonly string[]).includes(user.role);
+      
+      // On operators page, show only Revenue and Operators (remove Agents)
+      if (isOperatorsPage) {
+        const allowedItems = ['Revenue', 'Operators'];
+        return isAllowed && allowedItems.includes(item.name);
+      }
+      
+      return isAllowed;
+    });
+  }, [user, isOperatorsPage]);
+
+  // Debug: Log navigation items (remove in production) - MUST be before early returns
+  useEffect(() => {
+    if (user && filteredNavigation.length > 0) {
+      console.log('User role:', user.role);
+      console.log('Navigation items:', filteredNavigation.map(n => n.name));
+      console.log('Agent Panel Settings visible:', filteredNavigation.some(n => n.name === 'Agent Panel Settings'));
+    }
+  }, [user, filteredNavigation]);
+
+  // Early returns AFTER all hooks are called
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -195,65 +259,6 @@ export default function AdminLayout({
   if (!user || !['admin', 'editor'].includes(user.role)) {
     return null;
   }
-
-  // Role-based navigation menu
-  // allowedRoles: ['admin', 'editor', 'operator'] - sab ko access
-  // allowedRoles: ['admin', 'editor'] - admin aur editor ko access
-  // allowedRoles: ['admin'] - sirf admin ko access
-  const navigation = [
-    { name: 'Dashboard', href: '/admin', icon: '📊', color: 'blue', allowedRoles: ['admin', 'editor', 'operator'] },
-    { name: 'Users', href: '/admin/users', icon: '👥', color: 'red', allowedRoles: ['admin'] }, // Sirf Admin
-    { name: 'Homepage', href: '/admin/homepage', icon: '🏠', color: 'orange', allowedRoles: ['admin', 'editor'] },
-    { name: 'Banners', href: '/admin/banners', icon: '🖼️', color: 'amber', allowedRoles: ['admin', 'editor'] },
-    { name: 'Logo Maker', href: '/admin/logo-maker', icon: '🎨', color: 'pink', allowedRoles: ['admin', 'editor'] },
-    { name: 'Categories', href: '/admin/categories', icon: '📁', color: 'purple', allowedRoles: ['admin', 'editor'] },
-    { name: 'Offers', href: '/admin/offers', icon: '🎁', color: 'rose', allowedRoles: ['admin', 'editor'] },
-    { name: 'Businesses', href: '/admin/businesses', icon: '🏪', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
-    { name: 'Shops', href: '/admin/shops', icon: '🏬', color: 'emerald', allowedRoles: ['admin', 'editor', 'operator'] },
-    { name: 'Shop Directory', href: '/admin/shops/directory', icon: '📂', color: 'teal', allowedRoles: ['admin', 'editor', 'operator'] },
-    { name: 'Pending Shops', href: '/admin/shops/pending', icon: '⏳', color: 'orange', allowedRoles: ['admin', 'editor'] },
-    { name: 'New Shop (Image)', href: '/admin/shops/new-from-image', icon: '📸', color: 'cyan', allowedRoles: ['admin', 'editor'] },
-    { name: 'Renew Shops', href: '/admin/shops/renew', icon: '🔄', color: 'orange', allowedRoles: ['admin', 'editor'] },
-    { name: 'Agents', href: '/admin/agents', icon: '👤', color: 'violet', allowedRoles: ['admin', 'editor'] },
-    { name: 'Agent Panel Settings', href: '/admin/agent-panel-settings', icon: '⚙️', color: 'indigo', allowedRoles: ['admin', 'editor'] },
-    { name: 'Operators', href: '/admin/operators', icon: '👔', color: 'green', allowedRoles: ['admin', 'editor'] },
-    { name: 'Shoppers', href: '/admin/shoppers', icon: '🛍️', color: 'pink', allowedRoles: ['admin', 'editor'] }, // Approve/Reject Shoppers - Admin Panel Left Sidebar
-    { name: 'Revenue', href: '/admin/revenue', icon: '💰', color: 'green', allowedRoles: ['admin', 'editor', 'operator'] },
-    { name: 'Reports & Analytics', href: '/admin/reports', icon: '📊', color: 'indigo', allowedRoles: ['admin', 'editor', 'operator'] },
-    { name: 'Database', href: '/admin/database', icon: '🗄️', color: 'slate', allowedRoles: ['admin'] }, // Sirf Admin
-    { name: 'Restore', href: '/admin/restore', icon: '🔄', color: 'red', allowedRoles: ['admin'] }, // Sirf Admin
-    { name: 'Google Business', href: '/admin/google-business', icon: '🏢', color: 'blue', allowedRoles: ['admin', 'editor', 'operator'] }, // Admin, Editor, Operator
-    { name: 'Hero Section', href: '/admin/hero-section', icon: '🎯', color: 'purple', allowedRoles: ['admin', 'editor'] }, // Admin, Editor
-    { name: 'Pages', href: '/admin/pages', icon: '📄', color: 'pink', allowedRoles: ['admin', 'editor'] },
-    { name: 'SEO Management', href: '/admin/seo', icon: '🔍', color: 'emerald', allowedRoles: ['admin', 'editor'] }, // Admin, Editor
-    { name: 'Analytics', href: '/admin/analytics', icon: '📊', color: 'blue', allowedRoles: ['admin', 'editor'] }, // Admin, Editor
-  ];
-
-  // Filter navigation based on user role
-  // If on operators page, show only Revenue and Operators
-  const isOperatorsPage = pathname === '/admin/operators' || pathname?.startsWith('/admin/operators/');
-  
-  let filteredNavigation = navigation.filter((item) => {
-    if (!user) return false;
-    const isAllowed = item.allowedRoles.includes(user.role);
-    
-    // On operators page, show only Revenue and Operators (remove Agents)
-    if (isOperatorsPage) {
-      const allowedItems = ['Revenue', 'Operators'];
-      return isAllowed && allowedItems.includes(item.name);
-    }
-    
-    return isAllowed;
-  });
-
-  // Debug: Log navigation items (remove in production)
-  useEffect(() => {
-    if (user) {
-      console.log('User role:', user.role);
-      console.log('Navigation items:', filteredNavigation.map(n => n.name));
-      console.log('Agent Panel Settings visible:', filteredNavigation.some(n => n.name === 'Agent Panel Settings'));
-    }
-  }, [user, filteredNavigation]);
 
   const isActive = (href: string) => {
     if (href === '/admin') {
