@@ -3,9 +3,8 @@ import connectDB from '@/lib/mongodb';
 import Payment from '@/lib/models/Payment';
 import AgentShop from '@/lib/models/AgentShop';
 import Agent from '@/lib/models/Agent';
-import Operator from '@/lib/models/Operator';
 import { verifyPaymentSignature, getPaymentDetails } from '@/lib/utils/razorpay';
-import { calculateAgentCommission, calculateOperatorCommission } from '@/app/utils/pricing';
+import { calculateAgentCommission } from '@/app/utils/pricing';
 import crypto from 'crypto';
 
 /**
@@ -29,9 +28,7 @@ export async function POST(request: NextRequest) {
     // Verify webhook signature
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
     if (!webhookSecret) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('RAZORPAY_WEBHOOK_SECRET not configured');
-      }
+      console.error('RAZORPAY_WEBHOOK_SECRET not configured');
       return NextResponse.json(
         { error: 'Webhook secret not configured' },
         { status: 500 }
@@ -45,9 +42,7 @@ export async function POST(request: NextRequest) {
       .digest('hex');
 
     if (webhookSignature !== expectedSignature) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Invalid Razorpay webhook signature');
-      }
+      console.error('Invalid Razorpay webhook signature');
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 400 }
@@ -68,9 +63,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (!payment) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Payment not found for order:', orderId);
-        }
+        console.error('Payment not found for order:', orderId);
         return NextResponse.json(
           { error: 'Payment not found' },
           { status: 404 }
@@ -87,9 +80,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (!isValidSignature) {
-          if (process.env.NODE_ENV === 'development') {
-            console.error('Invalid payment signature');
-          }
+          console.error('Invalid payment signature');
           payment.status = 'FAILED';
           payment.errorMessage = 'Invalid signature';
           await payment.save();
@@ -115,13 +106,6 @@ export async function POST(request: NextRequest) {
         payment.paymentId = paymentEntity.id;
         payment.razorpayPaymentId = paymentEntity.id;
         payment.paidAt = new Date();
-        
-        // Add success message to metadata
-        if (!payment.metadata) {
-          payment.metadata = {};
-        }
-        payment.metadata.successMessage = `Payment Successful`;
-        
         await payment.save();
 
         // Update shop payment status
@@ -130,15 +114,13 @@ export async function POST(request: NextRequest) {
           const wasPending = shop.paymentStatus === 'PENDING';
           const planAmount = payment.amount / 100; // Convert paise to rupees
           const agentCommission = calculateAgentCommission(payment.planType, planAmount);
-          const operatorCommission = calculateOperatorCommission(payment.planType, planAmount, agentCommission);
 
           shop.paymentStatus = 'PAID';
-          shop.paymentMode = 'NONE';
+          shop.paymentMode = 'UPI';
           shop.planType = payment.planType;
           shop.planAmount = planAmount;
           shop.amount = planAmount;
           shop.agentCommission = agentCommission;
-          shop.operatorCommission = operatorCommission;
           shop.receiptNo = payment.metadata?.receiptNo || `REC${Date.now()}`;
           shop.lastPaymentDate = new Date();
 
@@ -155,21 +137,6 @@ export async function POST(request: NextRequest) {
               agent.totalEarnings = (agent.totalEarnings || 0) + agentCommission;
               agent.totalShops = (agent.totalShops || 0) + 1;
               await agent.save();
-
-              // Update operator commission if agent has an operator
-              if (agent.operatorId && operatorCommission > 0) {
-                try {
-                  const operator = await Operator.findById(agent.operatorId);
-                  if (operator) {
-                    operator.totalEarnings = (operator.totalEarnings || 0) + operatorCommission;
-                    await operator.save();
-                  }
-                } catch (operatorError: any) {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.error('Error updating operator commission:', operatorError);
-                  }
-                }
-              }
             }
           }
         }
@@ -193,9 +160,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (!payment) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Payment not found for payment link:', paymentLinkId);
-        }
+        console.error('Payment not found for payment link:', paymentLinkId);
         return NextResponse.json(
           { error: 'Payment not found' },
           { status: 404 }
@@ -212,9 +177,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (!isValidSignature) {
-          if (process.env.NODE_ENV === 'development') {
-            console.error('Invalid payment signature');
-          }
+          console.error('Invalid payment signature');
           payment.status = 'FAILED';
           payment.errorMessage = 'Invalid signature';
           await payment.save();
@@ -249,15 +212,13 @@ export async function POST(request: NextRequest) {
           const wasPending = shop.paymentStatus === 'PENDING';
           const planAmount = payment.amount / 100; // Convert paise to rupees
           const agentCommission = calculateAgentCommission(payment.planType, planAmount);
-          const operatorCommission = calculateOperatorCommission(payment.planType, planAmount, agentCommission);
 
           shop.paymentStatus = 'PAID';
-          shop.paymentMode = 'NONE';
+          shop.paymentMode = 'UPI';
           shop.planType = payment.planType;
           shop.planAmount = planAmount;
           shop.amount = planAmount;
           shop.agentCommission = agentCommission;
-          shop.operatorCommission = operatorCommission;
           shop.receiptNo = payment.metadata?.receiptNo || `REC${Date.now()}`;
           shop.lastPaymentDate = new Date();
 
@@ -274,21 +235,6 @@ export async function POST(request: NextRequest) {
               agent.totalEarnings = (agent.totalEarnings || 0) + agentCommission;
               agent.totalShops = (agent.totalShops || 0) + 1;
               await agent.save();
-
-              // Update operator commission if agent has an operator
-              if (agent.operatorId && operatorCommission > 0) {
-                try {
-                  const operator = await Operator.findById(agent.operatorId);
-                  if (operator) {
-                    operator.totalEarnings = (operator.totalEarnings || 0) + operatorCommission;
-                    await operator.save();
-                  }
-                } catch (operatorError: any) {
-                  if (process.env.NODE_ENV === 'development') {
-                    console.error('Error updating operator commission:', operatorError);
-                  }
-                }
-              }
             }
           }
         }
@@ -300,9 +246,7 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error: any) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Razorpay webhook error:', error);
-    }
+    console.error('Razorpay webhook error:', error);
     return NextResponse.json(
       {
         error: 'Webhook processing failed',

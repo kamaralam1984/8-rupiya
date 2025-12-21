@@ -7,7 +7,6 @@ import Image from 'next/image';
 import { PRICING_PLANS, PlanType } from '@/app/utils/pricing';
 import SEOModal from '@/app/components/SEOModal';
 import RazorpayPayment from '@/app/components/RazorpayPayment';
-import { useAgentAuth } from '@/app/contexts/AgentAuthContext';
 import toast from 'react-hot-toast';
 
 interface FormData {
@@ -37,7 +36,6 @@ interface FormData {
 
 export default function AddNewShopPage() {
   const router = useRouter();
-  const { agent, token } = useAgentAuth();
   
   // OTP Disabled for 3 days - Automatically calculates 3 days from today
   const today = new Date();
@@ -45,9 +43,6 @@ export default function AddNewShopPage() {
   OTP_DISABLE_END_DATE.setDate(today.getDate() + 3); // 3 days from today
   OTP_DISABLE_END_DATE.setHours(23, 59, 59, 999); // End of day
   const isOTPDisabled = new Date() <= OTP_DISABLE_END_DATE;
-  
-  const [razorpayPaymentSuccess, setRazorpayPaymentSuccess] = useState(false);
-  const [seoData, setSeoData] = useState<{ ranking: number } | null>(null);
   
   const [step, setStep] = useState(1); // Step 1: Plan Selection (pehle plan select karo)
   const [loading, setLoading] = useState(false);
@@ -617,18 +612,6 @@ export default function AddNewShopPage() {
       return;
     }
 
-    // Validate UPI payment - either Razorpay payment success OR screenshot
-    if (formData.paymentStatus === 'PAID' && formData.paymentMode === 'UPI') {
-      const hasRazorpayPayment = razorpayPaymentSuccess || formData.paymentScreenshot === 'razorpay_payment_success';
-      const hasManualScreenshot = formData.paymentScreenshot && formData.paymentScreenshot !== 'razorpay_payment_success';
-      
-      if (!hasRazorpayPayment && !hasManualScreenshot) {
-        setError('Please complete payment via Razorpay or upload UPI payment screenshot');
-        toast.error('Payment required: Complete Razorpay payment or upload screenshot');
-        return;
-      }
-    }
-
     if (formData.paymentStatus === 'PAID' && !formData.receiptNo) {
       // Auto-generate receipt number
       const timestamp = Date.now();
@@ -748,47 +731,6 @@ export default function AddNewShopPage() {
 
       const data = await response.json();
       if (data.success) {
-        // Save SEO entry if it was configured
-        if (seoData && formData.shopName && formData.area && formData.category && formData.email) {
-          try {
-            const seoResponse = await fetch('/api/seo', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                shopName: formData.shopName.trim(),
-                area: formData.area.trim(),
-                category: formData.category.trim(),
-                pincode: formData.pincode.trim() || undefined,
-                emailId: formData.email.trim().toLowerCase(),
-                ranking: seoData.ranking,
-                shopId: data.shop._id,
-                shopUrl: data.shop.shopUrl,
-              }),
-            });
-
-            const seoResult = await seoResponse.json();
-            if (seoResult.success) {
-              if (process.env.NODE_ENV === 'development') {
-                console.log('✅ SEO entry created successfully');
-              }
-              toast.success('Shop and SEO entry created successfully!');
-            } else {
-              if (process.env.NODE_ENV === 'development') {
-                console.error('⚠️ Failed to create SEO entry:', seoResult.error);
-              }
-              toast.error('Shop created but SEO entry failed. You can add it later.');
-            }
-          } catch (seoError: any) {
-            if (process.env.NODE_ENV === 'development') {
-              console.error('⚠️ Error creating SEO entry (non-critical):', seoError);
-            }
-            // Don't fail shop creation if SEO fails
-            toast.error('Shop created but SEO entry failed. You can add it later.');
-          }
-        }
-
         // Success - show success screen
         router.push(`/agent/shops/new/success?id=${data.shop._id}`);
       } else {
@@ -1489,196 +1431,79 @@ export default function AddNewShopPage() {
                 </div>
               </div>
 
-              {/* Payment Mode */}
+              {/* Payment Mode Selection */}
               {formData.paymentStatus === 'PAID' && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Payment Mode <span className="text-red-500">*</span>
+                      Payment Mode
                     </label>
                     <select
                       value={formData.paymentMode}
-                      onChange={(e) => {
-                        const mode = e.target.value as 'CASH' | 'UPI' | 'NONE';
-                        setFormData({ 
-                          ...formData, 
-                          paymentMode: mode,
-                          // Clear screenshot if mode changes from UPI
-                          paymentScreenshot: mode !== 'UPI' ? undefined : formData.paymentScreenshot
-                        });
-                      }}
+                      onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value as 'CASH' | 'UPI' | 'NONE' })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
                     >
                       <option value="NONE">None</option>
                       <option value="CASH">Cash</option>
-                      <option value="UPI">UPI</option>
+                      <option value="UPI">UPI (Online Payment)</option>
                     </select>
                   </div>
 
-                  {/* UPI Payment Options */}
+                  {/* Online Payment via Razorpay for UPI Mode */}
                   {formData.paymentMode === 'UPI' && (
-                    <div className="space-y-4">
-                      {/* Razorpay Payment Option */}
-                      <div className="p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
-                        <h3 className="text-sm font-semibold text-blue-900 mb-3">
-                          💳 Pay Online via Razorpay (Recommended)
-                        </h3>
-                        <p className="text-xs text-blue-700 mb-3">
-                          Secure online payment via UPI, Cards, Net Banking, or Wallets
-                        </p>
-                        {razorpayPaymentSuccess ? (
-                          <div className="p-3 bg-green-50 border border-green-300 rounded-lg">
-                            <p className="text-sm text-green-800 font-semibold">
-                              ✅ Payment Successful! You can now submit the shop.
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setRazorpayPaymentSuccess(false);
-                                setFormData({ ...formData, paymentScreenshot: undefined });
-                              }}
-                              className="mt-2 text-xs text-green-700 hover:text-green-900 underline"
-                            >
-                              Reset Payment
-                            </button>
-                          </div>
-                        ) : (
-                          <RazorpayPayment
-                            planType={formData.planType}
-                            customerName={formData.ownerName}
-                            customerEmail={formData.email}
-                            customerPhone={formData.mobile}
-                            userType="agent"
-                            agentId={agent?.id}
-                            onSuccess={async (response) => {
-                              setRazorpayPaymentSuccess(true);
-                              // Mark payment as successful
-                              setFormData({ 
-                                ...formData, 
-                                paymentStatus: 'PAID',
-                                paymentScreenshot: 'razorpay_payment_success', // Special marker for Razorpay payment
-                              });
-                              
-                              // Store payment details for shop creation
-                              if (response.payment) {
-                                // Payment is already verified and linked
-                                toast.success('✅ Payment successful! Please click "Submit Shop" to complete registration.');
-                              } else {
-                                toast.success('✅ Payment successful! Please click "Submit Shop" to complete registration.');
+                    <div className="mt-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        💳 Pay Online via Razorpay
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Secure online payment via UPI, Cards, Net Banking, or Wallets
+                      </p>
+                      {formData.ownerName && formData.mobile ? (
+                        <RazorpayPayment
+                          shopId="" // Empty for new shop - API will handle this
+                          planType={formData.planType}
+                          customerName={formData.ownerName}
+                          customerEmail={formData.email}
+                          customerPhone={formData.mobile}
+                          userType="agent"
+                          agentId={(() => {
+                            // Get agentId from token
+                            if (typeof window !== 'undefined') {
+                              try {
+                                const token = localStorage.getItem('agent_token');
+                                if (token) {
+                                  const payload = JSON.parse(atob(token.split('.')[1]));
+                                  return payload.agentId;
+                                }
+                              } catch (e) {
+                                console.error('Failed to get agentId from token:', e);
                               }
-                            }}
-                            onError={(error) => {
-                              toast.error(error.message || 'Payment failed. Please try again.');
-                            }}
-                            buttonText={`Pay ₹${formData.amount} via Razorpay`}
-                            buttonClassName="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-                          />
-                        )}
-                      </div>
-
-                      {/* OR Divider */}
-                      <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                          <div className="w-full border-t border-gray-300"></div>
+                            }
+                            return undefined;
+                          })()}
+                          onSuccess={(response) => {
+                            // Payment successful, update form data
+                            setFormData({ 
+                              ...formData, 
+                              paymentStatus: 'PAID',
+                              paymentMode: 'UPI'
+                            });
+                            toast.success('✅ Payment successful! You can now submit the shop.');
+                          }}
+                          onError={(error) => {
+                            console.error('Payment error:', error);
+                            // Don't block the form, just show error
+                          }}
+                          buttonText={`💳 Pay ₹${formData.amount} Securely`}
+                          buttonClassName="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-bold text-lg shadow-lg hover:shadow-xl"
+                        />
+                      ) : (
+                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-sm text-yellow-800">
+                            Please fill in Owner Name and Mobile Number in Step 2 to proceed with online payment.
+                          </p>
                         </div>
-                        <div className="relative flex justify-center text-sm">
-                          <span className="px-2 bg-white text-gray-500">OR</span>
-                        </div>
-                      </div>
-
-                      {/* Manual UPI Screenshot Upload */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Upload UPI Payment Screenshot (Manual Payment)
-                        </label>
-                        {formData.paymentScreenshot && formData.paymentScreenshot !== 'razorpay_payment_success' ? (
-                          <div className="space-y-3">
-                            <div className="relative w-full max-w-md mx-auto h-48 border-2 border-green-300 rounded-lg overflow-hidden">
-                              <Image
-                                src={formData.paymentScreenshot}
-                                alt="Payment screenshot"
-                                fill
-                                className="object-contain"
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setFormData({ ...formData, paymentScreenshot: undefined })}
-                              className="w-full bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors"
-                            >
-                              Remove Screenshot
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                            <label className="cursor-pointer">
-                              <div className="space-y-3">
-                                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto">
-                                  <span className="text-2xl">📸</span>
-                                </div>
-                                <div>
-                                  <p className="text-gray-700 font-semibold text-sm">Upload UPI Payment Screenshot</p>
-                                  <p className="text-gray-500 text-xs mt-1">Take a photo or upload from gallery</p>
-                                  <p className="text-gray-600 text-xs mt-1">(If you paid manually via UPI)</p>
-                                </div>
-                              </div>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-
-                                  if (!file.type.startsWith('image/')) {
-                                    setError('Please select an image file');
-                                    toast.error('Please select an image file');
-                                    return;
-                                  }
-
-                                  setError('');
-                                  setLoading(true);
-
-                                  try {
-                                    // Compress image first
-                                    const compressedFile = await compressImage(file, 1200, 800, 200);
-                                    
-                                    // Upload to agent upload endpoint
-                                    const uploadFormData = new FormData();
-                                    uploadFormData.append('file', compressedFile);
-
-                                    const token = localStorage.getItem('agent_token');
-                                    const uploadResponse = await fetch('/api/agent/upload', {
-                                      method: 'POST',
-                                      headers: {
-                                        'Authorization': `Bearer ${token}`,
-                                      },
-                                      body: uploadFormData,
-                                    });
-
-                                    const uploadData = await uploadResponse.json();
-                                    if (uploadData.success) {
-                                      setFormData({ ...formData, paymentScreenshot: uploadData.photoUrl });
-                                      setRazorpayPaymentSuccess(false); // Reset Razorpay success if manual upload
-                                      toast.success('Payment screenshot uploaded successfully!');
-                                    } else {
-                                      throw new Error(uploadData.error || 'Upload failed');
-                                    }
-                                  } catch (err: any) {
-                                    setError(err.message || 'Failed to upload screenshot');
-                                    toast.error(err.message || 'Failed to upload screenshot');
-                                  } finally {
-                                    setLoading(false);
-                                    e.target.value = ''; // Reset input
-                                  }
-                                }}
-                                className="hidden"
-                                disabled={loading}
-                              />
-                            </label>
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
                   )}
 
@@ -1760,9 +1585,8 @@ export default function AddNewShopPage() {
           pincode={formData.pincode}
           email={formData.email}
           onSave={(seoData) => {
-            setSeoData(seoData);
-            toast.success('SEO configuration saved! It will be saved when you submit the shop.');
-            setShowSEOModal(false);
+            console.log('SEO saved:', seoData);
+            // SEO data is already saved via API, just close modal
           }}
         />
       </div>

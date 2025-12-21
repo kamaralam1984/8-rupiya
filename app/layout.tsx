@@ -5,9 +5,7 @@ import { LocationProvider } from "./contexts/LocationContext";
 import { DistanceProvider } from "./contexts/DistanceContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AgentAuthProvider } from "./contexts/AgentAuthContext";
-import { ShopperAuthProvider } from "./contexts/ShopperAuthContext";
 import { SearchProvider } from "./contexts/SearchContext";
-import { ThemeProvider } from "./contexts/ThemeContext";
 import Toaster from "./components/Toaster";
 
 const geistSans = Geist({
@@ -56,10 +54,10 @@ export const metadata: Metadata = {
     description: 'Find the best local shops, businesses, and services near you in Patna. Search by category, pincode, or area.',
     images: [
       {
-        url: '/Assets/logo%208rupiya.png',
+        url: '/og-image.jpg',
         width: 1200,
-        height: 1200,
-        alt: '8 Rupiya - Local Business Directory Logo',
+        height: 630,
+        alt: '8 Rupiya - Local Business Directory',
       },
     ],
   },
@@ -67,18 +65,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: '8 Rupiya - Find Best Local Shops & Businesses Near You',
     description: 'Find the best local shops, businesses, and services near you in Patna.',
-    images: ['/Assets/logo%208rupiya.png'],
-    creator: '@8rupiya',
-  },
-  icons: {
-    icon: [
-      { url: '/Assets/logo%208rupiya.png', sizes: '32x32', type: 'image/png' },
-      { url: '/Assets/logo%208rupiya.png', sizes: '16x16', type: 'image/png' },
-    ],
-    apple: [
-      { url: '/Assets/logo%208rupiya.png', sizes: '180x180', type: 'image/png' },
-    ],
-    shortcut: '/Assets/logo%208rupiya.png',
+    images: ['/og-image.jpg'],
   },
   robots: {
     index: true,
@@ -101,51 +88,24 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://8rupiya.com';
-  const logoUrl = `${siteUrl}/Assets/logo%208rupiya.png`;
-
-  const organizationSchema = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "8 Rupiya",
-    "url": siteUrl,
-    "logo": logoUrl,
-    "description": "Find the best local shops, businesses, and services near you in Patna. Search by category, pincode, or area.",
-    "sameAs": [
-      // Add social media links here if available
-    ],
-    "contactPoint": {
-      "@type": "ContactPoint",
-      "contactType": "customer service"
-    }
-  };
-
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
-        />
-        <ThemeProvider>
-          <LocationProvider>
-            <DistanceProvider>
-              <AuthProvider>
-                <AgentAuthProvider>
-                  <ShopperAuthProvider>
-                    <SearchProvider>
-                      {children}
-                      <Toaster />
-                    </SearchProvider>
-                  </ShopperAuthProvider>
-                </AgentAuthProvider>
-              </AuthProvider>
-            </DistanceProvider>
-          </LocationProvider>
-        </ThemeProvider>
+        <LocationProvider>
+          <DistanceProvider>
+            <AuthProvider>
+              <AgentAuthProvider>
+                <SearchProvider>
+                  {children}
+                  <Toaster />
+                </SearchProvider>
+              </AgentAuthProvider>
+            </AuthProvider>
+          </DistanceProvider>
+        </LocationProvider>
       </body>
     </html>
   );

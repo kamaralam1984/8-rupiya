@@ -2,11 +2,9 @@
 
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { useLocation } from '@/app/contexts/LocationContext';
 import Navbar from '@/app/components/Navbar';
 import { calculateDistance } from '@/app/utils/distance';
-import SocialSharingPopup from '@/app/components/SocialSharingPopup';
 
 interface ShopDetailsClientProps {
   shop: {
@@ -33,65 +31,6 @@ interface ShopDetailsClientProps {
 export default function ShopDetailsClient({ shop }: ShopDetailsClientProps) {
   const router = useRouter();
   const { location } = useLocation();
-  const [visitorCount, setVisitorCount] = useState(shop.visitorCount || 0);
-  const [showSocialPopup, setShowSocialPopup] = useState(false);
-  const [seoData, setSeoData] = useState<any>(null);
-
-  // Track visit automatically when page loads
-  useEffect(() => {
-    if (shop.id) {
-      fetch(`/api/shops/${shop.id}/visit`, { method: 'POST' })
-        .then(res => {
-          if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
-          }
-          return res.json();
-        })
-        .then(data => {
-          if (data.success && data.visitorCount !== undefined) {
-            setVisitorCount(data.visitorCount);
-          }
-        })
-        .catch(error => {
-          // Silently fail if tracking doesn't work - this is expected in some cases
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Visit tracking failed (non-critical):', error.message);
-          }
-        });
-    }
-  }, [shop.id]);
-
-  // Fetch SEO data and show social sharing popup
-  useEffect(() => {
-    const fetchSEOData = async () => {
-      try {
-        // Try to find SEO entry by shopId or shopName
-        const response = await fetch(`/api/seo?shopName=${encodeURIComponent(shop.shopName)}`);
-        const data = await response.json();
-        
-        if (data.success && data.seo && data.seo.length > 0) {
-          const seoEntry = data.seo.find((e: any) => 
-            e.shopId === shop.id || 
-            e.shopName.toLowerCase() === shop.shopName.toLowerCase()
-          ) || data.seo[0];
-          
-          setSeoData(seoEntry);
-          
-          // Show popup if enabled
-          if (seoEntry.enableSocialSharing !== false) {
-            setShowSocialPopup(true);
-          }
-        }
-      } catch (error) {
-        // Silently fail - SEO data is optional
-        if (process.env.NODE_ENV === 'development') {
-          console.log('SEO data fetch failed (non-critical):', error);
-        }
-      }
-    };
-
-    fetchSEOData();
-  }, [shop.id, shop.shopName]);
   
   // Calculate distance
   const distance = shop.latitude && shop.longitude && location.latitude && location.longitude
@@ -132,7 +71,7 @@ export default function ShopDetailsClient({ shop }: ShopDetailsClientProps) {
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
           
           {/* Km, Time, Visitor - Transparent background with colored text */}
-          {(distance || estimatedTime || visitorCount !== undefined) && (
+          {(distance || estimatedTime || shop.visitorCount !== undefined) && (
             <div className="absolute top-4 right-4 px-3 py-2">
               <div className="flex flex-col gap-1.5">
                 {distance && (
@@ -145,9 +84,9 @@ export default function ShopDetailsClient({ shop }: ShopDetailsClientProps) {
                     {estimatedTime}min
                   </span>
                 )}
-                {visitorCount !== undefined && (
+                {shop.visitorCount !== undefined && (
                   <span className="text-sm font-bold text-blue-600 drop-shadow-lg">
-                    {visitorCount || 0}visitor
+                    {shop.visitorCount || 0}visitor
                   </span>
                 )}
               </div>
@@ -158,7 +97,7 @@ export default function ShopDetailsClient({ shop }: ShopDetailsClientProps) {
         {/* Shop Info - No white background */}
         <div className="rounded-2xl p-6 sm:p-8 mb-4">
           {/* Km, Time, Visitor display below shop name */}
-          {(distance || estimatedTime || visitorCount !== undefined) && (
+          {(distance || estimatedTime || shop.visitorCount !== undefined) && (
             <div className="flex flex-wrap items-center gap-2 mb-4">
               {/* Distance - Red */}
               {distance && (
@@ -168,7 +107,7 @@ export default function ShopDetailsClient({ shop }: ShopDetailsClientProps) {
               )}
               
               {/* Separator */}
-              {distance && (estimatedTime || visitorCount !== undefined) && (
+              {distance && (estimatedTime || shop.visitorCount !== undefined) && (
                 <span className="text-sm text-gray-400">|</span>
               )}
               
@@ -180,14 +119,14 @@ export default function ShopDetailsClient({ shop }: ShopDetailsClientProps) {
               )}
               
               {/* Separator */}
-              {estimatedTime && visitorCount !== undefined && (
+              {estimatedTime && shop.visitorCount !== undefined && (
                 <span className="text-sm text-gray-400">|</span>
               )}
               
               {/* Visitor - Blue */}
-              {visitorCount !== undefined && (
+              {shop.visitorCount !== undefined && (
                 <span className="text-sm font-semibold text-blue-600">
-                  {visitorCount || 0}visitor
+                  {shop.visitorCount || 0}visitor
                 </span>
               )}
             </div>
@@ -312,23 +251,6 @@ export default function ShopDetailsClient({ shop }: ShopDetailsClientProps) {
           </div>
         </div>
       </main>
-
-      {/* Social Sharing Popup */}
-      {showSocialPopup && seoData && (
-        <SocialSharingPopup
-          shopName={shop.shopName}
-          shopUrl={`/shop/${shop.id}`}
-          shopImage={shop.photoUrl}
-          shopDescription={`${shop.category} in ${shop.area || shop.city || ''}`}
-          enableWhatsApp={seoData.enableWhatsAppSharing !== false}
-          enableFacebook={seoData.enableFacebookSharing !== false}
-          enableTwitter={seoData.enableTwitterSharing !== false}
-          enableLinkedIn={seoData.enableLinkedInSharing !== false}
-          whatsappNumber={seoData.whatsappNumber || shop.whatsappNumber}
-          customMessage={seoData.socialSharingMessage}
-          onClose={() => setShowSocialPopup(false)}
-        />
-      )}
     </div>
   );
 }

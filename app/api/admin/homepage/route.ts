@@ -167,10 +167,15 @@ export const PUT = requireAdmin(async (request: NextRequest) => {
     }
 
     const savedSettings = settings.toObject();
+    
+    // Settings saved - cache will refresh within 1 minute (reduced from 5 minutes)
+    // Client-side will also force refresh on save
+    console.log('✅ Homepage settings saved - cache will refresh within 1 minute');
+    
     return NextResponse.json({ 
       success: true, 
       settings: savedSettings,
-      message: 'Homepage settings saved successfully'
+      message: 'Homepage settings saved successfully. Changes will appear within 1 minute or refresh the homepage to see immediately.'
     }, { status: 200 });
   } catch (error: any) {
     console.error('Error updating homepage settings:', error);

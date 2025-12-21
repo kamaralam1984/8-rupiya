@@ -71,46 +71,19 @@ export default function Home() {
 
   const fetchHomepageSettings = async () => {
     try {
-      // Use cached fetch with revalidation
+      // Fetch with normal caching (1 minute cache time)
+      // Cache will refresh automatically within 1 minute after settings are saved
       const response = await fetch('/api/homepage', {
-        next: { revalidate: 300 }, // Cache for 5 minutes
-        headers: {
-          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-        },
+        next: { revalidate: 60 }, // Revalidate every 1 minute
       });
       const data = await safeJsonParse<{ success: boolean; settings: HomepageSettings }>(response);
       
       if (data?.settings) {
         setSettings(data.settings);
-      } else {
-        // Use default settings immediately if no data
-        setSettings({
-          sections: {
-            hero: true,
-            categories: true,
-            offers: true,
-            featuredBusinesses: true,
-            topRated: true,
-            newBusinesses: true,
-            searchFilter: true,
-          },
-          heroSections: {
-            leftRail: true,
-            rightRail: true,
-            bottomRail: true,
-            bottomStrip: true,
-          },
-          layout: {
-            theme: 'light',
-            primaryColor: '#3b82f6',
-            secondaryColor: '#8b5cf6',
-            containerWidth: '98%',
-            sectionSpacing: '40px',
-          },
-        });
       }
     } catch (error) {
-      // Use default settings immediately on error
+      console.error('Error fetching homepage settings:', error);
+      // Use default settings on error
       setSettings({
         sections: {
           hero: true,

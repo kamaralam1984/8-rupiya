@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import AgentShop from '@/lib/models/AgentShop';
 import Agent from '@/lib/models/Agent';
-import Operator from '@/lib/models/Operator';
 import AdminShop from '@/lib/models/Shop'; // Admin shop model
 import Category from '@/models/Category'; // Category model
+import SEO from '@/lib/models/SEO'; // SEO model for auto-SEO creation
 import { verifyAgentToken, getAgentTokenFromRequest } from '@/lib/utils/agentAuth';
-import { calculateAgentCommission, calculateOperatorCommission, PRICING_PLANS, PlanType } from '@/app/utils/pricing';
+import { calculateAgentCommission, PRICING_PLANS, PlanType } from '@/app/utils/pricing';
 import { generateShopUrl } from '@/lib/utils/slugGenerator';
 import mongoose from 'mongoose';
 
@@ -253,9 +253,6 @@ export async function POST(request: NextRequest) {
     const agentCommission = paymentStatus === 'PAID' 
       ? calculateAgentCommission(finalPlanType, finalAmount)
       : 0;
-    const operatorCommission = paymentStatus === 'PAID' && agentCommission > 0
-      ? calculateOperatorCommission(finalPlanType, finalAmount, agentCommission)
-      : 0;
 
     // Calculate payment dates
     const paymentDate = paymentStatus === 'PAID' ? new Date() : new Date();
@@ -309,9 +306,6 @@ export async function POST(request: NextRequest) {
     let shop;
     try {
       console.log('📝 Creating AgentShop document...');
-      // Generate unique temporary URL to avoid duplicate key errors
-      // Use timestamp + random string for uniqueness
-      const tempUrl = `/temp/${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       // First create with temp URL, then update with actual URL based on shop ID
       const tempShop = await AgentShop.create({
         shopName: trimmedShopName,
@@ -323,19 +317,17 @@ export async function POST(request: NextRequest) {
         area: trimmedArea || undefined, // Area is optional - use undefined if empty
         address: trimmedAddress,
         photoUrl: trimmedPhotoUrl,
-        shopUrl: tempUrl, // Unique temporary value, will be updated
+        shopUrl: 'temp', // Temporary value, will be updated
         latitude: Number(latitude),
         longitude: Number(longitude),
-        paymentStatus: 'PENDING', // Always PENDING - requires admin approval (unless Razorpay payment)
+        paymentStatus: 'PENDING', // Always PENDING - requires admin approval
         paymentMode: paymentMode || 'NONE',
         receiptNo: finalReceiptNo || '',
         amount: finalAmount,
         planType: finalPlanType,
         planAmount: finalAmount,
         agentCommission: agentCommission,
-        operatorCommission: operatorCommission,
-        // Only save screenshot if it's not the Razorpay success marker
-        paymentScreenshot: paymentScreenshot && paymentScreenshot !== 'razorpay_payment_success' ? paymentScreenshot : undefined,
+        paymentScreenshot: paymentScreenshot || undefined,
         sendSmsReceipt: sendSmsReceipt || false,
         agentId: new mongoose.Types.ObjectId(payload.agentId),
         lastPaymentDate: undefined, // No payment date until admin approves
@@ -499,27 +491,34 @@ export async function POST(request: NextRequest) {
           agent.totalEarnings += agentCommission;
         }
         await agent.save();
-
-        // Update operator commission if agent has an operator
-        if (agent.operatorId && paymentStatus === 'PAID' && operatorCommission > 0) {
-          try {
-            const operator = await Operator.findById(agent.operatorId);
-            if (operator) {
-              operator.totalEarnings = (operator.totalEarnings || 0) + operatorCommission;
-              await operator.save();
-            }
-          } catch (operatorError: any) {
-            console.error('Error updating operator commission:', operatorError);
-          }
-        }
       }
     } catch (agentError: any) {
       console.error('Error updating agent stats:', agentError);
       // Don't fail the shop creation if agent update fails
     }
 
-    // SEO entry will be created by the frontend after shop creation if user has provided SEO data
-    // No auto-creation of SEO entry - only save when user explicitly adds SEO
+    // Auto-create SEO entry for ranking #1 (Area is optional)
+    try {
+      const addressParts = trimmedAddress.split(',');
+      const extractedArea = trimmedArea || addressParts[0]?.trim() || undefined; // Area is optional
+      // Create SEO entry even if area is not provided
+      if (trimmedPincode && categoryName) {
+        await SEO.create({
+          shopName: shop.shopName,
+          area: extractedArea || shop.shopName, // Use shop name as fallback if area not provided
+          category: categoryName,
+          pincode: trimmedPincode,
+          emailId: trimmedEmail || trimmedMobile ? `${trimmedMobile}@shop.local` : 'contact@8rupiya.com',
+          ranking: 1, // Always rank #1 for new shops
+          shopId: shop._id,
+          shopUrl: shop.shopUrl,
+        });
+        console.log(`✅ Auto-created SEO entry for shop: ${shop.shopName} with ranking 1`);
+      }
+    } catch (seoError: any) {
+      // Don't fail shop creation if SEO creation fails
+      console.error('⚠️ Failed to create SEO entry (non-critical):', seoError.message);
+    }
 
     console.log(`🎉 Shop creation complete! Returning success response for shop: ${shop._id}`);
     

@@ -1,157 +1,109 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import Payment from '@/lib/models/Payment';
 import AgentShop from '@/lib/models/AgentShop';
-import Agent from '@/lib/models/Agent';
-import { verifyPaymentSignature, fetchPaymentDetails } from '@/lib/razorpay';
+import AdminShop from '@/lib/models/Shop';
 
+/**
+ * POST /api/payment/verify
+ * Verify UPI payment (simulated - in production, integrate with payment gateway)
+ */
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
     const body = await request.json();
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-    } = body;
+    const { paymentId, amount, shopName, ownerName, mobile } = body;
 
-    // Validation
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    if (!paymentId || !amount) {
       return NextResponse.json(
-        { success: false, message: 'Missing payment details' },
+        { success: false, error: 'Payment ID and amount are required' },
         { status: 400 }
       );
     }
 
-    // Verify signature
-    const isValid = verifyPaymentSignature({
-      orderId: razorpay_order_id,
-      paymentId: razorpay_payment_id,
-      signature: razorpay_signature,
-    });
+    // In production, this would verify with actual payment gateway
+    // For now, we'll simulate verification by checking if payment exists
+    // You can integrate with Razorpay, Paytm, PhonePe, etc.
 
-    if (!isValid) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid payment signature' },
-        { status: 400 }
-      );
-    }
+    // Simulated verification logic
+    // In real implementation, check payment gateway API
+    const isVerified = await simulatePaymentVerification(paymentId, amount);
 
-    // Find payment record
-    const payment = await Payment.findOne({
-      razorpayOrderId: razorpay_order_id,
-    });
+    if (isVerified) {
+      // Update shop payment status if shop exists
+      try {
+        const agentShop = await AgentShop.findOne({
+          shopName: shopName,
+          ownerName: ownerName,
+          mobile: mobile,
+        });
 
-    if (!payment) {
-      return NextResponse.json(
-        { success: false, message: 'Payment record not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check if already processed
-    if (payment.status === 'SUCCESS') {
-      return NextResponse.json({
-        success: true,
-        message: 'Payment already processed',
-        payment,
-      });
-    }
-
-    // Fetch payment details from Razorpay
-    const paymentDetailsResult = await fetchPaymentDetails(razorpay_payment_id);
-    
-    if (!paymentDetailsResult.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Failed to fetch payment details from Razorpay',
-        },
-        { status: 500 }
-      );
-    }
-
-    const razorpayPayment = paymentDetailsResult.payment;
-
-    // Update payment record
-    payment.status = 'SUCCESS';
-    payment.razorpayPaymentId = razorpay_payment_id;
-    payment.razorpaySignature = razorpay_signature;
-    payment.paidAt = new Date();
-    payment.paymentId = razorpay_payment_id;
-    payment.paymentSignature = razorpay_signature;
-    
-    // Save success message in metadata
-    if (!payment.metadata) {
-      payment.metadata = {};
-    }
-    payment.metadata.successMessage = `Payment successful! Order ID: ${razorpay_order_id}, Payment ID: ${razorpay_payment_id}, Amount: ₹${(payment.amount / 100).toFixed(2)}`;
-
-    await payment.save();
-
-    // Update shop payment status (only if shopId exists)
-    if (payment.shopId) {
-      const shop = await AgentShop.findById(payment.shopId);
-      if (shop) {
-      shop.paymentStatus = 'PAID';
-      shop.paymentMode = 'UPI';
-      shop.amount = payment.amount / 100; // Convert paise to rupees
-      shop.planType = payment.planType;
-      shop.planAmount = payment.amount / 100;
-      shop.lastPaymentDate = new Date();
-      shop.receiptNo = payment.metadata?.receiptNo || '';
-      
-      // Set payment expiry date to 365 days from now
-      const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 365);
-      shop.paymentExpiryDate = expiryDate;
-
-      // Calculate commissions
-      const amountInRupees = payment.amount / 100;
-      const agentCommissionPercent = 20; // 20% to agent
-      const operatorCommissionPercent = 15; // 15% of remaining after agent commission
-
-      shop.agentCommission = (amountInRupees * agentCommissionPercent) / 100;
-      const remainingAfterAgent = amountInRupees - shop.agentCommission;
-      shop.operatorCommission = (remainingAfterAgent * operatorCommissionPercent) / 100;
-
-      await shop.save();
-
-        // Update agent's total earnings if agentId exists
-        if (payment.agentId) {
-          const agent = await Agent.findById(payment.agentId);
-          if (agent) {
-            agent.totalEarnings += shop.agentCommission;
-            await agent.save();
-          }
+        if (agentShop && agentShop.paymentStatus === 'PENDING') {
+          agentShop.paymentStatus = 'PAID';
+          agentShop.paymentMode = 'UPI';
+          agentShop.lastPaymentDate = new Date();
+          const expiryDate = new Date();
+          expiryDate.setDate(expiryDate.getDate() + 365);
+          agentShop.paymentExpiryDate = expiryDate;
+          await agentShop.save();
         }
+
+        // Also update admin shop
+        const adminShop = await AdminShop.findOne({
+          shopName: shopName,
+          ownerName: ownerName,
+        });
+
+        if (adminShop) {
+          adminShop.lastPaymentDate = new Date();
+          const expiryDate = new Date();
+          expiryDate.setDate(expiryDate.getDate() + 365);
+          adminShop.paymentExpiryDate = expiryDate;
+          await adminShop.save();
+        }
+      } catch (updateError) {
+        console.error('Error updating shop payment:', updateError);
+        // Continue even if update fails
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Payment verified successfully',
-      payment: {
-        orderId: payment.razorpayOrderId,
-        paymentId: payment.razorpayPaymentId,
-        amount: payment.amount / 100, // Convert to rupees for display
-        currency: payment.currency,
-        status: payment.status,
-        planType: payment.planType,
-        receiptNo: payment.metadata?.receiptNo,
-      },
-    });
-  } catch (error: any) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Payment verification error:', error);
-    }
     return NextResponse.json(
       {
-        success: false,
-        message: error.message || 'Internal server error',
+        success: true,
+        verified: isVerified,
+        paymentId: paymentId,
+        message: isVerified ? 'Payment verified successfully' : 'Payment not verified yet',
       },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    console.error('Payment verification error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Payment verification failed' },
       { status: 500 }
     );
   }
 }
+/**
+ * Simulate payment verification
+ * In production, replace this with actual payment gateway API call
+ */
+async function simulatePaymentVerification(paymentId: string, amount: number): Promise<boolean> {
+  // Simulated: In production, call payment gateway API
+  // Example with Razorpay:
+  // const razorpay = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET });
+  // const payment = await razorpay.payments.fetch(paymentId);
+  // return payment.status === 'captured' && payment.amount === amount * 100; // Amount in paise
+
+  // For demo: Return true after a delay (simulating payment processing)
+  // In real scenario, user would have already paid via UPI app
+  // and we verify with payment gateway
+  
+  // Simulate: Check if payment was made (in production, this checks actual gateway)
+  // For now, we'll return false and let user manually verify
+  // In production, integrate with payment gateway webhook or polling
+  
+  return false; // Default: payment not verified (user needs to manually confirm)
+}
+
+

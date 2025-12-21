@@ -6,8 +6,16 @@ export function getRazorpayInstance() {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
+  // Validate credentials - check if they exist and are not placeholders
   if (!keyId || !keySecret) {
     throw new Error('Razorpay credentials not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in environment variables.');
+  }
+  
+  // Check for placeholder values
+  if (keyId.includes('your_key') || keySecret.includes('your_secret') || 
+      keyId.trim() === '' || keySecret.trim() === '' ||
+      !keyId.startsWith('rzp_')) {
+    throw new Error('Razorpay online payment is currently not available. Please use UPI QR Code payment option or contact administrator.');
   }
 
   return new Razorpay({

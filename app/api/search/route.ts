@@ -195,9 +195,7 @@ export async function GET(request: NextRequest) {
       const normalizedPincode = pincode.toString().trim();
       if (normalizedPincode) {
         query.pincode = normalizedPincode; // Exact match, not regex
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`📍 Filtering by pincode: "${normalizedPincode}"`);
-        }
+        console.log(`📍 Filtering by pincode: "${normalizedPincode}"`);
       }
     }
 
@@ -308,19 +306,17 @@ export async function GET(request: NextRequest) {
       });
 
     // Log counts for debugging
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`\n🔍 Search Parameters:`, { shopName, category, pincode, planType, area, userLat, userLng });
-      console.log(`📋 MongoDB Query:`, JSON.stringify(finalQuery, null, 2));
-      console.log(`📊 Database Results: Agent=${agentShops.length} (सिर्फ AgentShop से)`);
-      
-      // Log plan type distribution
-      const planTypeCounts: Record<string, number> = {};
-      agentShops.forEach((shop: any) => {
-        const plan = shop.planType || 'BASIC';
-        planTypeCounts[plan] = (planTypeCounts[plan] || 0) + 1;
-      });
-      console.log(`📊 Plan Type Distribution:`, planTypeCounts);
-    }
+    console.log(`\n🔍 Search Parameters:`, { shopName, category, pincode, planType, area, userLat, userLng });
+    console.log(`📋 MongoDB Query:`, JSON.stringify(finalQuery, null, 2));
+    console.log(`📊 Database Results: Agent=${agentShops.length} (सिर्फ AgentShop से)`);
+    
+    // Log plan type distribution
+    const planTypeCounts: Record<string, number> = {};
+    agentShops.forEach((shop: any) => {
+      const plan = shop.planType || 'BASIC';
+      planTypeCounts[plan] = (planTypeCounts[plan] || 0) + 1;
+    });
+    console.log(`📊 Plan Type Distribution:`, planTypeCounts);
 
     // Transform shops - सिर्फ AgentShop से
     const transformedAgentShops = agentShops.map((shop: any) => ({
@@ -382,9 +378,7 @@ export async function GET(request: NextRequest) {
     // Convert map back to array
     const allShops: Shop[] = Array.from(uniqueShopsMap.values());
     
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`✅ After removing duplicates: ${allShops.length} unique shops from AgentShop (removed ${transformedAgentShops.length - allShops.length} duplicates)`);
-    }
+    console.log(`✅ After removing duplicates: ${allShops.length} unique shops from AgentShop (removed ${transformedAgentShops.length - allShops.length} duplicates)`);
 
     // Fetch SEO rankings for all shops
     const shopIds = allShops.map(s => s.id);
@@ -474,9 +468,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Log plan-based organization
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📋 Plan Organization: HERO=${heroShops.length}, LEFT_BAR=${leftBarShops.length}, RIGHT_SIDE=${rightSideShops.length}, BOTTOM_RAIL=${bottomRailShops.length}, Other=${bottomStripShops.length}`);
-    }
+    console.log(`📋 Plan Organization: HERO=${heroShops.length}, LEFT_BAR=${leftBarShops.length}, RIGHT_SIDE=${rightSideShops.length}, BOTTOM_RAIL=${bottomRailShops.length}, Other=${bottomStripShops.length}`);
 
     // **STEP 2: Main Results - Hero shops appear here**
     const mainResults: Shop[] = [];
@@ -554,10 +546,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Log final results
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`✅ Search Results Ready: Hero=${mainResults.length}, Left=${leftRail.length}, Right=${rightRail.length}, Bottom=${bottomStrip.length}, Total=${allShops.length}`);
-      console.log(`📌 Pincode Filter: ${pincode || 'None'}, Found Shops: ${allShops.length}`);
-    }
+    console.log(`✅ Search Results Ready: Hero=${mainResults.length}, Left=${leftRail.length}, Right=${rightRail.length}, Bottom=${bottomStrip.length}, Total=${allShops.length}`);
+    console.log(`📌 Pincode Filter: ${pincode || 'None'}, Found Shops: ${allShops.length}`);
 
     // If pincode filter is active but no shops found, log warning
     if (pincode && allShops.length === 0) {

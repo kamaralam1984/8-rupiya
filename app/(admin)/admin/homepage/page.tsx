@@ -179,6 +179,19 @@ export default function HomepageManagement() {
         toast.success('Homepage settings saved successfully!');
         // Refresh to get latest data
         fetchSettings();
+        
+        // Force refresh homepage cache by fetching with cache-busting
+        try {
+          await fetch('/api/homepage', { 
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+            }
+          });
+          console.log('✅ Homepage cache refreshed');
+        } catch (refreshError) {
+          console.warn('Cache refresh warning (non-critical):', refreshError);
+        }
       } else {
         throw new Error(data?.error || 'Failed to save settings');
       }

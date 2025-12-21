@@ -15,53 +15,8 @@ interface Agent {
   agentCode: string;
   agentPanelText?: string;
   agentPanelTextColor?: 'red' | 'green' | 'blue' | 'black';
-  operatorId?: string;
-  operatorName?: string;
   totalShops: number;
   totalEarnings: number;
-  createdAt: string;
-  // Live status fields
-  isOnline?: boolean;
-  location?: {
-    latitude: number;
-    longitude: number;
-  } | null;
-  lastSeen?: string | null;
-  address?: string | null;
-  city?: string | null;
-  area?: string | null;
-  pincode?: string | null;
-}
-
-interface Operator {
-  _id: string;
-  name: string;
-  operatorCode: string;
-}
-
-interface AgentRequest {
-  id: string;
-  agent: {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    agentCode: string;
-    currentOperatorId: string | null;
-  };
-  operator: {
-    id: string;
-    name: string;
-    operatorCode: string;
-    email: string;
-    phone: string;
-  };
-  requestedBy: {
-    id: string;
-    name: string;
-    operatorCode: string;
-  };
-  status: string;
   createdAt: string;
 }
 
@@ -71,191 +26,18 @@ export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [operatorCodeSearch, setOperatorCodeSearch] = useState('');
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [recalculating, setRecalculating] = useState(false);
-  const [operators, setOperators] = useState<Operator[]>([]);
-  const [assigningOperator, setAssigningOperator] = useState<string | null>(null);
-  const [bulkOperatorId, setBulkOperatorId] = useState<string>('');
-  const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set());
-  const [bulkAssigning, setBulkAssigning] = useState(false);
-  const [pendingRequests, setPendingRequests] = useState<AgentRequest[]>([]);
-  const [showRequests, setShowRequests] = useState(false);
-  const [processingRequest, setProcessingRequest] = useState<string | null>(null);
-  const [liveStatus, setLiveStatus] = useState<Record<string, any>>({});
 
   useEffect(() => {
     fetchAgents();
-    fetchOperators();
-    fetchPendingRequests();
-    fetchLiveStatus();
-    
-    // Poll live status every 10 seconds
-    const interval = setInterval(() => {
-      fetchLiveStatus();
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [search, operatorCodeSearch]);
-
-  const fetchPendingRequests = async () => {
-    try {
-      const response = await fetch('/api/admin/agent-requests?status=PENDING', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (data.success) {
-        setPendingRequests(data.requests || []);
-      }
-    } catch (error) {
-      console.error('Failed to load pending requests:', error);
-    }
-  };
-
-  const handleApproveRequest = async (requestId: string) => {
-    if (!confirm('Approve this agent assignment request?')) {
-      return;
-    }
-
-    setProcessingRequest(requestId);
-    try {
-      const response = await fetch(`/api/admin/agent-requests/${requestId}/approve`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        toast.success('Request approved successfully');
-        fetchPendingRequests();
-        fetchAgents(); // Refresh agents list
-      } else {
-        toast.error(data.error || 'Failed to approve request');
-      }
-    } catch (error) {
-      console.error('Approve error:', error);
-      toast.error('Failed to approve request');
-    } finally {
-      setProcessingRequest(null);
-    }
-  };
-
-  const handleRejectRequest = async (requestId: string) => {
-    const reason = prompt('Enter rejection reason (optional):');
-    if (reason === null) return; // User cancelled
-
-    setProcessingRequest(requestId);
-    try {
-      const response = await fetch(`/api/admin/agent-requests/${requestId}/reject`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ rejectionReason: reason || 'Request rejected by admin' }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        toast.success('Request rejected');
-        fetchPendingRequests();
-      } else {
-        toast.error(data.error || 'Failed to reject request');
-      }
-    } catch (error) {
-      console.error('Reject error:', error);
-      toast.error('Failed to reject request');
-    } finally {
-      setProcessingRequest(null);
-    }
-  };
-
-  const fetchOperators = async () => {
-    try {
-      const response = await fetch('/api/admin/operators', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (data.success) {
-        setOperators(data.operators || []);
-      }
-    } catch (error) {
-      console.error('Failed to load operators:', error);
-    }
-  };
-
-  const handleAssignOperator = async (agentId: string, operatorId: string) => {
-    try {
-      setAssigningOperator(agentId);
-      const response = await fetch(`/api/admin/agents/${agentId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ operatorId: operatorId || null }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        toast.success('Operator assigned successfully');
-        fetchAgents();
-      } else {
-        toast.error(data.error || 'Failed to assign operator');
-      }
-    } catch (error) {
-      console.error('Error assigning operator:', error);
-      toast.error('Failed to assign operator');
-    } finally {
-      setAssigningOperator(null);
-    }
-  };
-
-  const fetchLiveStatus = async () => {
-    try {
-      const response = await fetch('/api/admin/agents/live-status', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        // Create a map of agentId to status
-        const statusMap: Record<string, any> = {};
-        data.agents.forEach((agent: any) => {
-          statusMap[agent.agentId] = {
-            isOnline: agent.isOnline,
-            location: agent.location,
-            lastSeen: agent.lastSeen,
-            address: agent.address,
-            city: agent.city,
-            area: agent.area,
-            pincode: agent.pincode,
-          };
-        });
-        setLiveStatus(statusMap);
-      }
-    } catch (error) {
-      // Silently fail - don't show error for live status
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to load live status:', error);
-      }
-    }
-  };
+  }, [search]);
 
   const fetchAgents = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
       if (search) params.append('search', search);
-      if (operatorCodeSearch) params.append('operatorCode', operatorCodeSearch.toUpperCase());
 
       const response = await fetch(`/api/admin/agents?${params.toString()}`, {
         headers: {
@@ -266,10 +48,6 @@ export default function AgentsPage() {
       const data = await response.json();
       if (data.success) {
         setAgents(data.agents);
-        // Clear selection when agents change
-        setSelectedAgents(new Set());
-        // Fetch live status after agents are loaded
-        fetchLiveStatus();
       }
     } catch (error) {
       console.error('Failed to load agents:', error);
@@ -377,77 +155,6 @@ export default function AgentsPage() {
     }
   };
 
-  const handleBulkAssign = async () => {
-    if (!bulkOperatorId) {
-      toast.error('Please select an operator');
-      return;
-    }
-
-    if (selectedAgents.size === 0) {
-      toast.error('Please select at least one agent');
-      return;
-    }
-
-    if (!confirm(`Assign ${selectedAgents.size} agent(s) to selected operator?`)) {
-      return;
-    }
-
-    setBulkAssigning(true);
-    try {
-      const agentIds = Array.from(selectedAgents);
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const agentId of agentIds) {
-        try {
-          const response = await fetch(`/api/admin/agents/${agentId}`, {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ operatorId: bulkOperatorId || null }),
-          });
-
-          const data = await response.json();
-          if (data.success) {
-            successCount++;
-          } else {
-            failCount++;
-          }
-        } catch (error) {
-          failCount++;
-        }
-      }
-
-      if (successCount > 0) {
-        toast.success(`Successfully assigned ${successCount} agent(s)`);
-      }
-      if (failCount > 0) {
-        toast.error(`Failed to assign ${failCount} agent(s)`);
-      }
-
-      fetchAgents();
-      setSelectedAgents(new Set());
-      setBulkOperatorId('');
-    } catch (error) {
-      console.error('Bulk assign error:', error);
-      toast.error('Failed to assign agents');
-    } finally {
-      setBulkAssigning(false);
-    }
-  };
-
-  const toggleAgentSelection = (agentId: string) => {
-    const newSelection = new Set(selectedAgents);
-    if (newSelection.has(agentId)) {
-      newSelection.delete(agentId);
-    } else {
-      newSelection.add(agentId);
-    }
-    setSelectedAgents(newSelection);
-  };
-
   const handleRecalculateStats = async () => {
     if (!confirm('Recalculate all agents\' stats (totalShops and totalEarnings) based on actual AgentShop data?\n\nThis will update all agents to match their actual shop counts and earnings.')) {
       return;
@@ -488,14 +195,6 @@ export default function AgentsPage() {
           <p className="text-gray-600 mt-1">Manage field agents and their accounts</p>
         </div>
         <div className="flex gap-3">
-          {pendingRequests.length > 0 && (
-            <button
-              onClick={() => setShowRequests(!showRequests)}
-              className="bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-orange-700 transition-colors flex items-center gap-2"
-            >
-              ⏳ Pending Requests ({pendingRequests.length})
-            </button>
-          )}
           <button
             onClick={handleRecalculateStats}
             disabled={recalculating}
@@ -522,133 +221,15 @@ export default function AgentsPage() {
         </div>
       </div>
 
-      {/* Pending Requests Section */}
-      {showRequests && pendingRequests.length > 0 && (
-        <div className="mb-6 bg-orange-50 border border-orange-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-orange-900">
-              ⏳ Pending Agent Assignment Requests ({pendingRequests.length})
-            </h2>
-            <button
-              onClick={() => setShowRequests(false)}
-              className="text-orange-600 hover:text-orange-800"
-            >
-              ✕ Close
-            </button>
-          </div>
-          <div className="space-y-4">
-            {pendingRequests.map((request) => (
-              <div
-                key={request.id}
-                className="bg-white rounded-lg shadow-md p-4 border border-orange-200"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
-                      <div>
-                        <p className="text-xs text-gray-500">Agent</p>
-                        <p className="font-semibold text-gray-900">{request.agent.name}</p>
-                        <p className="text-sm text-gray-600">{request.agent.agentCode}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Requested By Operator</p>
-                        <p className="font-semibold text-green-700">{request.operator.name}</p>
-                        <p className="text-sm text-gray-600">{request.operator.operatorCode}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Agent Email</p>
-                        <p className="text-sm text-gray-700">{request.agent.email}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Requested On</p>
-                        <p className="text-sm text-gray-700">
-                          {new Date(request.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    {request.agent.currentOperatorId && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mb-2">
-                        <p className="text-xs text-yellow-800">
-                          ⚠️ Agent is currently assigned to another operator
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-2 ml-4">
-                    <button
-                      onClick={() => handleApproveRequest(request.id)}
-                      disabled={processingRequest === request.id}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {processingRequest === request.id ? 'Processing...' : '✅ Approve'}
-                    </button>
-                    <button
-                      onClick={() => handleRejectRequest(request.id)}
-                      disabled={processingRequest === request.id}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      ❌ Reject
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Search */}
-      <div className="mb-6 space-y-4">
-        <div className="flex gap-4">
-          <input
-            type="text"
-            placeholder="Search by name, email, phone, or agent code..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          <input
-            type="text"
-            placeholder="Search by Operator Code (e.g., OP001)..."
-            value={operatorCodeSearch}
-            onChange={(e) => setOperatorCodeSearch(e.target.value.toUpperCase())}
-            className="flex-1 max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          />
-        </div>
-        
-        {/* Bulk Assignment */}
-        {selectedAgents.size > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-4">
-            <span className="text-blue-900 font-semibold">
-              {selectedAgents.size} agent(s) selected
-            </span>
-            <select
-              value={bulkOperatorId}
-              onChange={(e) => setBulkOperatorId(e.target.value)}
-              className="px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select Operator...</option>
-              {operators.map((op) => (
-                <option key={op._id} value={op._id}>
-                  {op.name} ({op.operatorCode})
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={handleBulkAssign}
-              disabled={bulkAssigning || !bulkOperatorId}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {bulkAssigning ? 'Assigning...' : `Assign to Operator`}
-            </button>
-            <button
-              onClick={() => setSelectedAgents(new Set())}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400 transition-colors"
-            >
-              Clear Selection
-            </button>
-          </div>
-        )}
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Search by name, email, phone, or agent code..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
       </div>
 
       {/* Agents Table */}
@@ -673,28 +254,10 @@ export default function AgentsPage() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    <input
-                      type="checkbox"
-                      checked={selectedAgents.size === agents.length && agents.length > 0}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedAgents(new Set(agents.map(a => a.id || a._id)));
-                        } else {
-                          setSelectedAgents(new Set());
-                        }
-                      }}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agent Code</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Online</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Seen</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Operator</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Shops</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Earnings</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -703,14 +266,6 @@ export default function AgentsPage() {
               <tbody className="divide-y divide-gray-200">
                 {agents.map((agent) => (
                   <tr key={agent.id || agent._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={selectedAgents.has(agent.id || agent._id)}
-                        onChange={() => toggleAgentSelection(agent.id || agent._id)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <span className="font-semibold text-blue-600">{agent.agentCode}</span>
@@ -732,125 +287,11 @@ export default function AgentsPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-medium text-gray-900">{agent.name}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {(() => {
-                        const status = liveStatus[agent.id || agent._id];
-                        const isOnline = status?.isOnline ?? false;
-                        return (
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`inline-block w-3 h-3 rounded-full ${
-                                isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
-                              }`}
-                              title={isOnline ? 'Online' : 'Offline'}
-                            ></span>
-                            <span className="text-sm font-medium text-gray-700">
-                              {isOnline ? '🟢 Yes' : '⚫ No'}
-                            </span>
-                          </div>
-                        );
-                      })()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {(() => {
-                        const status = liveStatus[agent.id || agent._id];
-                        // Build location string from available data
-                        if (!status) {
-                          return <span className="text-gray-400">No location</span>;
-                        }
-                        
-                        // Priority: address > area + city > city > area > pincode > coordinates
-                        let locationText = 'Unknown';
-                        let locationParts: string[] = [];
-                        
-                        // Build location string with priority
-                        if (status.address) {
-                          // Use full address if available
-                          locationText = status.address;
-                        } else {
-                          // Build from components
-                          if (status.area) locationParts.push(status.area);
-                          if (status.city) locationParts.push(status.city);
-                          
-                          if (locationParts.length > 0) {
-                            locationText = locationParts.join(', ');
-                          } else if (status.city) {
-                            locationText = status.city;
-                          } else if (status.area) {
-                            locationText = status.area;
-                          } else if (status.pincode) {
-                            locationText = `Pincode: ${status.pincode}`;
-                          } else if (status.location?.latitude && status.location?.longitude) {
-                            locationText = `${status.location.latitude.toFixed(4)}, ${status.location.longitude.toFixed(4)}`;
-                          }
-                        }
-                        return (
-                          <div>
-                            <span className="font-medium">{locationText}</span>
-                            {status.pincode && (
-                              <span className="text-gray-500 ml-1">({status.pincode})</span>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {(() => {
-                        const status = liveStatus[agent.id || agent._id];
-                        if (!status?.lastSeen) {
-                          return <span className="text-gray-400">Never</span>;
-                        }
-                        const lastSeen = new Date(status.lastSeen);
-                        const now = new Date();
-                        const diffMs = now.getTime() - lastSeen.getTime();
-                        const diffSec = Math.floor(diffMs / 1000);
-                        const diffMin = Math.floor(diffSec / 60);
-                        const diffHour = Math.floor(diffMin / 60);
-                        const diffDay = Math.floor(diffHour / 24);
-
-                        let timeAgo = '';
-                        if (diffSec < 60) {
-                          timeAgo = `${diffSec} sec ago`;
-                        } else if (diffMin < 60) {
-                          timeAgo = `${diffMin} min ago`;
-                        } else if (diffHour < 24) {
-                          timeAgo = `${diffHour} hour${diffHour > 1 ? 's' : ''} ago`;
-                        } else {
-                          timeAgo = `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
-                        }
-
-                        return (
-                          <span className="font-medium" title={lastSeen.toLocaleString()}>
-                            {timeAgo}
-                          </span>
-                        );
-                      })()}
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {agent.email}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {agent.phone}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={agent.operatorId || ''}
-                        onChange={(e) => handleAssignOperator(agent.id || agent._id, e.target.value)}
-                        disabled={assigningOperator === (agent.id || agent._id)}
-                        className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                      >
-                        <option value="">No Operator</option>
-                        {operators.map((op) => (
-                          <option key={op._id} value={op._id}>
-                            {op.name} ({op.operatorCode})
-                          </option>
-                        ))}
-                      </select>
-                      {agent.operatorName && (
-                        <div className="text-xs text-gray-400 mt-1">
-                          {agent.operatorName}
-                        </div>
-                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">
                       <div className="flex items-center gap-2">

@@ -35,10 +35,10 @@ export async function POST(request: NextRequest) {
       agentId,
     } = body;
 
-    // Validate required fields (shopId is optional for testing)
-    if (!planType || !customerName || !customerPhone) {
+    // Validate required fields
+    if (!shopId || !planType || !customerName || !customerPhone) {
       return NextResponse.json(
-        { error: 'Missing required fields: planType, customerName, customerPhone' },
+        { error: 'Missing required fields: shopId, planType, customerName, customerPhone' },
         { status: 400 }
       );
     }
@@ -63,59 +63,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify shop exists (if shopId is provided)
-    let shop = null;
-    if (shopId) {
-      shop = await AgentShop.findById(shopId);
-      if (!shop) {
+    // Verify shop exists
+    const shop = await AgentShop.findById(shopId);
+    if (!shop) {
+      return NextResponse.json(
+        { error: 'Shop not found' },
+        { status: 404 }
+      );
+    }
+
+    // If agentId is provided, verify agent token
+    if (agentId) {
+      const token = getAgentTokenFromRequest(request);
+      if (!token) {
         return NextResponse.json(
-          { error: 'Shop not found' },
-          { status: 404 }
+          { error: 'Authentication required for agent payments' },
+          { status: 401 }
         );
       }
 
-      // If agentId is provided, verify agent token
-      if (agentId) {
-        const token = getAgentTokenFromRequest(request);
-        if (!token) {
-          return NextResponse.json(
-            { error: 'Authentication required for agent payments' },
-            { status: 401 }
-          );
-        }
-
-        const payload = verifyAgentToken(token);
-        if (!payload || payload.agentId !== agentId) {
-          return NextResponse.json(
-            { error: 'Unauthorized' },
-            { status: 403 }
-          );
-        }
-
-        // Verify agent owns this shop
-        if (!shop.agentId || shop.agentId.toString() !== agentId) {
-          return NextResponse.json(
-            { error: 'Agent does not own this shop' },
-            { status: 403 }
-          );
-        }
+      const payload = verifyAgentToken(token);
+      if (!payload || payload.agentId !== agentId) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 403 }
+        );
       }
-    } else {
-      // For test payments without shopId, allow without authentication
-      // This allows shoppers to create payment links
-      // Agent token is optional - only verify if agentId is provided
-      if (agentId) {
-        const token = getAgentTokenFromRequest(request);
-        if (token) {
-          const payload = verifyAgentToken(token);
-          if (!payload || payload.agentId !== agentId) {
-            return NextResponse.json(
-              { error: 'Unauthorized' },
-              { status: 403 }
-            );
-          }
-        }
-        // If no token but agentId provided, allow anyway (for test payments)
+
+      // Verify agent owns this shop
+      if (shop.agentId && shop.agentId.toString() !== agentId) {
+        return NextResponse.json(
+          { error: 'Agent does not own this shop' },
+          { status: 403 }
+        );
       }
     }
 
@@ -124,19 +104,15 @@ export async function POST(request: NextRequest) {
     expiresAt.setMinutes(expiresAt.getMinutes() + 30);
 
     // Create payment record
-    const testShopId = shopId 
-      ? new mongoose.Types.ObjectId(shopId) 
-      : new mongoose.Types.ObjectId('507f1f77bcf86cd799439011'); // Dummy ObjectId for test payments
-    
     const payment = await Payment.create({
       orderId,
-      shopId: testShopId,
-      agentId: agentId ? new mongoose.Types.ObjectId(agentId) : (shop ? shop.agentId : undefined),
+      shopId: new mongoose.Types.ObjectId(shopId),
+      agentId: agentId ? new mongoose.Types.ObjectId(agentId) : shop.agentId,
       amount: Math.round(finalAmount * 100), // Store in paise
       currency: 'INR',
       planType: planType as PlanType,
       status: 'PENDING',
-      paymentMode: 'NONE',
+      paymentMode: 'ONLINE',
       customerName,
       customerEmail,
       customerPhone,
@@ -144,7 +120,7 @@ export async function POST(request: NextRequest) {
       expiresAt,
       metadata: {
         receiptNo: `REC${Date.now()}`,
-        notes: `Payment for ${planDetails.name}${shop ? ` - ${shop.shopName}` : ' - Test Payment'}`,
+        notes: `Payment for ${planDetails.name} - ${shop.shopName}`,
       },
       retryCount: 0,
     });
@@ -154,38 +130,17 @@ export async function POST(request: NextRequest) {
       (request.headers.get('origin') || 'http://localhost:3000');
 
     try {
-      // Validate Razorpay credentials before creating payment link
-      if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('❌ Razorpay credentials not configured');
-          console.error('❌ RAZORPAY_KEY_ID:', process.env.RAZORPAY_KEY_ID ? 'Present' : 'Missing');
-          console.error('❌ RAZORPAY_KEY_SECRET:', process.env.RAZORPAY_KEY_SECRET ? 'Present' : 'Missing');
-        }
-        throw new Error('Razorpay payment gateway is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in environment variables.');
-      }
-
-      if (process.env.NODE_ENV === 'development') {
-        console.log('✅ Razorpay credentials found, creating payment link...');
-        console.log('📋 Payment link params:', {
-          amount: finalAmount,
-          currency: 'INR',
-          description: `${planDetails.name}${shop ? ` - ${shop.shopName}` : ' - Test Payment'}`,
-          customerName,
-          customerPhone,
-        });
-      }
-
       const paymentLink = await createPaymentLink({
         amount: finalAmount,
         currency: 'INR',
-        description: `${planDetails.name}${shop ? ` - ${shop.shopName}` : ' - Test Payment'}`,
+        description: `${planDetails.name} - ${shop.shopName}`,
         customer: {
           name: customerName,
-          email: customerEmail || (shop ? shop.email : '') || `${customerPhone}@temp.com`,
+          email: customerEmail || shop.email || '',
           contact: customerPhone,
         },
         notes: {
-          shopId: shopId || '',
+          shopId: shopId,
           planType: planType,
           paymentId: payment._id.toString(),
           orderId: orderId,
@@ -216,85 +171,21 @@ export async function POST(request: NextRequest) {
         { status: 200 }
       );
     } catch (error: any) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('❌ Razorpay Payment Link creation error:', error);
-        console.error('❌ Error type:', error.constructor?.name);
-        console.error('❌ Error details:', {
-          message: error.message,
-          statusCode: error.statusCode,
-          description: error.description,
-          field: error.field,
-          source: error.source,
-          step: error.step,
-          reason: error.reason,
-          metadata: error.metadata,
-          code: error.code,
-          error: error.error,
-          stack: error.stack?.substring(0, 500), // First 500 chars of stack
-        });
-        
-        // Check if it's a Razorpay API error
-        if (error.error) {
-          console.error('❌ Razorpay API Error:', error.error);
-        }
-      }
-      
-      // Update payment record
-      try {
-        payment.status = 'FAILED';
-        payment.errorMessage = error.message || error.description || 'Failed to create Razorpay payment link';
-        await payment.save();
-      } catch (saveError) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('❌ Failed to save payment error:', saveError);
-        }
-      }
-
-      // Return user-friendly error message
-      let errorMessage = 'Failed to create payment link';
-      let errorDetails = '';
-      
-      // Check for Razorpay credentials first
-      if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-        errorMessage = 'Razorpay credentials not configured';
-        errorDetails = 'Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to your .env.local file';
-      } else if (error.description) {
-        errorMessage = error.description;
-        errorDetails = error.message || 'Razorpay API error';
-      } else if (error.message) {
-        errorMessage = error.message;
-        errorDetails = 'Please check Razorpay configuration';
-      } else if (error.error?.description) {
-        errorMessage = error.error.description;
-        errorDetails = error.error.message || 'Razorpay API error';
-      } else {
-        errorMessage = 'Failed to create payment link';
-        errorDetails = error.message || 'Unknown error occurred';
-      }
+      console.error('Razorpay Payment Link creation error:', error);
+      payment.status = 'FAILED';
+      payment.errorMessage = error.message || 'Failed to create Razorpay payment link';
+      await payment.save();
 
       return NextResponse.json(
         {
-          success: false,
-          error: errorMessage,
-          details: errorDetails,
-          message: errorMessage, // For backward compatibility
-          debug: process.env.NODE_ENV === 'development' ? {
-            hasCredentials: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
-            statusCode: error.statusCode,
-            field: error.field,
-            source: error.source,
-            step: error.step,
-            reason: error.reason,
-            errorCode: error.code,
-          } : undefined,
+          error: error.message || 'Failed to create Razorpay payment link',
+          details: 'Please check your Razorpay credentials in environment variables'
         },
         { status: 500 }
       );
     }
   } catch (error: any) {
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Payment link creation error:', error);
-    }
+    console.error('Payment link creation error:', error);
     return NextResponse.json(
       {
         error: 'Failed to create payment link',

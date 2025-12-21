@@ -226,7 +226,18 @@ export default function AgentRazorpayQRPayment({
       await generateQRCode();
     } catch (error: any) {
       console.error('Payment link error:', error);
-      toast.error(error.message || 'Failed to create payment link');
+      const errorMessage = error.message || 'Failed to create payment link';
+      
+      // Show user-friendly error message
+      if (errorMessage.includes('not available') || errorMessage.includes('not configured')) {
+        toast.error('Razorpay online payment is not available. Please use UPI QR Code payment option below.', {
+          duration: 6000,
+        });
+      } else {
+        toast.error(errorMessage, {
+          duration: 5000,
+        });
+      }
     } finally {
       setLoading(false);
     }
