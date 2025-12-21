@@ -7,6 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { AgentAuthProvider } from "./contexts/AgentAuthContext";
 import { ShopperAuthProvider } from "./contexts/ShopperAuthContext";
 import { SearchProvider } from "./contexts/SearchContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
 import Toaster from "./components/Toaster";
 
 const geistSans = Geist({
@@ -129,20 +130,22 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
-        <LocationProvider>
-          <DistanceProvider>
-            <AuthProvider>
-              <AgentAuthProvider>
-                <ShopperAuthProvider>
-                  <SearchProvider>
-                    {children}
-                    <Toaster />
-                  </SearchProvider>
-                </ShopperAuthProvider>
-              </AgentAuthProvider>
-            </AuthProvider>
-          </DistanceProvider>
-        </LocationProvider>
+        <ThemeProvider>
+          <LocationProvider>
+            <DistanceProvider>
+              <AuthProvider>
+                <AgentAuthProvider>
+                  <ShopperAuthProvider>
+                    <SearchProvider>
+                      {children}
+                      <Toaster />
+                    </SearchProvider>
+                  </ShopperAuthProvider>
+                </AgentAuthProvider>
+              </AuthProvider>
+            </DistanceProvider>
+          </LocationProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -326,7 +326,7 @@ export async function POST(request: NextRequest) {
         shopUrl: tempUrl, // Unique temporary value, will be updated
         latitude: Number(latitude),
         longitude: Number(longitude),
-        paymentStatus: 'PENDING', // Always PENDING - requires admin approval
+        paymentStatus: 'PENDING', // Always PENDING - requires admin approval (unless Razorpay payment)
         paymentMode: paymentMode || 'NONE',
         receiptNo: finalReceiptNo || '',
         amount: finalAmount,
@@ -334,7 +334,8 @@ export async function POST(request: NextRequest) {
         planAmount: finalAmount,
         agentCommission: agentCommission,
         operatorCommission: operatorCommission,
-        paymentScreenshot: paymentScreenshot || undefined,
+        // Only save screenshot if it's not the Razorpay success marker
+        paymentScreenshot: paymentScreenshot && paymentScreenshot !== 'razorpay_payment_success' ? paymentScreenshot : undefined,
         sendSmsReceipt: sendSmsReceipt || false,
         agentId: new mongoose.Types.ObjectId(payload.agentId),
         lastPaymentDate: undefined, // No payment date until admin approves

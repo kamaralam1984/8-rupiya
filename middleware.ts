@@ -11,10 +11,10 @@ const RATE_LIMIT = {
     windowMs: 60 * 1000, // 1 minute
     maxRequests: 60, // 60 requests per minute
   },
-  // Auth routes - reasonable limit
+  // Auth routes - reasonable limit (increased for /api/auth/me which is called frequently)
   auth: {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    maxRequests: 10, // 10 requests per 15 minutes (more reasonable for legitimate users)
+    maxRequests: 20, // 20 requests per 15 minutes (increased for legitimate users)
   },
   // General routes
   general: {

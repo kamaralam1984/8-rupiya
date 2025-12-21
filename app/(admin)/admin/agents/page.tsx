@@ -20,6 +20,17 @@ interface Agent {
   totalShops: number;
   totalEarnings: number;
   createdAt: string;
+  // Live status fields
+  isOnline?: boolean;
+  location?: {
+    latitude: number;
+    longitude: number;
+  } | null;
+  lastSeen?: string | null;
+  address?: string | null;
+  city?: string | null;
+  area?: string | null;
+  pincode?: string | null;
 }
 
 interface Operator {
@@ -71,11 +82,20 @@ export default function AgentsPage() {
   const [pendingRequests, setPendingRequests] = useState<AgentRequest[]>([]);
   const [showRequests, setShowRequests] = useState(false);
   const [processingRequest, setProcessingRequest] = useState<string | null>(null);
+  const [liveStatus, setLiveStatus] = useState<Record<string, any>>({});
 
   useEffect(() => {
     fetchAgents();
     fetchOperators();
     fetchPendingRequests();
+    fetchLiveStatus();
+    
+    // Poll live status every 10 seconds
+    const interval = setInterval(() => {
+      fetchLiveStatus();
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [search, operatorCodeSearch]);
 
   const fetchPendingRequests = async () => {
@@ -197,6 +217,39 @@ export default function AgentsPage() {
     }
   };
 
+  const fetchLiveStatus = async () => {
+    try {
+      const response = await fetch('/api/admin/agents/live-status', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // Create a map of agentId to status
+        const statusMap: Record<string, any> = {};
+        data.agents.forEach((agent: any) => {
+          statusMap[agent.agentId] = {
+            isOnline: agent.isOnline,
+            location: agent.location,
+            lastSeen: agent.lastSeen,
+            address: agent.address,
+            city: agent.city,
+            area: agent.area,
+            pincode: agent.pincode,
+          };
+        });
+        setLiveStatus(statusMap);
+      }
+    } catch (error) {
+      // Silently fail - don't show error for live status
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to load live status:', error);
+      }
+    }
+  };
+
   const fetchAgents = async () => {
     try {
       setLoading(true);
@@ -215,6 +268,8 @@ export default function AgentsPage() {
         setAgents(data.agents);
         // Clear selection when agents change
         setSelectedAgents(new Set());
+        // Fetch live status after agents are loaded
+        fetchLiveStatus();
       }
     } catch (error) {
       console.error('Failed to load agents:', error);
@@ -634,6 +689,9 @@ export default function AgentsPage() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agent Code</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Online</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Seen</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Operator</th>
@@ -673,6 +731,100 @@ export default function AgentsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-medium text-gray-900">{agent.name}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {(() => {
+                        const status = liveStatus[agent.id || agent._id];
+                        const isOnline = status?.isOnline ?? false;
+                        return (
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`inline-block w-3 h-3 rounded-full ${
+                                isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                              }`}
+                              title={isOnline ? 'Online' : 'Offline'}
+                            ></span>
+                            <span className="text-sm font-medium text-gray-700">
+                              {isOnline ? '🟢 Yes' : '⚫ No'}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {(() => {
+                        const status = liveStatus[agent.id || agent._id];
+                        // Build location string from available data
+                        if (!status) {
+                          return <span className="text-gray-400">No location</span>;
+                        }
+                        
+                        // Priority: address > area + city > city > area > pincode > coordinates
+                        let locationText = 'Unknown';
+                        let locationParts: string[] = [];
+                        
+                        // Build location string with priority
+                        if (status.address) {
+                          // Use full address if available
+                          locationText = status.address;
+                        } else {
+                          // Build from components
+                          if (status.area) locationParts.push(status.area);
+                          if (status.city) locationParts.push(status.city);
+                          
+                          if (locationParts.length > 0) {
+                            locationText = locationParts.join(', ');
+                          } else if (status.city) {
+                            locationText = status.city;
+                          } else if (status.area) {
+                            locationText = status.area;
+                          } else if (status.pincode) {
+                            locationText = `Pincode: ${status.pincode}`;
+                          } else if (status.location?.latitude && status.location?.longitude) {
+                            locationText = `${status.location.latitude.toFixed(4)}, ${status.location.longitude.toFixed(4)}`;
+                          }
+                        }
+                        return (
+                          <div>
+                            <span className="font-medium">{locationText}</span>
+                            {status.pincode && (
+                              <span className="text-gray-500 ml-1">({status.pincode})</span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {(() => {
+                        const status = liveStatus[agent.id || agent._id];
+                        if (!status?.lastSeen) {
+                          return <span className="text-gray-400">Never</span>;
+                        }
+                        const lastSeen = new Date(status.lastSeen);
+                        const now = new Date();
+                        const diffMs = now.getTime() - lastSeen.getTime();
+                        const diffSec = Math.floor(diffMs / 1000);
+                        const diffMin = Math.floor(diffSec / 60);
+                        const diffHour = Math.floor(diffMin / 60);
+                        const diffDay = Math.floor(diffHour / 24);
+
+                        let timeAgo = '';
+                        if (diffSec < 60) {
+                          timeAgo = `${diffSec} sec ago`;
+                        } else if (diffMin < 60) {
+                          timeAgo = `${diffMin} min ago`;
+                        } else if (diffHour < 24) {
+                          timeAgo = `${diffHour} hour${diffHour > 1 ? 's' : ''} ago`;
+                        } else {
+                          timeAgo = `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
+                        }
+
+                        return (
+                          <span className="font-medium" title={lastSeen.toLocaleString()}>
+                            {timeAgo}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {agent.email}
