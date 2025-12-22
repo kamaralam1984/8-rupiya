@@ -16,10 +16,11 @@ interface SEOModalProps {
 
 export default function SEOModal({ isOpen, onClose, shopName, area, category, pincode, email, onSave }: SEOModalProps) {
   const [ranking, setRanking] = useState<number>(1);
+  const [saving, setSaving] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!email || !email.trim()) {
       toast.error('Email ID is required for SEO');
       return;
@@ -30,14 +31,77 @@ export default function SEOModal({ isOpen, onClose, shopName, area, category, pi
       return;
     }
 
-    // Store SEO data temporarily - will be saved after shop creation
-    onSave({ ranking });
-    setRanking(1);
+    if (!shopName || !shopName.trim()) {
+      toast.error('Shop Name is required');
+      return;
+    }
+
+    if (!area || !area.trim()) {
+      toast.error('Area is required');
+      return;
+    }
+
+    if (!category || !category.trim()) {
+      toast.error('Category is required');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      // Get agent token for authentication
+      const token = typeof window !== 'undefined' ? localStorage.getItem('agent_token') : null;
+
+      const response = await fetch('/api/seo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          shopName: shopName.trim(),
+          area: area.trim(),
+          category: category.trim(),
+          pincode: pincode?.trim() || undefined,
+          emailId: email.trim(),
+          ranking: ranking,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success('SEO entry saved successfully!');
+        onSave({ ranking });
+        setRanking(1);
+        onClose();
+      } else {
+        // Handle duplicate entry error
+        if (data.error && data.error.includes('already exists')) {
+          toast.error('SEO entry already exists for this shop. You can update it later.');
+        } else {
+          toast.error(data.error || data.details || 'Failed to save SEO entry');
+        }
+      }
+    } catch (error: any) {
+      console.error('Error saving SEO:', error);
+      toast.error(error.message || 'Failed to save SEO entry. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
+      onClick={(e) => {
+        // Close modal when clicking outside
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 z-[10000]">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-gray-900">SEO Configuration</h2>
           <button
@@ -98,8 +162,8 @@ export default function SEOModal({ isOpen, onClose, shopName, area, category, pi
           {/* Info Box */}
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-xs text-blue-800">
-              <strong>Note:</strong> SEO entry will be saved automatically when you submit the shop. 
-              This helps improve search visibility for your shop.
+              <strong>Note:</strong> SEO entry will be saved immediately when you click "Save SEO". 
+              This helps improve search visibility for your shop. You can update it later if needed.
             </p>
           </div>
         </div>
@@ -113,10 +177,10 @@ export default function SEOModal({ isOpen, onClose, shopName, area, category, pi
           </button>
           <button
             onClick={handleSave}
-            disabled={!email || ranking < 1}
+            disabled={!email || ranking < 1 || saving || !shopName || !area || !category}
             className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save SEO
+            {saving ? 'Saving...' : 'Save SEO'}
           </button>
         </div>
       </div>

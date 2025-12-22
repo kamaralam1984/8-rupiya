@@ -25,8 +25,8 @@ interface FormData {
   // Step 3
   latitude: number | null;
   longitude: number | null;
-  paymentStatus: 'PAID' | 'PENDING';
-  paymentMode: 'CASH' | 'UPI' | 'NONE';
+    paymentStatus: 'PAID' | 'PENDING';
+    paymentMode: 'CASH' | 'UPI';
   receiptNo: string;
   amount: number;
   planType: 'BASIC' | 'PREMIUM' | 'FEATURED' | 'LEFT_BAR' | 'RIGHT_SIDE' | 'BOTTOM_RAIL' | 'BANNER' | 'HERO';
@@ -57,6 +57,13 @@ export default function AddNewShopPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [showSEOModal, setShowSEOModal] = useState(false);
 
+  // Debug SEO Modal state
+  useEffect(() => {
+    if (showSEOModal) {
+      console.log('✅ SEO Modal is now open');
+    }
+  }, [showSEOModal]);
+
   const [formData, setFormData] = useState<FormData>({
     shopName: '',
     ownerName: '',
@@ -71,7 +78,7 @@ export default function AddNewShopPage() {
     latitude: null,
     longitude: null,
     paymentStatus: 'PENDING',
-    paymentMode: 'NONE',
+    paymentMode: 'UPI',
     receiptNo: '',
     amount: 100,
     planType: 'BASIC', // Default plan, lekin pehle step mein select karna hoga
@@ -1070,10 +1077,22 @@ export default function AddNewShopPage() {
               <div>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    console.log('🔍 Add SEO button clicked', {
+                      shopName: formData.shopName,
+                      category: formData.category,
+                      pincode: formData.pincode,
+                      email: formData.email,
+                      isEmailVerified,
+                      isOTPDisabled,
+                    });
+                    
                     // Area is optional - removed from required fields
                     if (!formData.shopName || !formData.category || !formData.pincode || !formData.email) {
-                      toast.error('Please fill all required fields before adding SEO');
+                      toast.error('Please fill all required fields (Shop Name, Category, Pincode, Email) before adding SEO');
                       return;
                     }
                     // Skip OTP verification if disabled
@@ -1081,6 +1100,8 @@ export default function AddNewShopPage() {
                       toast.error('Please verify your email address before adding SEO');
                       return;
                     }
+                    
+                    console.log('✅ Opening SEO Modal...');
                     setShowSEOModal(true);
                   }}
                   disabled={!formData.shopName || !formData.category || !formData.pincode || !formData.email || (!isOTPDisabled && !isEmailVerified)}
@@ -1092,6 +1113,11 @@ export default function AddNewShopPage() {
                 <p className="text-xs text-gray-500 mt-1 text-center">
                   Add SEO entry to improve search visibility (Shop Name, Category, Pincode, Email)
                 </p>
+                {(!formData.shopName || !formData.category || !formData.pincode || !formData.email) && (
+                  <p className="text-xs text-red-500 mt-1 text-center">
+                    Please fill Shop Name, Category, Pincode, and Email to enable SEO
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-4">
@@ -1440,12 +1466,11 @@ export default function AddNewShopPage() {
                     </label>
                     <select
                       value={formData.paymentMode}
-                      onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value as 'CASH' | 'UPI' | 'NONE' })}
+                      onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value as 'CASH' | 'UPI' })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="NONE">None</option>
-                      <option value="CASH">Cash</option>
                       <option value="UPI">UPI (Online Payment)</option>
+                      <option value="CASH">Cash</option>
                     </select>
                   </div>
 

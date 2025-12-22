@@ -147,7 +147,7 @@ export default function RazorpayPayment({
             setStatus('processing');
 
             // Step 3: Verify Payment
-            const verifyResponse = await fetch('/api/payment/verify', {
+            const verifyResponse = await fetch('/api/payment/verify-razorpay', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -163,7 +163,14 @@ export default function RazorpayPayment({
             const verifyData = await verifyResponse.json();
 
             if (!verifyResponse.ok || !verifyData.success) {
-              throw new Error(verifyData.error || 'Payment verification failed');
+              const errorMessage = verifyData.error || verifyData.details || 'Payment verification failed';
+              console.error('Payment verification failed:', {
+                status: verifyResponse.status,
+                error: verifyData.error,
+                details: verifyData.details,
+                fullResponse: verifyData,
+              });
+              throw new Error(errorMessage);
             }
 
             // Step 4: Payment Success
