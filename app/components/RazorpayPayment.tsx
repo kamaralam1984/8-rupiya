@@ -133,6 +133,13 @@ export default function RazorpayPayment({
 
       const { gatewayResponse, paymentId } = orderData;
 
+      console.log('🔍 Gateway response received:', {
+        hasOrderId: !!gatewayResponse?.orderId,
+        orderId: gatewayResponse?.orderId,
+        hasKey: !!gatewayResponse?.key,
+        gatewayResponseKeys: gatewayResponse ? Object.keys(gatewayResponse) : []
+      });
+
       if (!window.Razorpay) {
         throw new Error('Razorpay script not loaded');
       }
@@ -142,8 +149,69 @@ export default function RazorpayPayment({
 
       const razorpayOptions = {
         ...gatewayResponse,
+        order_id: gatewayResponse?.orderId || gatewayResponse?.order_id, // Ensure order_id is set
         handler: async function (response: any) {
           try {
+            // Check if response has error (payment failed)
+            if (response?.error) {
+              console.warn('Payment failed with error:', response.error);
+              setStatus('failed');
+              setLoading(false);
+              toast.error(response.error.description || response.error.reason || 'Payment failed. Please try again.');
+              
+              if (onError) {
+                onError(new Error(response.error.description || 'Payment failed'));
+              }
+              return; // Exit early, don't try to verify
+            }
+
+            // Log full response for debugging
+            console.log('🔍 Full Razorpay response:', JSON.stringify(response, null, 2));
+            console.log('🔍 Response type:', typeof response);
+            console.log('🔍 Response keys:', response ? Object.keys(response) : 'null');
+            
+            // Razorpay response might have different field names - normalize them
+            const orderId = response.razorpay_order_id || response.order_id || response.razorpayOrderId || response.razorpayOrderId;
+            const paymentId = response.razorpay_payment_id || response.payment_id || response.razorpayPaymentId || response.razorpayPaymentId;
+            const signature = response.razorpay_signature || response.signature || response.razorpaySignature || response.razorpaySignature;
+            
+            console.log('🔍 Extracted values:', {
+              orderId: orderId ? orderId.substring(0, 20) + '...' : 'MISSING',
+              paymentId: paymentId ? paymentId.substring(0, 20) + '...' : 'MISSING',
+              signature: signature ? signature.substring(0, 20) + '...' : 'MISSING'
+            });
+            
+            // Validate response has all required fields
+            if (!response || !orderId || !paymentId || !signature) {
+              // User likely cancelled the payment - handle gracefully
+              console.error('❌ Payment cancelled by user or incomplete response:', {
+                hasResponse: !!response,
+                hasOrderId: !!orderId,
+                hasPaymentId: !!paymentId,
+                hasSignature: !!signature,
+                responseKeys: response ? Object.keys(response) : [],
+                fullResponse: response
+              });
+              setStatus('idle');
+              setLoading(false);
+              
+              // Show user-friendly message
+              toast.error('Payment was cancelled or incomplete. Please try again.', {
+                duration: 5000
+              });
+              
+              if (onError) {
+                onError(new Error('Payment cancelled or incomplete response'));
+              }
+              return; // Exit early
+            }
+
+            console.log('✅ Payment response received:', {
+              orderId: orderId?.substring(0, 20) + '...',
+              paymentId: paymentId?.substring(0, 20) + '...',
+              hasSignature: !!signature
+            });
+
             setStatus('processing');
 
             // Step 3: Verify Payment
@@ -154,22 +222,39 @@ export default function RazorpayPayment({
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
               },
               body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
+                razorpay_order_id: orderId,
+                razorpay_payment_id: paymentId,
+                razorpay_signature: signature,
               }),
             });
 
-            const verifyData = await verifyResponse.json();
+            let verifyData;
+            try {
+              verifyData = await verifyResponse.json();
+            } catch (parseError: any) {
+              console.error('Failed to parse verification response:', parseError);
+              const responseText = await verifyResponse.text();
+              console.error('Raw response:', responseText);
+              throw new Error('Invalid response from payment verification server');
+            }
 
             if (!verifyResponse.ok || !verifyData.success) {
               const errorMessage = verifyData.error || verifyData.details || 'Payment verification failed';
-              console.error('Payment verification failed:', {
+              console.error('❌ Payment verification failed:', {
                 status: verifyResponse.status,
                 error: verifyData.error,
                 details: verifyData.details,
                 fullResponse: verifyData,
+                receivedOrderId: orderId,
               });
+              
+              // Check if payment was actually successful but verification failed due to technical issues
+              if (verifyResponse.status === 404 && verifyData.error?.includes('Payment order not found')) {
+                // Payment might have succeeded but payment record not found
+                // This could happen if there's a database sync issue
+                throw new Error('Payment record not found. Payment may have succeeded. Please check with support or try again.');
+              }
+              
               throw new Error(errorMessage);
             }
 
@@ -181,31 +266,59 @@ export default function RazorpayPayment({
               onSuccess(response);
             }
           } catch (error: any) {
-            console.error('Payment verification error:', error);
+            console.error('❌ Payment verification error:', error);
             setStatus('failed');
-            toast.error(error.message || 'Payment verification failed');
+            setLoading(false);
+            
+            // Show user-friendly error message
+            const errorMessage = error.message || 'Payment verification failed';
+            
+            // Don't show error if it's just about incomplete response (already handled above)
+            if (!errorMessage.includes('incomplete') && !errorMessage.includes('cancelled')) {
+              // Show error with more context
+              toast.error(errorMessage, {
+                duration: 6000,
+              });
+              
+              // If payment was successful in Razorpay but verification failed, show helpful message
+              if (errorMessage.includes('Payment record not found') || errorMessage.includes('verification failed')) {
+                toast('💡 Tip: Payment may have succeeded. Please check your payment history or contact support.', {
+                  duration: 8000,
+                  icon: 'ℹ️',
+                });
+              }
+            }
             
             if (onError) {
               onError(error);
             }
+          } finally {
+            setLoading(false);
           }
         },
         modal: {
           ondismiss: function () {
-            setStatus('failed');
-            toast.error('Payment cancelled by user');
+            // User closed the payment popup - handle gracefully
+            console.log('Payment popup closed by user');
+            setStatus('idle');
+            setLoading(false);
+            // Don't show error for cancellation - it's a user choice
+            // toast.info('Payment cancelled. You can try again when ready.');
             
-            // Redirect to agent dashboard if payment is cancelled
-            if (userType === 'agent') {
-              setTimeout(() => {
-                router.push('/agent/dashboard');
-              }, 1500); // Wait 1.5 seconds to show the error message
-            }
-            
-            if (onError) {
-              onError(new Error('Payment cancelled'));
-            }
+            // Don't call onError for cancellations - it's not really an error
+            // Don't redirect - let user stay on the page to try again
           },
+        },
+        // Handle payment errors
+        'onPaymentFailed': function (response: any) {
+          console.error('Razorpay payment failed:', response);
+          setStatus('failed');
+          setLoading(false);
+          toast.error(response.error?.description || 'Payment failed. Please try again.');
+          
+          if (onError) {
+            onError(new Error(response.error?.description || 'Payment failed'));
+          }
         },
       };
 

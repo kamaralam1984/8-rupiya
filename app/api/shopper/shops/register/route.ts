@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       shopName,
       ownerName,
       mobile,
+      countryCode,
       address,
       area,
       city,
@@ -101,14 +102,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Normalize mobile number
+    // Normalize mobile number (remove country code if present in mobile field)
     let normalizedMobile = mobile.trim().replace(/^(\+91|91)/, '');
     if (normalizedMobile.length !== 10 || !/^[6-9]/.test(normalizedMobile)) {
       return NextResponse.json(
-        { error: 'Please provide a valid 10-digit Indian mobile number starting with 6-9' },
+        { error: 'Please provide a valid 10-digit mobile number starting with 6-9' },
         { status: 400 }
       );
     }
+    
+    // Use provided country code or default to +91
+    const finalCountryCode = (countryCode || '+91').trim();
 
     // Create shop (similar to agent shop, but without agent commission)
     const tempUrl = `/temp/${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -118,6 +122,7 @@ export async function POST(request: NextRequest) {
         shopName: shopName.trim(),
         ownerName: ownerName.trim(),
         mobile: normalizedMobile,
+        countryCode: finalCountryCode,
         category: category.trim(),
         pincode: pincode.trim(),
         area: area?.trim() || undefined,

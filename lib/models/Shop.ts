@@ -10,6 +10,7 @@ export interface IShop extends Document {
   category: string;
   categoryRef?: Types.ObjectId; // Reference to Category model
   mobile?: string;
+  countryCode?: string; // Country code (e.g., +91, +1)
   email?: string; // Email ID for SEO and contact
   area?: string;
   fullAddress: string;
@@ -82,6 +83,12 @@ const ShopSchema = new Schema<IShop>(
       type: String,
       trim: true,
       match: [/^(\+?\d{1,3}[-.\s]?)?(\d{10})$/, 'Please provide a valid 10-digit mobile number'],
+    },
+    countryCode: {
+      type: String,
+      trim: true,
+      default: '+91', // Default to India
+      match: [/^\+\d{1,4}$/, 'Please provide a valid country code (e.g., +91, +1)'],
     },
     email: {
       type: String,

@@ -101,8 +101,15 @@ export default function MyShopsPage() {
     fetchShops();
   }, [dateFilter, paymentFilter]);
 
+  // TEMPORARY: Disable auto-refresh for 3 hours (until fix is complete)
+  const DISABLE_AUTO_REFRESH_UNTIL = new Date(Date.now() + 3 * 60 * 60 * 1000); // 3 hours from now
+  const IS_AUTO_REFRESH_DISABLED = new Date() < DISABLE_AUTO_REFRESH_UNTIL;
+
   // Auto-refresh shops list when window gains focus (e.g., when user switches back to tab)
+  // TEMPORARILY DISABLED for 3 hours
   useEffect(() => {
+    if (IS_AUTO_REFRESH_DISABLED) return;
+    
     const handleFocus = () => {
       fetchShops(false); // Silent refresh when tab becomes active
     };
@@ -112,7 +119,10 @@ export default function MyShopsPage() {
   }, []);
 
   // Auto-refresh every 2 minutes to get latest payment status (silent refresh)
+  // TEMPORARILY DISABLED for 3 hours
   useEffect(() => {
+    if (IS_AUTO_REFRESH_DISABLED) return;
+    
     const interval = setInterval(() => {
       fetchShops(false); // Silent refresh without loading indicator
     }, 120000); // Refresh every 2 minutes

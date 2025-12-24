@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find payment record - try both razorpayOrderId and orderId
+    // Find payment record - try multiple ways to find it
     let payment = await Payment.findOne({
       razorpayOrderId: razorpay_order_id,
     });
@@ -54,17 +54,56 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Also try searching by payment ID if it matches the order ID format
+    if (!payment && razorpay_order_id.startsWith('order_')) {
+      // Try to find by any field containing this order ID
+      payment = await Payment.findOne({
+        $or: [
+          { razorpayOrderId: razorpay_order_id },
+          { orderId: razorpay_order_id },
+          { 'metadata.razorpayOrderId': razorpay_order_id }
+        ]
+      });
+    }
+
     if (!payment) {
-      console.error('Payment not found for order:', razorpay_order_id);
+      console.error('❌ Payment not found for order:', razorpay_order_id);
+      console.error('🔍 Searching in database for similar orders...');
+      
+      // Log recent payments for debugging
+      const recentPayments = await Payment.find({})
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select('orderId razorpayOrderId status createdAt')
+        .lean();
+      
+      console.error('📋 Recent payments:', recentPayments);
+      
       return NextResponse.json(
         { 
           error: 'Payment order not found',
-          details: `No payment record found for order ID: ${razorpay_order_id}`,
+          details: `No payment record found for order ID: ${razorpay_order_id}. Please check if the payment was created successfully.`,
           receivedOrderId: razorpay_order_id,
+          debug: {
+            searchedFields: ['razorpayOrderId', 'orderId'],
+            recentPayments: recentPayments.map(p => ({
+              orderId: p.orderId,
+              razorpayOrderId: p.razorpayOrderId,
+              status: p.status
+            }))
+          }
         },
         { status: 404 }
       );
     }
+    
+    console.log('✅ Payment record found:', {
+      paymentId: payment._id,
+      orderId: payment.orderId,
+      razorpayOrderId: payment.razorpayOrderId,
+      status: payment.status,
+      shopId: payment.shopId
+    });
 
     // Check if already processed
     if (payment.status === 'SUCCESS') {
@@ -83,25 +122,56 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify payment signature
-    console.log('🔐 Verifying payment signature...');
-    const isValidSignature = verifyPaymentSignature({
+    console.log('🔐 Verifying payment signature...', {
       orderId: razorpay_order_id,
-      paymentId: razorpay_payment_id,
-      signature: razorpay_signature,
+      paymentId: razorpay_payment_id?.substring(0, 20) + '...',
+      hasSignature: !!razorpay_signature,
     });
+    
+    let isValidSignature = false;
+    try {
+      isValidSignature = verifyPaymentSignature({
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+        signature: razorpay_signature,
+      });
+    } catch (sigError: any) {
+      console.error('❌ Signature verification exception:', sigError);
+      payment.status = 'FAILED';
+      payment.errorMessage = `Signature verification error: ${sigError.message}`;
+      await payment.save();
+
+      return NextResponse.json(
+        { 
+          error: 'Payment signature verification failed', 
+          details: sigError.message || 'Signature verification encountered an error. Please contact support.',
+        },
+        { status: 400 }
+      );
+    }
 
     if (!isValidSignature) {
       console.error('❌ Invalid payment signature');
+      console.error('Debug info:', {
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+        paymentRecordOrderId: payment.razorpayOrderId,
+        paymentRecordOrderId2: payment.orderId,
+      });
+      
       payment.status = 'FAILED';
       payment.errorMessage = 'Invalid payment signature';
       await payment.save();
 
       return NextResponse.json(
-        { error: 'Invalid payment signature', details: 'The payment signature verification failed. Please contact support.' },
+        { 
+          error: 'Invalid payment signature', 
+          details: 'The payment signature verification failed. This could be due to incorrect Razorpay credentials or a tampered payment response. Please contact support.',
+        },
         { status: 400 }
       );
     }
-    console.log('✅ Payment signature verified');
+    console.log('✅ Payment signature verified successfully');
 
     // Fetch payment details from Razorpay
     console.log('📞 Fetching payment details from Razorpay...');
@@ -129,29 +199,57 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify payment status
+    console.log('📊 Razorpay payment status:', razorpayPayment.status);
     if (razorpayPayment.status !== 'captured' && razorpayPayment.status !== 'authorized') {
+      console.error('❌ Payment not in captured/authorized state:', razorpayPayment.status);
       payment.status = 'FAILED';
       payment.errorMessage = `Payment status: ${razorpayPayment.status}`;
       await payment.save();
 
       return NextResponse.json(
-        { error: `Payment not successful. Status: ${razorpayPayment.status}` },
+        { 
+          error: `Payment not successful`, 
+          details: `Payment status from Razorpay: ${razorpayPayment.status}. Expected: captured or authorized.`,
+          razorpayStatus: razorpayPayment.status
+        },
         { status: 400 }
       );
     }
 
     // Verify amount matches
-    const expectedAmount = payment.amount; // Already in paise
-    if (razorpayPayment.amount !== expectedAmount) {
+    const expectedAmount = Number(payment.amount) || 0; // Already in paise
+    const receivedAmount = Number(razorpayPayment.amount) || 0; // Also in paise
+    
+    console.log('💰 Amount verification:', {
+      expected: expectedAmount,
+      received: receivedAmount,
+      match: expectedAmount === receivedAmount
+    });
+    
+    if (receivedAmount !== expectedAmount) {
+      const difference = Math.abs(receivedAmount - expectedAmount);
+      console.error('❌ Amount mismatch:', {
+        expected: expectedAmount,
+        received: receivedAmount,
+        difference: difference
+      });
+      
       payment.status = 'FAILED';
-      payment.errorMessage = `Amount mismatch. Expected: ${expectedAmount}, Got: ${razorpayPayment.amount}`;
+      payment.errorMessage = `Amount mismatch. Expected: ${expectedAmount} paise (₹${expectedAmount/100}), Got: ${receivedAmount} paise (₹${receivedAmount/100})`;
       await payment.save();
 
       return NextResponse.json(
-        { error: 'Payment amount mismatch' },
+        { 
+          error: 'Payment amount mismatch',
+          details: `Expected ₹${expectedAmount/100}, but received ₹${receivedAmount/100}. Please contact support.`,
+          expectedAmount: expectedAmount,
+          receivedAmount: receivedAmount
+        },
         { status: 400 }
       );
     }
+    
+    console.log('✅ Amount verification passed');
 
     // Update payment record
     payment.status = 'SUCCESS';
@@ -235,13 +333,16 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (shopUpdateError: any) {
-        console.error('Error updating shop payment status:', shopUpdateError);
+        console.error('⚠️ Error updating shop payment status:', shopUpdateError);
         // Payment is still successful even if shop update fails
         // This can happen for new shop registrations where shop doesn't exist yet
+        // Don't fail the payment verification - payment was successful
+        console.log('✅ Payment verified successfully, but shop update failed (this is OK for new registrations)');
       }
     } else {
       // Shop not found - this is normal for new shop registrations
-      console.log('Shop not found for payment - this is normal for new shop registrations');
+      console.log('ℹ️ Shop not found for payment - this is normal for new shop registrations');
+      console.log('✅ Payment verified successfully (shop will be created during registration)');
     }
 
     console.log('✅ Payment verification successful!', {

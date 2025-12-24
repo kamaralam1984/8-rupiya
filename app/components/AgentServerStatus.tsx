@@ -2,11 +2,22 @@
 
 import { useEffect, useState } from 'react';
 
+// TEMPORARY: Disable auto-refresh for 3 hours (until fix is complete)
+const DISABLE_AUTO_REFRESH_UNTIL = new Date(Date.now() + 3 * 60 * 60 * 1000); // 3 hours from now
+const IS_AUTO_REFRESH_DISABLED = new Date() < DISABLE_AUTO_REFRESH_UNTIL;
+
 export default function AgentServerStatus() {
   const [status, setStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
   const [message, setMessage] = useState('Checking...');
 
   useEffect(() => {
+    if (IS_AUTO_REFRESH_DISABLED) {
+      // Temporarily disabled - set static status
+      setStatus('connected');
+      setMessage('Server Start');
+      return;
+    }
+
     const checkServerStatus = async () => {
       try {
         const response = await fetch('/api/agent/server-status');

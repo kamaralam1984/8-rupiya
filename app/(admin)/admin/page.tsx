@@ -60,8 +60,10 @@ export default function AdminDashboard() {
         setLoading(true);
 
         // Fetch all dashboard data in parallel
-        const [shopsRes, shoppersRes, agentsRes, revenueRes, paymentsRes, categoriesRes, bannersRes, pagesRes] = await Promise.all([
+        // Note: We fetch both shops and pending shops to get complete statistics
+        const [shopsRes, pendingShopsRes, shoppersRes, agentsRes, revenueRes, paymentsRes, categoriesRes, bannersRes, pagesRes] = await Promise.all([
           fetch('/api/admin/shops', { headers: { Authorization: `Bearer ${token}` } }),
+          fetch('/api/admin/shops/pending', { headers: { Authorization: `Bearer ${token}` } }),
           fetch('/api/admin/shoppers', { headers: { Authorization: `Bearer ${token}` } }),
           fetch('/api/admin/agents', { headers: { Authorization: `Bearer ${token}` } }),
           fetch('/api/admin/revenue', { headers: { Authorization: `Bearer ${token}` } }),
@@ -71,21 +73,50 @@ export default function AdminDashboard() {
           fetch('/api/admin/pages', { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
-        const [shopsData, shoppersData, agentsData, revenueData, paymentsData, categoriesData, bannersData, pagesData] = await Promise.all([
-          shopsRes.json(),
-          shoppersRes.json(),
-          agentsRes.json(),
-          revenueRes.json(),
-          paymentsRes.json(),
-          categoriesRes.json(),
-          bannersRes.json(),
-          pagesRes.json(),
+        // Check for errors in responses
+        const responses = [
+          { name: 'shops', res: shopsRes },
+          { name: 'pendingShops', res: pendingShopsRes },
+          { name: 'shoppers', res: shoppersRes },
+          { name: 'agents', res: agentsRes },
+          { name: 'revenue', res: revenueRes },
+          { name: 'payments', res: paymentsRes },
+          { name: 'categories', res: categoriesRes },
+          { name: 'banners', res: bannersRes },
+          { name: 'pages', res: pagesRes },
+        ];
+
+        for (const { name, res } of responses) {
+          if (!res.ok) {
+            console.error(`Error fetching ${name}:`, res.status, res.statusText);
+          }
+        }
+
+        const [shopsData, pendingShopsData, shoppersData, agentsData, revenueData, paymentsData, categoriesData, bannersData, pagesData] = await Promise.all([
+          shopsRes.json().catch(() => ({ shops: [], success: false })),
+          pendingShopsRes.json().catch(() => ({ shops: [], success: false })),
+          shoppersRes.json().catch(() => ({ shoppers: [], success: false })),
+          agentsRes.json().catch(() => ({ agents: [], success: false })),
+          revenueRes.json().catch(() => ({ totals: { totalRevenue: 0 }, success: false })),
+          paymentsRes.json().catch(() => ({ payments: [], success: false })),
+          categoriesRes.json().catch(() => ({ categories: [], success: false })),
+          bannersRes.json().catch(() => ({ banners: [], success: false })),
+          pagesRes.json().catch(() => ({ pages: [], success: false })),
         ]);
 
-        // Calculate stats
-        const allShops = shopsData?.shops || [];
-        const activeShops = allShops.filter((s: any) => s.isActive !== false && s.status === 'PAID');
-        const pendingShops = allShops.filter((s: any) => s.status === 'PENDING' || s.paymentStatus === 'PENDING');
+        // Combine all shops (paid + pending) for complete statistics
+        const paidShops = shopsData?.shops || [];
+        const pendingShopsList = pendingShopsData?.shops || [];
+        const allShops = [...paidShops, ...pendingShopsList];
+        // Fix: Check both status and paymentStatus, and isActive field
+        const activeShops = allShops.filter((s: any) => {
+          const isPaid = s.paymentStatus === 'PAID' || s.status === 'PAID';
+          const isActive = s.isActive !== false && s.isVisible !== false;
+          return isPaid && isActive;
+        });
+        const pendingShops = allShops.filter((s: any) => 
+          s.status === 'PENDING' || s.paymentStatus === 'PENDING'
+        );
 
         setStats({
           totalShops: allShops.length,
@@ -157,8 +188,19 @@ export default function AdminDashboard() {
           }));
 
         setRecentShops(recent);
+
+        // Log for debugging
+        console.log('Dashboard data loaded:', {
+          totalShops: allShops.length,
+          activeShops: activeShops.length,
+          totalShoppers: shoppersData?.shoppers?.length || 0,
+          totalAgents: agentsData?.agents?.length || 0,
+          totalRevenue: revenueData?.totals?.totalRevenue || 0,
+        });
       } catch (error: any) {
         console.error('Error fetching dashboard data:', error);
+        // Show error to user
+        alert(`Error loading dashboard: ${error.message || 'Unknown error'}. Please refresh the page.`);
       } finally {
         setLoading(false);
       }

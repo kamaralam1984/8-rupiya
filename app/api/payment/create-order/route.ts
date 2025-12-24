@@ -268,7 +268,18 @@ export async function POST(request: NextRequest) {
     // Update payment with gateway order ID
     if (gateway === 'RAZORPAY' && gatewayResponse.orderId) {
       payment.razorpayOrderId = gatewayResponse.orderId;
+      // Also store in metadata for backup lookup
+      if (!payment.metadata) {
+        payment.metadata = {};
+      }
+      payment.metadata.razorpayOrderId = gatewayResponse.orderId;
       await payment.save();
+      
+      console.log('✅ Payment record updated with Razorpay order ID:', {
+        paymentId: payment._id,
+        orderId: payment.orderId,
+        razorpayOrderId: payment.razorpayOrderId,
+      });
     }
 
     return NextResponse.json(

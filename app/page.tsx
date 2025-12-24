@@ -42,8 +42,41 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
+  // TEMPORARY: Disable homepage fetch for 3 hours (until fix is complete)
+  const DISABLE_FETCH_UNTIL = new Date(Date.now() + 3 * 60 * 60 * 1000); // 3 hours from now
+  const IS_FETCH_DISABLED = new Date() < DISABLE_FETCH_UNTIL;
+
   useEffect(() => {
     setMounted(true);
+    // TEMPORARILY DISABLED for 3 hours - use default settings
+    if (IS_FETCH_DISABLED) {
+      setSettings({
+        sections: {
+          hero: true,
+          categories: true,
+          offers: true,
+          featuredBusinesses: true,
+          topRated: true,
+          newBusinesses: true,
+          searchFilter: true,
+        },
+        heroSections: {
+          leftRail: true,
+          rightRail: true,
+          bottomRail: true,
+          bottomStrip: true,
+        },
+        layout: {
+          theme: 'light',
+          primaryColor: '#3b82f6',
+          secondaryColor: '#8b5cf6',
+          containerWidth: '98%',
+          sectionSpacing: '40px',
+        },
+      });
+      setLoading(false);
+      return;
+    }
     fetchHomepageSettings();
   }, []);
   
@@ -74,7 +107,7 @@ export default function Home() {
       // Fetch with normal caching (1 minute cache time)
       // Cache will refresh automatically within 1 minute after settings are saved
       const response = await fetch('/api/homepage', {
-        next: { revalidate: 60 }, // Revalidate every 1 minute
+        cache: 'no-store', // Don't use Next.js cache in client component
       });
       const data = await safeJsonParse<{ success: boolean; settings: HomepageSettings }>(response);
       

@@ -56,26 +56,43 @@ export function verifyPaymentSignature(params: {
   paymentId: string;
   signature: string;
 }): boolean {
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-  
-  if (!keySecret) {
-    throw new Error('Razorpay key secret not configured');
+  try {
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    
+    if (!keySecret) {
+      console.error('❌ Razorpay key secret not configured');
+      throw new Error('Razorpay key secret not configured');
+    }
+
+    // Create signature string
+    const signatureString = `${params.orderId}|${params.paymentId}`;
+    
+    // Generate expected signature
+    const expectedSignature = crypto
+      .createHmac('sha256', keySecret)
+      .update(signatureString)
+      .digest('hex');
+
+    // Compare signatures securely
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(params.signature),
+      Buffer.from(expectedSignature)
+    );
+    
+    if (!isValid) {
+      console.warn('⚠️ Signature mismatch:', {
+        orderId: params.orderId,
+        paymentId: params.paymentId?.substring(0, 20) + '...',
+        receivedSignature: params.signature?.substring(0, 20) + '...',
+        expectedSignature: expectedSignature?.substring(0, 20) + '...',
+      });
+    }
+    
+    return isValid;
+  } catch (error: any) {
+    console.error('❌ Signature verification error:', error);
+    return false;
   }
-
-  // Create signature string
-  const signatureString = `${params.orderId}|${params.paymentId}`;
-  
-  // Generate expected signature
-  const expectedSignature = crypto
-    .createHmac('sha256', keySecret)
-    .update(signatureString)
-    .digest('hex');
-
-  // Compare signatures securely
-  return crypto.timingSafeEqual(
-    Buffer.from(params.signature),
-    Buffer.from(expectedSignature)
-  );
 }
 
 /**

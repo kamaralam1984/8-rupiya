@@ -39,16 +39,24 @@ export default function AgentDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadingShops, setLoadingShops] = useState(true);
 
+  // TEMPORARY: Disable auto-refresh for 3 hours (until fix is complete)
+  const DISABLE_AUTO_REFRESH_UNTIL = new Date(Date.now() + 3 * 60 * 60 * 1000); // 3 hours from now
+  const IS_AUTO_REFRESH_DISABLED = new Date() < DISABLE_AUTO_REFRESH_UNTIL;
+
   useEffect(() => {
     fetchDashboardStats();
     fetchShops();
+    
     // Auto-refresh dashboard stats every 2 minutes (reduced from 30s for performance)
-    const interval = setInterval(() => {
-      fetchDashboardStats();
-      fetchShops();
-    }, 120000); // Refresh every 2 minutes
+    // TEMPORARILY DISABLED for 3 hours
+    if (!IS_AUTO_REFRESH_DISABLED) {
+      const interval = setInterval(() => {
+        fetchDashboardStats();
+        fetchShops();
+      }, 120000); // Refresh every 2 minutes
 
-    return () => clearInterval(interval);
+      return () => clearInterval(interval);
+    }
   }, []);
 
   const fetchDashboardStats = async () => {

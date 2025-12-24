@@ -174,34 +174,37 @@ export default function ShopQuickModal({ shopId, isOpen, onClose }: ShopQuickMod
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop with Blur - Click to Close */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+        className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 transition-opacity cursor-pointer"
         onClick={onClose}
       />
       
-      {/* Bottom Sheet Modal - Half Page */}
-      <div
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl transform transition-transform duration-300 ease-out h-[50vh] flex flex-col ${
-          isOpen ? 'translate-y-0' : 'translate-y-full'
-        }`}
+      {/* Centered Modal */}
+      <div 
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+        onClick={onClose}
       >
-        {/* Drag Handle */}
-        <div className="flex justify-center pt-3 pb-2">
-          <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
-        </div>
-
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors z-10"
-          aria-label="Close"
+        <div
+          className={`bg-white rounded-2xl shadow-2xl transform transition-all duration-300 ease-out w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden pointer-events-auto ${
+            isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
+          }`}
+          onClick={(e) => e.stopPropagation()}
         >
-          <X className="w-5 h-5 text-gray-600" />
-        </button>
+          {/* Header with Close Button */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <h2 className="text-lg font-bold text-gray-900">Shop Details</h2>
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-white/80 rounded-full transition-all duration-200 hover:scale-110"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
 
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4 scrollbar-thin">
           {loading && (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
@@ -215,9 +218,9 @@ export default function ShopQuickModal({ shopId, isOpen, onClose }: ShopQuickMod
           )}
 
           {shop && !loading && (
-            <div className="space-y-4 pb-4">
+            <div className="space-y-4">
               {/* Shop Image */}
-              <div className="relative w-full h-48 rounded-xl overflow-hidden bg-gray-100 -mx-4">
+              <div className="relative w-full h-48 md:h-56 rounded-xl overflow-hidden bg-gray-100 shadow-lg">
                 <Image
                   src={shop.photoUrl || shop.imageUrl || '/placeholder-shop.jpg'}
                   alt={shop.shopName}
@@ -230,89 +233,126 @@ export default function ShopQuickModal({ shopId, isOpen, onClose }: ShopQuickMod
                 />
               </div>
 
-              {/* Shop Name */}
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                  {shop.shopName}
-                </h2>
-                {shop.category && (
-                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
-                    {shop.category}
-                  </span>
+              {/* Shop Name and Category */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-1.5">
+                    {shop.shopName}
+                  </h2>
+                  {shop.category && (
+                    <span className="inline-block px-3 py-1 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-full text-xs font-semibold">
+                      {shop.category}
+                    </span>
+                  )}
+                </div>
+                {shop.visitorCount !== undefined && (
+                  <div className="text-right">
+                    <p className="text-xs text-gray-500 mb-0.5">Visitors</p>
+                    <p className="text-base font-bold text-blue-600">{shop.visitorCount}</p>
+                  </div>
                 )}
               </div>
 
-              {/* Full Address */}
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+              {/* Address */}
+              <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-3 border border-gray-200">
+                <div className="flex items-start gap-2">
+                  <MapPin className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-700 mb-1">Full Address</p>
-                    <p className="text-gray-900 leading-relaxed">{getFullAddress()}</p>
+                    <p className="text-xs font-bold text-gray-800 mb-1">📍 Address</p>
+                    <p className="text-gray-900 leading-relaxed text-xs">{getFullAddress()}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Action Buttons Grid */}
-              <div className="grid grid-cols-2 gap-3">
-                {/* Call Button */}
-                {(shop.mobile || shop.phone) && (
-                  <button
-                    onClick={handleCall}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors shadow-md"
-                  >
-                    <Phone className="w-5 h-5" />
-                    <span>Call</span>
-                  </button>
-                )}
+              {/* Contact Number */}
+              {(shop.mobile || shop.phone) && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 border border-green-200">
+                  <div className="flex items-start gap-2">
+                    <Phone className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-gray-800 mb-1">📞 Contact Number</p>
+                      <p className="text-gray-900 font-semibold text-sm">
+                        {shop.mobile || shop.phone}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-                {/* WhatsApp Button */}
-                {(shop.whatsappNumber || shop.mobile || shop.phone) && (
+              {/* Call and WhatsApp Buttons - Side by Side */}
+              {(shop.mobile || shop.phone || shop.whatsappNumber) && (
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Call Button */}
+                  {(shop.mobile || shop.phone) && (
+                    <button
+                      onClick={handleCall}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold text-sm hover:from-green-700 hover:to-emerald-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
+                    >
+                      <Phone className="w-5 h-5" />
+                      <span>Call Now</span>
+                    </button>
+                  )}
+
+                  {/* WhatsApp Button - Always show if contact exists */}
                   <button
                     onClick={handleWhatsApp}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-[#25D366] text-white rounded-xl font-semibold hover:bg-[#20BA5A] transition-colors shadow-md"
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#25D366] to-[#20BA5A] text-white rounded-xl font-semibold text-sm hover:from-[#20BA5A] hover:to-[#1DA851] transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
                   >
                     <MessageCircle className="w-5 h-5" />
                     <span>WhatsApp</span>
                   </button>
-                )}
+                </div>
+              )}
 
-                {/* Google Maps Button */}
-                {(shop.latitude || shop.fullAddress || shop.address) && (
-                  <button
-                    onClick={handleGoogleMaps}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-md col-span-2"
-                  >
-                    <MapPin className="w-5 h-5" />
-                    <span>View on Google Maps</span>
-                  </button>
-                )}
-              </div>
+              {/* Google Maps Button */}
+              {(shop.latitude || shop.fullAddress || shop.address) && (
+                <button
+                  onClick={handleGoogleMaps}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold text-sm hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
+                >
+                  <MapPin className="w-5 h-5" />
+                  <span>View on Google Maps</span>
+                </button>
+              )}
+
+              {/* Additional Information */}
+              {(shop.ownerName || (shop.latitude && shop.longitude)) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Owner Name */}
+                  {shop.ownerName && (
+                    <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                      <p className="text-xs text-purple-700 font-semibold mb-1">👤 Owner</p>
+                      <p className="text-xs text-purple-900 font-medium">{shop.ownerName}</p>
+                    </div>
+                  )}
+
+                  {/* Location Coordinates */}
+                  {shop.latitude && shop.longitude && (
+                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                      <p className="text-xs text-blue-700 font-semibold mb-1">📍 Coordinates</p>
+                      <p className="text-xs text-blue-900 font-mono">
+                        {shop.latitude.toFixed(6)}, {shop.longitude.toFixed(6)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Share Shop Button */}
-              <div className="border-t border-gray-200 pt-4">
+              <div className="border-t border-gray-200 pt-3">
                 <button
                   onClick={() => setIsShareModalOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-md"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold text-sm hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
                 >
                   <Share2 className="w-5 h-5" />
                   <span>Share Shop</span>
                 </button>
               </div>
-
-              {/* Location Info */}
-              {shop.latitude && shop.longitude && (
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                  <p className="text-xs text-blue-700 font-semibold mb-1">📍 Location Coordinates</p>
-                  <p className="text-sm text-blue-900">
-                    {shop.latitude.toFixed(6)}, {shop.longitude.toFixed(6)}
-                  </p>
-                </div>
-              )}
             </div>
           )}
         </div>
       </div>
+    </div>
 
       {/* Share Shop Modal */}
       {isShareModalOpen && (

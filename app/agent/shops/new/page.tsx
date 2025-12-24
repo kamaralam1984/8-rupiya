@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { PRICING_PLANS, PlanType } from '@/app/utils/pricing';
 import SEOModal from '@/app/components/SEOModal';
 import RazorpayPayment from '@/app/components/RazorpayPayment';
+import CountryCodeSelector from '@/app/components/CountryCodeSelector';
 import toast from 'react-hot-toast';
 
 interface FormData {
@@ -14,6 +15,7 @@ interface FormData {
   shopName: string;
   ownerName: string;
   mobile: string;
+  countryCode: string;
   email: string;
   category: string;
   pincode: string;
@@ -56,18 +58,14 @@ export default function AddNewShopPage() {
   const [verifyingOTP, setVerifyingOTP] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [showSEOModal, setShowSEOModal] = useState(false);
-
-  // Debug SEO Modal state
-  useEffect(() => {
-    if (showSEOModal) {
-      console.log('✅ SEO Modal is now open');
-    }
-  }, [showSEOModal]);
-
+  const [paymentSuccessful, setPaymentSuccessful] = useState(false); // Track actual payment success
+  const [agentId, setAgentId] = useState<string>(''); // Store agent ID for Razorpay
+  
   const [formData, setFormData] = useState<FormData>({
     shopName: '',
     ownerName: '',
     mobile: '',
+    countryCode: '+91', // Default to India
     email: '',
     category: '',
     pincode: '',
@@ -78,7 +76,7 @@ export default function AddNewShopPage() {
     latitude: null,
     longitude: null,
     paymentStatus: 'PENDING',
-    paymentMode: 'UPI',
+    paymentMode: 'CASH',
     receiptNo: '',
     amount: 100,
     planType: 'BASIC', // Default plan, lekin pehle step mein select karna hoga
@@ -89,6 +87,40 @@ export default function AddNewShopPage() {
 
   const [categories, setCategories] = useState<Array<{ _id: string; name: string; slug: string }>>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  
+  // Get agent ID on component mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('agent_token');
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.agentId) {
+            setAgentId(payload.agentId);
+          }
+        } catch (error) {
+          console.error('Error decoding agent token:', error);
+        }
+      }
+    }
+  }, []);
+
+  // Handle payment success for online payment
+  const handlePaymentSuccess = (response: any) => {
+    console.log('✅ Payment successful:', response);
+    setFormData(prev => ({
+      ...prev,
+      paymentStatus: 'PAID',
+      paymentMode: 'UPI',
+    }));
+    setPaymentSuccessful(true);
+    toast.success('✅ Payment successful! You can now submit the shop.');
+  };
+
+  const handlePaymentError = (error: any) => {
+    console.error('Payment error:', error);
+    toast.error('Payment failed. Please try again.');
+  };
 
   // Fetch categories from admin
   useEffect(() => {
@@ -619,6 +651,15 @@ export default function AddNewShopPage() {
       return;
     }
 
+    // Validate payment based on mode
+    if (formData.paymentMode === 'UPI') {
+      if (!paymentSuccessful && formData.paymentStatus !== 'PAID') {
+        toast.error('Please complete the online payment before submitting');
+        return;
+      }
+    }
+    // For CASH mode, payment is considered successful when selected
+
     if (formData.paymentStatus === 'PAID' && !formData.receiptNo) {
       // Auto-generate receipt number
       const timestamp = Date.now();
@@ -637,6 +678,7 @@ export default function AddNewShopPage() {
         shopName: trimmedShopName,
         ownerName: trimmedOwnerName,
         mobile: trimmedMobile,
+        countryCode: formData.countryCode || '+91',
         email: trimmedEmail,
         category: trimmedCategory,
         pincode: trimmedPincode,
@@ -912,15 +954,45 @@ export default function AddNewShopPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Mobile Number <span className="text-red-500">*</span>
+                  <span className="text-xs text-gray-500 ml-2">(10 digits only)</span>
                 </label>
-                <input
-                  type="tel"
-                  value={formData.mobile}
-                  onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter mobile number"
-                  required
-                />
+                <div className="flex">
+                  <CountryCodeSelector
+                    value={formData.countryCode}
+                    onChange={(code) => setFormData({ ...formData, countryCode: code })}
+                  />
+                  <input
+                    type="tel"
+                    value={formData.mobile}
+                    onChange={(e) => {
+                      // Only allow numeric input and max 10 digits
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setFormData({ ...formData, mobile: value });
+                    }}
+                    className={`flex-1 px-4 py-2.5 border rounded-r-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                      formData.mobile.length === 10 
+                        ? 'border-green-400 bg-green-50' 
+                        : formData.mobile.length > 0 
+                        ? 'border-yellow-400 bg-yellow-50' 
+                        : 'border-gray-300'
+                    }`}
+                    placeholder="Enter 10 digit mobile number"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    inputMode="numeric"
+                    required
+                  />
+                </div>
+                {formData.mobile.length > 0 && formData.mobile.length < 10 && (
+                  <p className="text-xs text-yellow-600 mt-1 flex items-center gap-1">
+                    <span>⚠️</span> {10 - formData.mobile.length} more digits required
+                  </p>
+                )}
+                {formData.mobile.length === 10 && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                    <span>✅</span> Valid 10-digit mobile number
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1383,19 +1455,21 @@ export default function AddNewShopPage() {
                 )}
               </div>
 
-              {/* Location Capture */}
+              {/* Location Capture and Payment */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Location <span className="text-red-500">*</span>
                 </label>
-                <button
-                  type="button"
-                  onClick={handleCaptureLocation}
-                  disabled={loading}
-                  className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
-                >
-                  {loading ? 'Capturing...' : 'Capture Current Location'}
-                </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={handleCaptureLocation}
+                    disabled={loading}
+                    className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    {loading ? 'Capturing...' : '📍 Capture Current Location'}
+                  </button>
+                </div>
                 {locationError && (
                   <p className="text-red-600 text-sm mt-2">{locationError}</p>
                 )}
@@ -1408,6 +1482,17 @@ export default function AddNewShopPage() {
                       <strong>Longitude:</strong> {formData.longitude.toFixed(6)}
                     </p>
                     <p className="text-xs text-green-600 mt-2">✓ Location captured successfully</p>
+                  </div>
+                )}
+                {paymentSuccessful && (
+                  <div className="mt-4 p-4 bg-green-50 border-2 border-green-300 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">✅</span>
+                      <div>
+                        <p className="text-sm font-semibold text-green-800">Payment Completed</p>
+                        <p className="text-xs text-green-700">Your payment has been successfully processed.</p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1428,146 +1513,41 @@ export default function AddNewShopPage() {
                 </button>
               </div>
 
-              {/* Payment Status */}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Status
+                  Amount (₹)
                 </label>
-                <div className="flex gap-4">
-                  <label className="flex-1">
-                    <input
-                      type="radio"
-                      value="PAID"
-                      checked={formData.paymentStatus === 'PAID'}
-                      onChange={(e) => setFormData({ ...formData, paymentStatus: e.target.value as 'PAID' | 'PENDING' })}
-                      className="mr-2"
-                    />
-                    Paid (₹{formData.amount})
-                  </label>
-                  <label className="flex-1">
-                    <input
-                      type="radio"
-                      value="PENDING"
-                      checked={formData.paymentStatus === 'PENDING'}
-                      onChange={(e) => setFormData({ ...formData, paymentStatus: e.target.value as 'PAID' | 'PENDING' })}
-                      className="mr-2"
-                    />
-                    Pending
-                  </label>
-                </div>
+                <input
+                  type="number"
+                  value={formData.amount}
+                  onChange={(e) => {
+                    const amount = parseFloat(e.target.value) || 0;
+                    const minAmount = PRICING_PLANS[formData.planType].amount;
+                    setFormData({ 
+                      ...formData, 
+                      amount: amount >= minAmount ? amount : minAmount 
+                    });
+                  }}
+                  min={PRICING_PLANS[formData.planType].amount}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder={`Minimum ₹${PRICING_PLANS[formData.planType].amount}/year`}
+                />
+                <p className="text-xs text-gray-500 mt-1">All plans are yearly (365 days validity)</p>
               </div>
 
-              {/* Payment Mode Selection */}
-              {formData.paymentStatus === 'PAID' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Payment Mode
-                    </label>
-                    <select
-                      value={formData.paymentMode}
-                      onChange={(e) => setFormData({ ...formData, paymentMode: e.target.value as 'CASH' | 'UPI' })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="UPI">UPI (Online Payment)</option>
-                      <option value="CASH">Cash</option>
-                    </select>
-                  </div>
-
-                  {/* Online Payment via Razorpay for UPI Mode */}
-                  {formData.paymentMode === 'UPI' && (
-                    <div className="mt-4">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        💳 Pay Online via Razorpay
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Secure online payment via UPI, Cards, Net Banking, or Wallets
-                      </p>
-                      {formData.ownerName && formData.mobile ? (
-                        <RazorpayPayment
-                          shopId="" // Empty for new shop - API will handle this
-                          planType={formData.planType}
-                          customerName={formData.ownerName}
-                          customerEmail={formData.email}
-                          customerPhone={formData.mobile}
-                          userType="agent"
-                          agentId={(() => {
-                            // Get agentId from token
-                            if (typeof window !== 'undefined') {
-                              try {
-                                const token = localStorage.getItem('agent_token');
-                                if (token) {
-                                  const payload = JSON.parse(atob(token.split('.')[1]));
-                                  return payload.agentId;
-                                }
-                              } catch (e) {
-                                console.error('Failed to get agentId from token:', e);
-                              }
-                            }
-                            return undefined;
-                          })()}
-                          onSuccess={(response) => {
-                            // Payment successful, update form data
-                            setFormData({ 
-                              ...formData, 
-                              paymentStatus: 'PAID',
-                              paymentMode: 'UPI'
-                            });
-                            toast.success('✅ Payment successful! You can now submit the shop.');
-                          }}
-                          onError={(error) => {
-                            console.error('Payment error:', error);
-                            // Don't block the form, just show error
-                          }}
-                          buttonText={`💳 Pay ₹${formData.amount} Securely`}
-                          buttonClassName="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-bold text-lg shadow-lg hover:shadow-xl"
-                        />
-                      ) : (
-                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                          <p className="text-sm text-yellow-800">
-                            Please fill in Owner Name and Mobile Number in Step 2 to proceed with online payment.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Amount (₹)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.amount}
-                      onChange={(e) => {
-                        const amount = parseFloat(e.target.value) || 0;
-                        const minAmount = PRICING_PLANS[formData.planType].amount;
-                        setFormData({ 
-                          ...formData, 
-                          amount: amount >= minAmount ? amount : minAmount 
-                        });
-                      }}
-                      min={PRICING_PLANS[formData.planType].amount}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder={`Minimum ₹${PRICING_PLANS[formData.planType].amount}/year`}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">All plans are yearly (365 days validity)</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Receipt No (Auto-generated if empty)
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.receiptNo}
-                      onChange={(e) => setFormData({ ...formData, receiptNo: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="Leave empty to auto-generate"
-                    />
-                  </div>
-                </>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Receipt No (Auto-generated if empty)
+                </label>
+                <input
+                  type="text"
+                  value={formData.receiptNo}
+                  onChange={(e) => setFormData({ ...formData, receiptNo: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Leave empty to auto-generate"
+                />
+              </div>
 
               <div>
                 <label className="flex items-center">
@@ -1581,6 +1561,92 @@ export default function AddNewShopPage() {
                 </label>
               </div>
 
+              {/* Payment Mode Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Payment Mode <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, paymentMode: 'CASH', paymentStatus: 'PAID' }));
+                      setPaymentSuccessful(true);
+                      toast.success('Cash payment selected');
+                    }}
+                    className={`px-6 py-4 rounded-lg font-semibold transition-all border-2 ${
+                      formData.paymentMode === 'CASH'
+                        ? 'bg-green-50 border-green-600 text-green-700'
+                        : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    💵 Cash Payment
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, paymentMode: 'UPI', paymentStatus: 'PENDING' }));
+                      setPaymentSuccessful(false);
+                    }}
+                    className={`px-6 py-4 rounded-lg font-semibold transition-all border-2 ${
+                      formData.paymentMode === 'UPI'
+                        ? 'bg-blue-50 border-blue-600 text-blue-700'
+                        : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    💳 Online Payment
+                  </button>
+                </div>
+
+                {/* Razorpay Payment Button - Show only for Online Payment */}
+                {formData.paymentMode === 'UPI' && !paymentSuccessful && agentId && formData.ownerName && formData.mobile && (
+                  <div className="mb-4">
+                    <RazorpayPayment
+                      shopId="" // Empty for new shop registration
+                      planType={formData.planType}
+                      customerName={formData.ownerName}
+                      customerEmail={formData.email}
+                      customerPhone={formData.mobile}
+                      userType="agent"
+                      agentId={agentId}
+                      onSuccess={handlePaymentSuccess}
+                      onError={handlePaymentError}
+                      buttonText={`💳 Pay ₹${formData.amount} Securely via Razorpay`}
+                      buttonClassName="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-bold text-lg shadow-lg hover:shadow-xl"
+                    />
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      🔒 Secure payment powered by Razorpay
+                    </p>
+                  </div>
+                )}
+
+                {/* Payment Success Message */}
+                {formData.paymentMode === 'UPI' && paymentSuccessful && (
+                  <div className="mb-4 p-4 bg-green-50 border-2 border-green-300 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">✅</span>
+                      <div>
+                        <p className="text-sm font-semibold text-green-800">Payment Completed</p>
+                        <p className="text-xs text-green-700">Your payment has been successfully processed. You can now submit the shop.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Cash Payment Confirmation */}
+                {formData.paymentMode === 'CASH' && paymentSuccessful && (
+                  <div className="mb-4 p-4 bg-green-50 border-2 border-green-300 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">💵</span>
+                      <div>
+                        <p className="text-sm font-semibold text-green-800">Cash Payment Selected</p>
+                        <p className="text-xs text-green-700">You can now submit the shop.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-4">
                 <button
                   onClick={() => setStep(3)}
@@ -1590,12 +1656,22 @@ export default function AddNewShopPage() {
                 </button>
                 <button
                   onClick={handleSubmit}
-                  disabled={loading || formData.latitude === null || formData.longitude === null}
-                  className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  disabled={
+                    loading || 
+                    formData.latitude === null || 
+                    formData.longitude === null ||
+                    (formData.paymentMode === 'UPI' && !paymentSuccessful && formData.paymentStatus !== 'PAID')
+                  }
+                  className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Submitting...' : 'Submit Shop'}
                 </button>
               </div>
+              {formData.paymentMode === 'UPI' && !paymentSuccessful && formData.paymentStatus !== 'PAID' && (
+                <p className="text-sm text-red-600 mt-2 text-center">
+                  ⚠️ Please complete the online payment first before submitting
+                </p>
+              )}
             </div>
           )}
         </main>

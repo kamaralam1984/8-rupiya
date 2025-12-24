@@ -4,6 +4,7 @@ export interface IAgentShop extends Document {
   shopName: string;
   ownerName: string;
   mobile: string;
+  countryCode?: string; // Country code (e.g., +91, +1)
   email?: string;
   category: string;
   pincode: string;
@@ -64,6 +65,12 @@ const AgentShopSchema = new Schema<IAgentShop>(
       required: [true, 'Mobile number is required'],
       trim: true,
       match: [/^(\+?\d{1,3}[-.\s]?)?(\d{10})$/, 'Please provide a valid 10-digit mobile number'],
+    },
+    countryCode: {
+      type: String,
+      trim: true,
+      default: '+91', // Default to India
+      match: [/^\+\d{1,4}$/, 'Please provide a valid country code (e.g., +91, +1)'],
     },
     email: {
       type: String,

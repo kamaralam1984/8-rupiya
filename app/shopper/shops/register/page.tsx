@@ -1,17 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useShopperAuth } from '@/app/contexts/ShopperAuthContext';
 import Image from 'next/image';
 import { PRICING_PLANS, PlanType } from '@/app/utils/pricing';
 import RazorpayPayment from '@/app/components/RazorpayPayment';
+import CountryCodeSelector from '@/app/components/CountryCodeSelector';
 import toast from 'react-hot-toast';
 
 interface FormData {
   shopName: string;
   ownerName: string;
   mobile: string;
+  countryCode: string;
   address: string;
   area: string;
   city: string;
@@ -26,6 +28,7 @@ interface FormData {
 
 export default function RegisterShopPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { shopper, isAuthenticated, token, loading: authLoading } = useShopperAuth();
   const [step, setStep] = useState(1); // 1: Plan Selection, 2: Shop Details, 3: Payment
   const [loading, setLoading] = useState(false);
@@ -34,11 +37,40 @@ export default function RegisterShopPage() {
   const [locationError, setLocationError] = useState('');
   const [categories, setCategories] = useState<Array<{ _id: string; name: string }>>([]);
   const [selectedCategory, setSelectedCategory] = useState('');
+  
+  // Check for payment success from URL params
+  useEffect(() => {
+    const paymentSuccess = searchParams?.get('payment');
+    if (paymentSuccess === 'success') {
+      // Get updated form data from sessionStorage
+      const storedFormData = sessionStorage.getItem('shopper_shop_registration_data');
+      if (storedFormData) {
+        try {
+          const parsed = JSON.parse(storedFormData);
+          if (parsed.paymentStatus === 'PAID') {
+            setFormData(prev => ({
+              ...prev,
+              paymentStatus: 'PAID',
+              planType: parsed.planType || prev.planType,
+              amount: parsed.amount || prev.amount,
+            }));
+            toast.success('✅ Payment successful! You can now submit your shop.');
+          }
+        } catch (error) {
+          console.error('Error parsing form data:', error);
+        }
+      }
+      // Set step to 3 (Payment step) and clean up URL params
+      setStep(3);
+      router.replace('/shopper/shops/register', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   const [formData, setFormData] = useState<FormData>({
     shopName: '',
     ownerName: '',
     mobile: '',
+    countryCode: '+91', // Default to India
     address: '',
     area: '',
     city: '',
@@ -244,8 +276,7 @@ export default function RegisterShopPage() {
       return;
     }
 
-    // Demo payment check is handled in payment step, not here
-
+    // Validate payment - must be PAID for submission
     if (formData.paymentStatus === 'PENDING') {
       toast.error('Please complete payment first');
       return;
@@ -271,6 +302,7 @@ export default function RegisterShopPage() {
         shopName: trimmedShopName,
         ownerName: trimmedOwnerName,
         mobile: trimmedMobile,
+        countryCode: formData.countryCode || '+91',
         email: shopper?.email,
         address: trimmedAddress,
         area: (formData.area || '').trim() || undefined,
@@ -345,28 +377,30 @@ export default function RegisterShopPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Register Your Shop</h1>
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-blue-50 to-indigo-50 py-8 px-4">
+      <div className="max-w-4xl mx-auto animate-fade-in">
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 md:p-8 transform hover:scale-[1.01] transition-all duration-300">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent mb-6 animate-fade-in-up">
+            Register Your Shop
+          </h1>
 
           {/* Step Indicator */}
-          <div className="flex items-center justify-center mb-8">
+          <div className="flex items-center justify-center mb-8 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
             <div className="flex items-center">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-500 transform hover:scale-110 ${
+                step >= 1 ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white shadow-lg shadow-cyan-200' : 'bg-gray-200 text-gray-500'
               }`}>
                 1
               </div>
-              <div className={`w-24 h-1 ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+              <div className={`w-32 h-2 rounded-full transition-all duration-500 ${step >= 2 ? 'bg-gradient-to-r from-cyan-400 to-blue-500' : 'bg-gray-200'}`} />
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-500 transform hover:scale-110 ${
+                step >= 2 ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white shadow-lg shadow-cyan-200' : 'bg-gray-200 text-gray-500'
               }`}>
                 2
               </div>
-              <div className={`w-24 h-1 ${step >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                step >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+              <div className={`w-32 h-2 rounded-full transition-all duration-500 ${step >= 3 ? 'bg-gradient-to-r from-cyan-400 to-blue-500' : 'bg-gray-200'}`} />
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-500 transform hover:scale-110 ${
+                step >= 3 ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white shadow-lg shadow-cyan-200' : 'bg-gray-200 text-gray-500'
               }`}>
                 3
               </div>
@@ -374,8 +408,8 @@ export default function RegisterShopPage() {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
+            <div className="mb-4 p-4 bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200 rounded-xl text-red-700 text-sm animate-shake shadow-lg">
+              <span className="font-semibold">⚠️</span> {error}
             </div>
           )}
 
@@ -493,14 +527,45 @@ export default function RegisterShopPage() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
                     Mobile Number *
+                    <span className="text-xs text-gray-500 ml-2 font-normal">(10 digits only)</span>
                   </label>
-                  <input
-                    type="tel"
-                    value={formData.mobile || ''}
-                    onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
+                  <div className="flex">
+                    <CountryCodeSelector
+                      value={formData.countryCode}
+                      onChange={(code) => setFormData({ ...formData, countryCode: code })}
+                    />
+                    <input
+                      type="tel"
+                      value={formData.mobile || ''}
+                      onChange={(e) => {
+                        // Only allow numeric input and max 10 digits
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setFormData({ ...formData, mobile: value });
+                      }}
+                      className={`flex-1 px-4 py-2 border rounded-r-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                        formData.mobile?.length === 10 
+                          ? 'border-green-400 bg-green-50' 
+                          : formData.mobile && formData.mobile.length > 0 
+                          ? 'border-yellow-400 bg-yellow-50' 
+                          : 'border-gray-300'
+                      }`}
+                      placeholder="Enter 10 digit mobile number"
+                      maxLength={10}
+                      pattern="[0-9]{10}"
+                      inputMode="numeric"
+                      required
+                    />
+                  </div>
+                  {formData.mobile && formData.mobile.length > 0 && formData.mobile.length < 10 && (
+                    <p className="text-xs text-yellow-600 mt-1 flex items-center gap-1">
+                      <span>⚠️</span> {10 - formData.mobile.length} more digits required
+                    </p>
+                  )}
+                  {formData.mobile && formData.mobile.length === 10 && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      <span>✅</span> Valid 10-digit mobile number
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -650,7 +715,6 @@ export default function RegisterShopPage() {
             const currentPlan = PRICING_PLANS[validPlanType];
             
             // Check if required shop details are filled
-            // If payment is already PAID (via demo payment), allow proceeding
             const hasRequiredDetails = formData.paymentStatus === 'PAID' || 
               (formData.shopName && formData.ownerName && formData.mobile && formData.address && formData.pincode);
             
@@ -682,7 +746,7 @@ export default function RegisterShopPage() {
               )}
 
               {/* Razorpay Online Payment - Show when PENDING */}
-              {formData.paymentStatus !== 'PAID' && shopper && (
+              {formData.paymentStatus !== 'PAID' && shopper && hasRequiredDetails && (
                 <div className="p-5 border-2 border-blue-400 rounded-xl bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 shadow-lg mb-4">
                   <div className="flex items-center gap-3 mb-4">
                     <span className="text-3xl">💳</span>
@@ -707,24 +771,21 @@ export default function RegisterShopPage() {
                     </div>
                   </div>
 
-                  <RazorpayPayment
-                    shopId="" // Empty for new shop registration
-                    planType={validPlanType}
-                    customerName={formData.ownerName.trim() || ''}
-                    customerEmail={shopper?.email}
-                    customerPhone={formData.mobile.trim() || ''}
-                    userType="shopper"
-                    shopperId={shopper.id}
-                    onSuccess={(response) => {
-                      setFormData({ ...formData, paymentStatus: 'PAID' });
-                      toast.success('✅ Payment successful! You can now submit your shop.');
+                  <button
+                    onClick={() => {
+                      // Save form data to sessionStorage before redirecting
+                      sessionStorage.setItem('shopper_shop_registration_data', JSON.stringify({
+                        ...formData,
+                        planType: validPlanType,
+                        paymentStatus: 'PENDING',
+                      }));
+                      // Redirect to payment page
+                      router.push('/shopper/shops/register/pay');
                     }}
-                    onError={(error) => {
-                      toast.error(error.message || 'Payment failed');
-                    }}
-                    buttonText={`💳 Pay ₹${formData.amount || currentPlan.amount} Securely`}
-                    buttonClassName="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
-                  />
+                    className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
+                  >
+                    💳 Proceed to Payment Page
+                  </button>
                   
                   <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-sm text-green-800 text-center font-semibold">
@@ -734,7 +795,7 @@ export default function RegisterShopPage() {
                 </div>
               )}
 
-              {/* Payment Completed Status - Payment Success Message */}
+              {/* Payment Completed Status */}
               {formData.paymentStatus === 'PAID' && (
                 <div className="bg-green-50 border-2 border-green-300 rounded-xl p-6 text-center">
                   <div className="text-4xl mb-2">✅</div>
@@ -761,6 +822,7 @@ export default function RegisterShopPage() {
             </div>
             );
           })()}
+
         </div>
       </div>
     </div>

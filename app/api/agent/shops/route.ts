@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
       shopName,
       ownerName,
       mobile,
+      countryCode,
       email,
       category,
       pincode,
@@ -160,6 +161,7 @@ export async function POST(request: NextRequest) {
     const trimmedShopName = (shopName || '').trim();
     const trimmedOwnerName = (ownerName || '').trim();
     const trimmedMobile = (mobile || '').trim();
+    const trimmedCountryCode = (countryCode || '+91').trim();
     const trimmedEmail = (email || '').trim();
     const trimmedCategory = (category || '').trim();
     const trimmedPincode = (pincode || '').trim();
@@ -306,18 +308,24 @@ export async function POST(request: NextRequest) {
     let shop;
     try {
       console.log('📝 Creating AgentShop document...');
-      // First create with temp URL, then update with actual URL based on shop ID
-      const tempShop = await AgentShop.create({
+      // Generate a temporary unique ID for shopUrl generation
+      // This ensures we don't have duplicate "temp" values
+      const tempId = new mongoose.Types.ObjectId();
+      const shopUrl = generateShopUrl(trimmedShopName, tempId.toString());
+      
+      // Create shop with the generated unique URL
+      shop = await AgentShop.create({
         shopName: trimmedShopName,
         ownerName: trimmedOwnerName,
         mobile: trimmedMobile,
+        countryCode: trimmedCountryCode,
         email: trimmedEmail || undefined,
         category: categoryName, // Keep category name for backward compatibility
         pincode: trimmedPincode,
         area: trimmedArea || undefined, // Area is optional - use undefined if empty
         address: trimmedAddress,
         photoUrl: trimmedPhotoUrl,
-        shopUrl: 'temp', // Temporary value, will be updated
+        shopUrl: shopUrl, // Use generated unique URL directly
         latitude: Number(latitude),
         longitude: Number(longitude),
         paymentStatus: 'PENDING', // Always PENDING - requires admin approval
@@ -335,13 +343,7 @@ export async function POST(request: NextRequest) {
         // Plan-based features automatically set ho jayenge
         visitorCount: 0,
       });
-
-      // Generate unique shop URL based on shop name and ID
-      const shopUrl = generateShopUrl(tempShop.shopName, tempShop._id.toString());
-      tempShop.shopUrl = shopUrl;
-      await tempShop.save();
       
-      shop = tempShop;
       console.log(`✅ AgentShop created successfully: ${shop._id}`);
     } catch (agentShopError: any) {
       console.error('AgentShop creation error:', agentShopError);
@@ -403,6 +405,7 @@ export async function POST(request: NextRequest) {
         category: categoryName, // Use category name
         categoryRef: categoryRef || undefined, // Link to Category model
         mobile: trimmedMobile || undefined,
+        countryCode: trimmedCountryCode || undefined,
         email: trimmedEmail || undefined, // Email ID for SEO and contact
         area: extractedArea || undefined,
         fullAddress: trimmedAddress,

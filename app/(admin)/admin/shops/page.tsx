@@ -147,9 +147,14 @@ export default function ShopsPage() {
     }
   };
 
+  // TEMPORARY: Disable auto-refresh for 3 hours (until fix is complete)
+  const DISABLE_AUTO_REFRESH_UNTIL = new Date(Date.now() + 3 * 60 * 60 * 1000); // 3 hours from now
+  const IS_AUTO_REFRESH_DISABLED = new Date() < DISABLE_AUTO_REFRESH_UNTIL;
+
   // Auto-check expiry every 5 minutes
+  // TEMPORARILY DISABLED for 3 hours
   useEffect(() => {
-    if (!token) return;
+    if (!token || IS_AUTO_REFRESH_DISABLED) return;
     
     const interval = setInterval(() => {
       checkAndMoveExpiredShops(false); // Silent check
